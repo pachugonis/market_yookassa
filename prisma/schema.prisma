@@ -46,6 +46,31 @@ enum DisputeResolution {
   PARTIAL_REFUND
 }
 
+enum ReportType {
+  PRODUCT
+  USER
+  REVIEW
+  OTHER
+}
+
+enum ReportReason {
+  SPAM
+  INAPPROPRIATE_CONTENT
+  FRAUD
+  COPYRIGHT
+  HARASSMENT
+  MISLEADING
+  OTHER
+}
+
+enum ReportStatus {
+  PENDING
+  UNDER_REVIEW
+  RESOLVED
+  REJECTED
+  CLOSED
+}
+
 model User {
   id                  String    @id @default(cuid())
   email               String    @unique
@@ -67,6 +92,7 @@ model User {
   reviews       Review[]
   disputes      Dispute[]
   disputeMessages DisputeMessage[]
+  reports       Report[]
 
   @@index([email])
   @@index([role])
@@ -260,5 +286,30 @@ model DisputeMessage {
   sender      User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
 
   @@index([disputeId])
+  @@index([createdAt])
+}
+
+model Report {
+  id              String        @id @default(cuid())
+  type            ReportType
+  reason          ReportReason
+  description     String
+  status          ReportStatus  @default(PENDING)
+  adminNote       String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  resolvedAt      DateTime?
+
+  reporterId      String
+  reporter        User          @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+
+  // Nullable references to what's being reported
+  reportedUserId  String?
+  reportedProductId String?
+  reportedReviewId String?
+
+  @@index([reporterId])
+  @@index([status])
+  @@index([type])
   @@index([createdAt])
 }

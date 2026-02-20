@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { 
@@ -10,9 +11,11 @@ import {
   FolderTree,
   Shield,
   Settings,
-  BarChart3
+  BarChart3,
+  Flag
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { Badge } from "@/components/ui/badge"
 
 const menuItems = [
   { 
@@ -41,6 +44,11 @@ const menuItems = [
     icon: FolderTree 
   },
   { 
+    title: "Жалобы", 
+    href: "/admin/reports", 
+    icon: Flag 
+  },
+  { 
     title: "Статистика", 
     href: "/admin/analytics", 
     icon: BarChart3 
@@ -54,6 +62,37 @@ const menuItems = [
 
 export function AdminSidebar() {
   const pathname = usePathname()
+  const [pendingReportsCount, setPendingReportsCount] = useState(0)
+
+  useEffect(() => {
+    const fetchPendingReports = async () => {
+      try {
+        const response = await fetch("/api/admin/reports?status=PENDING&limit=1")
+        const data = await response.json()
+        if (response.ok && data.pagination) {
+          setPendingReportsCount(data.pagination.total)
+        }
+      } catch (error) {
+        console.error("Error fetching pending reports:", error)
+      }
+    }
+
+    fetchPendingReports()
+    
+    // Listen for report status changes
+    const handleReportChange = () => {
+      fetchPendingReports()
+    }
+    window.addEventListener("reportStatusChanged", handleReportChange)
+    
+    // Refresh count every 30 seconds
+    const interval = setInterval(fetchPendingReports, 30000)
+    
+    return () => {
+      window.removeEventListener("reportStatusChanged", handleReportChange)
+      clearInterval(interval)
+    }
+  }, [])
 
   return (
     <aside className="w-64 bg-card border-r border-border h-screen sticky top-0 flex flex-col">
@@ -71,20 +110,29 @@ export function AdminSidebar() {
         {menuItems.map((item) => {
           const Icon = item.icon
           const isActive = pathname === item.href
+          const isReportsPage = item.href === "/admin/reports"
           
           return (
             <Link
               key={item.href}
               href={item.href}
               className={cn(
-                "flex items-center gap-3 px-4 py-3 rounded-lg transition-colors",
+                "flex items-center gap-3 px-4 py-3 rounded-lg transition-colors relative",
                 isActive 
                   ? "bg-primary text-primary-foreground" 
                   : "text-muted-foreground hover:bg-secondary hover:text-foreground"
               )}
             >
               <Icon className="h-5 w-5" />
-              <span className="font-medium">{item.title}</span>
+              <span className="font-medium flex-1">{item.title}</span>
+              {isReportsPage && pendingReportsCount > 0 && (
+                <Badge 
+                  variant="destructive" 
+                  className="ml-auto h-5 min-w-5 flex items-center justify-center px-1.5 text-xs"
+                >
+                  {pendingReportsCount > 99 ? "99+" : pendingReportsCount}
+                </Badge>
+              )}
             </Link>
           )
         })}

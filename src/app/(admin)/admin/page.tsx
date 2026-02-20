@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma"
 import { Card } from "@/components/ui/card"
-import { Users, Package, ShoppingCart, TrendingUp, DollarSign, Activity } from "lucide-react"
+import { Users, Package, ShoppingCart, TrendingUp, DollarSign, Activity, Flag } from "lucide-react"
 
 async function getAdminStats() {
   const [
@@ -11,6 +11,8 @@ async function getAdminStats() {
     recentUsers,
     recentPurchases,
     usersByRole,
+    totalReports,
+    pendingReports,
   ] = await Promise.all([
     prisma.user.count(),
     prisma.product.count(),
@@ -42,6 +44,10 @@ async function getAdminStats() {
       by: ["role"],
       _count: true,
     }),
+    prisma.report.count(),
+    prisma.report.count({
+      where: { status: "PENDING" },
+    }),
   ])
 
   return {
@@ -52,6 +58,8 @@ async function getAdminStats() {
     recentUsers,
     recentPurchases,
     usersByRole,
+    totalReports,
+    pendingReports,
   }
 }
 
@@ -116,6 +124,31 @@ export default async function AdminDashboard() {
             <DollarSign className="h-8 w-8 text-yellow-500" />
           </div>
           <p className="text-xs text-muted-foreground mt-4">Общая выручка</p>
+        </Card>
+      </div>
+
+      {/* Reports Stats */}
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card className="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Жалобы</p>
+              <h3 className="text-2xl font-bold mt-2">{stats.totalReports}</h3>
+            </div>
+            <Flag className="h-8 w-8 text-orange-500" />
+          </div>
+          <p className="text-xs text-muted-foreground mt-4">Всего жалоб от пользователей</p>
+        </Card>
+
+        <Card className="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Ожидают рассмотрения</p>
+              <h3 className="text-2xl font-bold mt-2">{stats.pendingReports}</h3>
+            </div>
+            <Activity className="h-8 w-8 text-red-500" />
+          </div>
+          <p className="text-xs text-muted-foreground mt-4">Требуют внимания администратора</p>
         </Card>
       </div>
 

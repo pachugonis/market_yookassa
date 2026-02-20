@@ -15,7 +15,8 @@ import {
   Loader2,
   CheckCircle,
   Package,
-  MessageSquare
+  MessageSquare,
+  Flag
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -25,6 +26,7 @@ import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
 import { formatPrice, formatDate } from "@/lib/utils"
 import { toast } from "@/hooks/use-toast"
+import { ReportDialog } from "@/components/ReportDialog"
 
 interface Review {
   id: string
@@ -513,6 +515,15 @@ export function ProductDetail({ product, avgRating, availableStock }: ProductDet
                       </>
                     )}
                   </Button>
+                  
+                  {session?.user && (
+                    <ReportDialog 
+                      type="PRODUCT" 
+                      reportedId={product.id}
+                      triggerText="Пожаловаться на товар"
+                      triggerVariant="outline"
+                    />
+                  )}
                 </div>
 
                 <div className="mt-4 space-y-2">
@@ -547,10 +558,19 @@ export function ProductDetail({ product, avgRating, availableStock }: ProductDet
                   </div>
                 </div>
                 <Separator className="my-4" />
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
                   <User className="h-4 w-4" />
                   <span>На платформе с {formatDate(new Date(product.seller.createdAt))}</span>
                 </div>
+                
+                {session?.user && session.user.id !== product.seller.id && (
+                  <ReportDialog 
+                    type="USER" 
+                    reportedId={product.seller.id}
+                    triggerText="Пожаловаться на продавца"
+                    triggerVariant="ghost"
+                  />
+                )}
               </CardContent>
             </Card>
           </motion.div>
