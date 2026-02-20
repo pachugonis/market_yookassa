@@ -16,6 +16,7 @@ const Switch = React.forwardRef<
     )}
     {...props}
     ref={ref}
+    style={{ WebkitTapHighlightColor: 'transparent' }}
   >
     <SwitchPrimitives.Thumb
       className={cn(
