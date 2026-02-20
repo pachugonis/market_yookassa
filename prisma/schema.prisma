@@ -189,7 +189,8 @@ model LicenseKey {
 }
 
 model PlatformSettings {
-  id              String   @id @default(cuid())
-  commissionRate  Int      @default(10)
-  updatedAt       DateTime @updatedAt
+  id                String   @id @default(cuid())
+  commissionRate    Int      @default(10)
+  minPayoutAmount   Int      @default(100000)
+  updatedAt         DateTime @updatedAt
 }

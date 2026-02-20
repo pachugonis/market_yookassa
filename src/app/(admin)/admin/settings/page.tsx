@@ -33,6 +33,7 @@ export default function SettingsPage() {
     minProductPrice: 1,
     maxProductPrice: 1000000,
     maxFileSize: 500,
+    minPayoutAmount: 1000,
   })
 
   // Load settings on mount
@@ -49,6 +50,7 @@ export default function SettingsPage() {
         setPlatformSettings(prev => ({
           ...prev,
           commissionRate: data.data.commissionRate,
+          minPayoutAmount: (data.data.minPayoutAmount || 100000) / 100,
         }))
       }
     } catch (error) {
@@ -93,6 +95,7 @@ export default function SettingsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           commissionRate: platformSettings.commissionRate,
+          minPayoutAmount: platformSettings.minPayoutAmount * 100,
         }),
       })
 
@@ -280,6 +283,19 @@ export default function SettingsPage() {
               className="max-w-xs"
             />
             <p className="text-xs text-muted-foreground">Максимальный размер файла для загрузки продавцами</p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="minPayoutAmount">Минимальная сумма вывода (₽)</Label>
+            <Input
+              id="minPayoutAmount"
+              type="number"
+              min="1"
+              value={platformSettings.minPayoutAmount}
+              onChange={(e) => setPlatformSettings({ ...platformSettings, minPayoutAmount: Number(e.target.value) })}
+              className="max-w-xs"
+            />
+            <p className="text-xs text-muted-foreground">Минимальная сумма для вывода средств продавцами</p>
           </div>
 
           <div className="flex justify-end">

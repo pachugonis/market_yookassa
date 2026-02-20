@@ -5,6 +5,7 @@ import { z } from "zod"
 
 const settingsSchema = z.object({
   commissionRate: z.number().min(0).max(100),
+  minPayoutAmount: z.number().min(0).optional(),
 })
 
 export async function GET() {
@@ -24,6 +25,7 @@ export async function GET() {
       settings = await prisma.platformSettings.create({
         data: {
           commissionRate: 10,
+          minPayoutAmount: 100000,
         },
       })
     }

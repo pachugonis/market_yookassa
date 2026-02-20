@@ -18,6 +18,7 @@ export default function EarningsPage() {
   const [stats, setStats] = useState<Stats | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [commissionRate, setCommissionRate] = useState(10)
+  const [minPayoutAmount, setMinPayoutAmount] = useState(100000)
 
   useEffect(() => {
     fetchStats()
@@ -44,6 +45,7 @@ export default function EarningsPage() {
       const data = await res.json()
       if (data.success && data.data) {
         setCommissionRate(data.data.commissionRate)
+        setMinPayoutAmount(data.data.minPayoutAmount || 100000)
       }
     } catch (error) {
       console.error("Error fetching commission rate:", error)
@@ -148,22 +150,22 @@ export default function EarningsPage() {
                 </span>
               </div>
               <p className="text-sm text-muted-foreground">
-                Минимальная сумма для вывода: 1 000 руб.
+                Минимальная сумма для вывода: {formatPrice(minPayoutAmount)}
               </p>
             </div>
 
             <Button 
               className="w-full" 
               size="lg"
-              disabled={(stats?.balance || 0) < 1000}
+              disabled={(stats?.balance || 0) < minPayoutAmount}
             >
               <CreditCard className="h-5 w-5 mr-2" />
               Запросить вывод
             </Button>
 
-            {(stats?.balance || 0) < 1000 && (
+            {(stats?.balance || 0) < minPayoutAmount && (
               <p className="text-sm text-center text-muted-foreground">
-                Накопите минимум 1 000 руб. для вывода средств
+                Накопите минимум {formatPrice(minPayoutAmount)} для вывода средств
               </p>
             )}
           </CardContent>
