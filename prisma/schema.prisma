@@ -1,0 +1,168 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  BUYER
+  SELLER
+  ADMIN
+}
+
+enum ProductStatus {
+  DRAFT
+  ACTIVE
+  INACTIVE
+}
+
+enum PurchaseStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum PayoutStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String
+  password      String
+  role          UserRole  @default(BUYER)
+  avatar        String?
+  verified      Boolean   @default(false)
+  balance       Int       @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  products      Product[]
+  purchases     Purchase[]
+  payouts       Payout[]
+  reviews       Review[]
+
+  @@index([email])
+  @@index([role])
+}
+
+model Category {
+  id          String    @id @default(cuid())
+  name        String
+  slug        String    @unique
+  icon        String
+  description String?
+  createdAt   DateTime  @default(now())
+
+  products    Product[]
+
+  @@index([slug])
+}
+
+model Product {
+  id            String        @id @default(cuid())
+  title         String
+  description   String
+  price         Int
+  coverImage    String?
+  fileUrl       String
+  fileName      String
+  fileSize      Int
+  status        ProductStatus @default(DRAFT)
+  downloadCount Int           @default(0)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  sellerId      String
+  seller        User          @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+
+  categoryId    String
+  category      Category      @relation(fields: [categoryId], references: [id])
+
+  purchases     Purchase[]
+  reviews       Review[]
+
+  @@index([sellerId])
+  @@index([categoryId])
+  @@index([status])
+  @@index([price])
+}
+
+model Purchase {
+  id                String         @id @default(cuid())
+  amount            Int
+  commission        Int
+  sellerEarnings    Int
+  yookassaPaymentId String?
+  status            PurchaseStatus @default(PENDING)
+  downloadToken     String?        @unique
+  downloadCount     Int            @default(0)
+  downloadExpiresAt DateTime?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  buyerId           String
+  buyer             User           @relation(fields: [buyerId], references: [id], onDelete: Cascade)
+
+  productId         String
+  product           Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  downloadLogs      DownloadLog[]
+
+  @@index([buyerId])
+  @@index([productId])
+  @@index([status])
+  @@index([downloadToken])
+}
+
+model Payout {
+  id             String       @id @default(cuid())
+  amount         Int
+  status         PayoutStatus @default(PENDING)
+  method         String?
+  accountDetails String?
+  requestedAt    DateTime     @default(now())
+  processedAt    DateTime?
+
+  sellerId       String
+  seller         User         @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+
+  @@index([sellerId])
+  @@index([status])
+}
+
+model Review {
+  id        String   @id @default(cuid())
+  rating    Int
+  comment   String?
+  createdAt DateTime @default(now())
+
+  buyerId   String
+  buyer     User     @relation(fields: [buyerId], references: [id], onDelete: Cascade)
+
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([buyerId, productId])
+  @@index([productId])
+}
+
+model DownloadLog {
+  id           String   @id @default(cuid())
+  ipAddress    String?
+  userAgent    String?
+  downloadedAt DateTime @default(now())
+
+  purchaseId   String
+  purchase     Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+
+  @@index([purchaseId])
+}

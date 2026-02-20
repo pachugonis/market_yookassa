@@ -1,0 +1,111 @@
+"use client"
+
+import Link from "next/link"
+import Image from "next/image"
+import { motion } from "framer-motion"
+import { Star, Download } from "lucide-react"
+import { Card, CardContent } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { formatPrice } from "@/lib/utils"
+
+interface ProductCardProps {
+  id: string
+  title: string
+  price: number
+  coverImage: string | null
+  seller: {
+    name: string
+    avatar: string | null
+  }
+  category: {
+    name: string
+    slug: string
+  }
+  downloadCount?: number
+  avgRating?: number
+}
+
+export function ProductCard({
+  id,
+  title,
+  price,
+  coverImage,
+  seller,
+  category,
+  downloadCount = 0,
+  avgRating,
+}: ProductCardProps) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      whileHover={{ y: -4 }}
+      transition={{ duration: 0.2 }}
+    >
+      <Link href={`/products/${id}`}>
+        <Card className="overflow-hidden group cursor-pointer card-hover border-0 shadow-md hover:shadow-xl">
+          <div className="relative aspect-[4/3] bg-secondary overflow-hidden">
+            {coverImage ? (
+              <Image
+                src={coverImage}
+                alt={title}
+                fill
+                className="object-cover transition-transform duration-300 group-hover:scale-105"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/20 to-primary/5">
+                <span className="text-4xl font-bold text-primary/30">
+                  {title.charAt(0)}
+                </span>
+              </div>
+            )}
+            <Badge className="absolute top-3 left-3" variant="secondary">
+              {category.name}
+            </Badge>
+          </div>
+          <CardContent className="p-4 space-y-3">
+            <h3 className="font-semibold text-lg line-clamp-1 group-hover:text-primary transition-colors">
+              {title}
+            </h3>
+            
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Avatar className="h-6 w-6">
+                  <AvatarImage src={seller.avatar || ""} />
+                  <AvatarFallback className="text-xs bg-primary/10 text-primary">
+                    {seller.name.charAt(0)}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="text-sm text-muted-foreground truncate max-w-[100px]">
+                  {seller.name}
+                </span>
+              </div>
+              
+              <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                {avgRating !== undefined && avgRating > 0 && (
+                  <div className="flex items-center gap-1">
+                    <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                    <span>{avgRating.toFixed(1)}</span>
+                  </div>
+                )}
+                {downloadCount > 0 && (
+                  <div className="flex items-center gap-1">
+                    <Download className="h-4 w-4" />
+                    <span>{downloadCount}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            <div className="pt-2 border-t">
+              <span className="text-xl font-bold text-primary">
+                {formatPrice(price)}
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+      </Link>
+    </motion.div>
+  )
+}
