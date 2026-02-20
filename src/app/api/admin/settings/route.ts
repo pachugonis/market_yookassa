@@ -6,6 +6,11 @@ import { z } from "zod"
 const settingsSchema = z.object({
   commissionRate: z.number().min(0).max(100),
   minPayoutAmount: z.number().min(0).optional(),
+  notifyNewUser: z.boolean().optional(),
+  notifyNewProduct: z.boolean().optional(),
+  notifyNewPurchase: z.boolean().optional(),
+  notifyPayoutRequest: z.boolean().optional(),
+  notifyReportSubmission: z.boolean().optional(),
 })
 
 export async function GET() {
@@ -26,6 +31,11 @@ export async function GET() {
         data: {
           commissionRate: 10,
           minPayoutAmount: 100000,
+          notifyNewUser: true,
+          notifyNewProduct: true,
+          notifyNewPurchase: true,
+          notifyPayoutRequest: true,
+          notifyReportSubmission: false,
         },
       })
     }

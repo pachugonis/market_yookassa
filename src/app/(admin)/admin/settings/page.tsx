@@ -52,6 +52,13 @@ export default function SettingsPage() {
           commissionRate: data.data.commissionRate,
           minPayoutAmount: (data.data.minPayoutAmount || 100000) / 100,
         }))
+        setNotifications({
+          notifyNewUser: data.data.notifyNewUser ?? true,
+          notifyNewProduct: data.data.notifyNewProduct ?? true,
+          notifyNewPurchase: data.data.notifyNewPurchase ?? true,
+          notifyPayoutRequest: data.data.notifyPayoutRequest ?? true,
+          notifyReportSubmission: data.data.notifyReportSubmission ?? false,
+        })
       }
     } catch (error) {
       console.error("Error loading settings:", error)
@@ -72,11 +79,11 @@ export default function SettingsPage() {
 
   // Notification settings
   const [notifications, setNotifications] = useState({
-    newUserRegistration: true,
-    newProductSubmission: true,
-    newPurchase: true,
-    payoutRequest: true,
-    reportSubmission: false,
+    notifyNewUser: true,
+    notifyNewProduct: true,
+    notifyNewPurchase: true,
+    notifyPayoutRequest: true,
+    notifyReportSubmission: false,
   })
 
   // Security settings
@@ -147,12 +154,26 @@ export default function SettingsPage() {
   const handleSaveNotifications = async () => {
     setIsLoading(true)
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      toast({
-        title: "Успех",
-        description: "Настройки уведомлений сохранены",
+      const response = await fetch("/api/admin/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(notifications),
       })
+
+      const data = await response.json()
+
+      if (data.success) {
+        toast({
+          title: "Успех",
+          description: "Настройки уведомлений сохранены",
+        })
+      } else {
+        toast({
+          title: "Ошибка",
+          description: data.error || "Не удалось сохранить настройки уведомлений",
+          variant: "destructive",
+        })
+      }
     } catch (error) {
       toast({
         title: "Ошибка",
@@ -404,8 +425,8 @@ export default function SettingsPage() {
               <p className="text-sm text-muted-foreground">Получать уведомления при регистрации</p>
             </div>
             <Switch
-              checked={notifications.newUserRegistration}
-              onCheckedChange={(checked: boolean) => setNotifications({ ...notifications, newUserRegistration: checked })}
+              checked={notifications.notifyNewUser}
+              onCheckedChange={(checked: boolean) => setNotifications({ ...notifications, notifyNewUser: checked })}
             />
           </div>
 
@@ -415,8 +436,8 @@ export default function SettingsPage() {
               <p className="text-sm text-muted-foreground">Уведомлять о загрузке новых товаров</p>
             </div>
             <Switch
-              checked={notifications.newProductSubmission}
-              onCheckedChange={(checked: boolean) => setNotifications({ ...notifications, newProductSubmission: checked })}
+              checked={notifications.notifyNewProduct}
+              onCheckedChange={(checked: boolean) => setNotifications({ ...notifications, notifyNewProduct: checked })}
             />
           </div>
 
@@ -426,8 +447,8 @@ export default function SettingsPage() {
               <p className="text-sm text-muted-foreground">Уведомлять о каждой покупке</p>
             </div>
             <Switch
-              checked={notifications.newPurchase}
-              onCheckedChange={(checked: boolean) => setNotifications({ ...notifications, newPurchase: checked })}
+              checked={notifications.notifyNewPurchase}
+              onCheckedChange={(checked: boolean) => setNotifications({ ...notifications, notifyNewPurchase: checked })}
             />
           </div>
 
@@ -437,8 +458,8 @@ export default function SettingsPage() {
               <p className="text-sm text-muted-foreground">Уведомлять о запросах продавцов на выплату</p>
             </div>
             <Switch
-              checked={notifications.payoutRequest}
-              onCheckedChange={(checked: boolean) => setNotifications({ ...notifications, payoutRequest: checked })}
+              checked={notifications.notifyPayoutRequest}
+              onCheckedChange={(checked: boolean) => setNotifications({ ...notifications, notifyPayoutRequest: checked })}
             />
           </div>
 
@@ -448,8 +469,8 @@ export default function SettingsPage() {
               <p className="text-sm text-muted-foreground">Уведомлять о жалобах пользователей</p>
             </div>
             <Switch
-              checked={notifications.reportSubmission}
-              onCheckedChange={(checked: boolean) => setNotifications({ ...notifications, reportSubmission: checked })}
+              checked={notifications.notifyReportSubmission}
+              onCheckedChange={(checked: boolean) => setNotifications({ ...notifications, notifyReportSubmission: checked })}
             />
           </div>
 
