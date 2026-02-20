@@ -51,6 +51,7 @@ export default function SettingsPage() {
           ...prev,
           commissionRate: data.data.commissionRate,
           minPayoutAmount: (data.data.minPayoutAmount || 100000) / 100,
+          maxFileSize: data.data.maxFileSize || 500,
         }))
         setNotifications({
           notifyNewUser: data.data.notifyNewUser ?? true,
@@ -109,6 +110,7 @@ export default function SettingsPage() {
         body: JSON.stringify({
           commissionRate: platformSettings.commissionRate,
           minPayoutAmount: platformSettings.minPayoutAmount * 100,
+          maxFileSize: platformSettings.maxFileSize,
         }),
       })
 

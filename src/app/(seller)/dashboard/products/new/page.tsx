@@ -30,6 +30,7 @@ export default function NewProductPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [uploadingFile, setUploadingFile] = useState(false)
   const [uploadingCover, setUploadingCover] = useState(false)
+  const [maxFileSize, setMaxFileSize] = useState(500)
 
   const [formData, setFormData] = useState({
     title: "",
@@ -46,6 +47,7 @@ export default function NewProductPage() {
 
   useEffect(() => {
     fetchCategories()
+    fetchSettings()
   }, [])
 
   const fetchCategories = async () => {
@@ -57,6 +59,18 @@ export default function NewProductPage() {
       }
     } catch (error) {
       console.error("Error fetching categories:", error)
+    }
+  }
+
+  const fetchSettings = async () => {
+    try {
+      const res = await fetch("/api/settings")
+      const data = await res.json()
+      if (data.success && data.data?.maxFileSize) {
+        setMaxFileSize(data.data.maxFileSize)
+      }
+    } catch (error) {
+      console.error("Error fetching settings:", error)
     }
   }
 
@@ -317,7 +331,7 @@ export default function NewProductPage() {
                     <>
                       <Upload className="h-8 w-8 text-muted-foreground mb-2" />
                       <span className="text-sm text-muted-foreground">
-                        Загрузите файл для скачивания (до 500MB)
+                        Загрузите файл для скачивания (до {maxFileSize}MB)
                       </span>
                     </>
                   )}

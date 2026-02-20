@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
+import { prisma } from "@/lib/prisma"
 import { writeFile, mkdir } from "fs/promises"
 import path from "path"
 import { v4 as uuidv4 } from "uuid"
-
-const MAX_FILE_SIZE = 500 * 1024 * 1024 // 500MB
 
 export async function POST(request: NextRequest) {
   try {
@@ -24,6 +23,29 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Get max file size from settings
+    let settings = await prisma.platformSettings.findFirst()
+    if (!settings) {
+      settings = await prisma.platformSettings.create({
+        data: {
+          commissionRate: 10,
+          minPayoutAmount: 100000,
+          maxFileSize: 500,
+          notifyNewUser: true,
+          notifyNewProduct: true,
+          notifyNewPurchase: true,
+          notifyPayoutRequest: true,
+          notifyReportSubmission: false,
+          requireEmailVerification: false,
+          enableTwoFactor: false,
+          sessionTimeout: 24,
+          maxLoginAttempts: 5,
+        },
+      })
+    }
+
+    const MAX_FILE_SIZE = settings.maxFileSize * 1024 * 1024 // Convert MB to bytes
+
     const formData = await request.formData()
     const file = formData.get("file") as File | null
     const type = formData.get("type") as string | null // "product" or "cover"
@@ -37,7 +59,7 @@ export async function POST(request: NextRequest) {
 
     if (file.size > MAX_FILE_SIZE) {
       return NextResponse.json(
-        { success: false, error: "Файл слишком большой (максимум 500MB)" },
+        { success: false, error: `Файл слишком большой (максимум ${settings.maxFileSize}MB)` },
         { status: 400 }
       )
     }
