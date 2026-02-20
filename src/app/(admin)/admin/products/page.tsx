@@ -112,7 +112,7 @@ export default async function ProductsPage() {
                     <span className="text-sm">{product.category.name}</span>
                   </td>
                   <td className="p-4">
-                    <span className="font-medium">{(product.price / 100).toFixed(2)} ₽</span>
+                    <span className="font-medium">{product.price} ₽</span>
                   </td>
                   <td className="p-4">{getStatusBadge(product.status)}</td>
                   <td className="p-4 text-center">{product._count.purchases}</td>

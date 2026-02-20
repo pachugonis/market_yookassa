@@ -129,7 +129,7 @@ export default function NewProductPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...formData,
-          price: Math.round(parseFloat(formData.price) * 100),
+          price: parseInt(formData.price),
           licenseKeys: licenseKeysArray,
         }),
       })
