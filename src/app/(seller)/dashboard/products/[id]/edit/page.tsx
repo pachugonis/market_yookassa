@@ -89,7 +89,7 @@ export default function EditProductPage() {
         setFormData({
           title: product.title,
           description: product.description,
-          price: product.price.toString(),
+          price: (product.price / 100).toString(),
           categoryId: product.categoryId,
           coverImage: product.coverImage || "",
           status: product.status,
@@ -162,7 +162,7 @@ export default function EditProductPage() {
         body: JSON.stringify({
           title: formData.title,
           description: formData.description,
-          price: parseInt(formData.price),
+          price: Math.round(parseFloat(formData.price) * 100),
           categoryId: formData.categoryId,
           coverImage: formData.coverImage || null,
           status: formData.status,
