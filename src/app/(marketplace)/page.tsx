@@ -18,6 +18,7 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { MagicBento } from "@/components/ui/magic-bento"
 
 const categories = [
   { name: "Программы", slug: "software", icon: Monitor, color: "from-blue-500 to-cyan-500" },
@@ -30,21 +31,27 @@ const categories = [
   { name: "Документы", slug: "documents", icon: FileText, color: "from-slate-500 to-gray-500" },
 ]
 
-const features = [
+const bentoItems = [
   {
-    icon: Shield,
     title: "Безопасные платежи",
-    description: "Оплата через YooKassa с защитой покупателя"
+    description: "Оплата через YooKassa с защитой покупателя",
+    icon: <Shield className="h-10 w-10 text-primary" />,
+    className: "md:col-span-1",
+    gradient: "bg-gradient-to-br from-blue-500/20 to-cyan-500/10"
   },
   {
-    icon: Zap,
     title: "Мгновенная доставка",
-    description: "Скачивайте товары сразу после оплаты"
+    description: "Скачивайте товары сразу после оплаты",
+    icon: <Zap className="h-10 w-10 text-primary" />,
+    className: "md:col-span-1",
+    gradient: "bg-gradient-to-br from-purple-500/20 to-pink-500/10"
   },
   {
-    icon: Sparkles,
     title: "Качественные товары",
-    description: "Проверенные продавцы и модерация контента"
+    description: "Проверенные продавцы и модерация контента",
+    icon: <Sparkles className="h-10 w-10 text-primary" />,
+    className: "md:col-span-1",
+    gradient: "bg-gradient-to-br from-green-500/20 to-emerald-500/10"
   },
 ]
 
@@ -157,8 +164,8 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Features Section */}
-      <section className="py-16 md:py-24 bg-secondary/30">
+      {/* Magic Bento Section */}
+      <section className="py-16 md:py-24 bg-secondary/10">
         <div className="container mx-auto px-4">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -172,56 +179,7 @@ export default function HomePage() {
             </p>
           </motion.div>
 
-          <motion.div
-            variants={containerVariants}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
-            className="grid md:grid-cols-3 gap-8"
-          >
-            {features.map((feature, index) => (
-              <motion.div key={index} variants={itemVariants}>
-                <Card className="border-0 shadow-md h-full">
-                  <CardContent className="p-8 text-center">
-                    <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-6">
-                      <feature.icon className="h-8 w-8 text-primary" />
-                    </div>
-                    <h3 className="text-xl font-semibold mb-3">{feature.title}</h3>
-                    <p className="text-muted-foreground">{feature.description}</p>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))}
-          </motion.div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="py-16 md:py-24">
-        <div className="container mx-auto px-4">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true }}
-            className="relative overflow-hidden rounded-3xl gradient-purple p-8 md:p-16 text-center text-white"
-          >
-            <div className="absolute inset-0 bg-black/10" />
-            <div className="relative">
-              <h2 className="text-3xl md:text-4xl font-bold mb-4">
-                Начните продавать сегодня
-              </h2>
-              <p className="text-white/80 max-w-2xl mx-auto mb-8 text-lg">
-                Зарегистрируйтесь как продавец и начните зарабатывать на своих цифровых товарах. 
-                Комиссия платформы — всего 10%.
-              </p>
-              <Link href="/register">
-                <Button size="lg" variant="secondary" className="text-base">
-                  Стать продавцом
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </Button>
-              </Link>
-            </div>
-          </motion.div>
+          <MagicBento items={bentoItems} />
         </div>
       </section>
     </div>
