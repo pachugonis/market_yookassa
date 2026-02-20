@@ -20,15 +20,22 @@ export async function GET() {
       )
     }
 
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000)
+
     const [
-      user,
+      availableBalance,
       totalProducts,
       totalSales,
       recentSales,
     ] = await Promise.all([
-      prisma.user.findUnique({
-        where: { id: session.user.id },
-        select: { balance: true },
+      // Available balance - only purchases older than 24 hours
+      prisma.purchase.aggregate({
+        where: {
+          product: { sellerId: session.user.id },
+          status: "COMPLETED",
+          createdAt: { lt: twentyFourHoursAgo },
+        },
+        _sum: { sellerEarnings: true },
       }),
       prisma.product.count({
         where: { sellerId: session.user.id },
@@ -58,7 +65,7 @@ export async function GET() {
     return NextResponse.json({
       success: true,
       data: {
-        balance: user?.balance || 0,
+        balance: availableBalance._sum.sellerEarnings || 0,
         totalProducts,
         totalSales: totalSales._count,
         totalEarnings: totalSales._sum.sellerEarnings || 0,

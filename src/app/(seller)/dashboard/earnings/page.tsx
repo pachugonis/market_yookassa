@@ -152,6 +152,9 @@ export default function EarningsPage() {
               <p className="text-sm text-muted-foreground">
                 Минимальная сумма для вывода: {(minPayoutAmount / 100).toLocaleString('ru-RU')} ₽
               </p>
+              <p className="text-xs text-muted-foreground mt-2">
+                Средства становятся доступны через 24 часа после покупки
+              </p>
             </div>
 
             <Button 
