@@ -21,9 +21,11 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { formatPrice, formatDate } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 import TwoFactorSettings from "@/components/TwoFactorSettings"
+import ChangePassword from "@/components/ChangePassword"
 
 interface UserProfile {
   id: string
@@ -185,7 +187,15 @@ export default function ProfilePage() {
         </p>
       </motion.div>
 
-      <div className="grid gap-6">
+      <Tabs defaultValue="profile" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="profile">Основная информация</TabsTrigger>
+          <TabsTrigger value="security">Безопасность</TabsTrigger>
+        </TabsList>
+
+        {/* Profile Tab */}
+        <TabsContent value="profile" className="space-y-6">
+          <div className="grid gap-6">
         {/* Main Profile Card */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -346,13 +356,18 @@ export default function ProfilePage() {
             </Card>
           )}
         </motion.div>
+          </div>
+        </TabsContent>
 
-        {/* Two-Factor Authentication */}
-        <TwoFactorSettings 
-          twoFactorEnabled={profile.twoFactorEnabled} 
-          onStatusChange={fetchProfile}
-        />
-      </div>
+        {/* Security Tab */}
+        <TabsContent value="security" className="space-y-6">
+          <ChangePassword />
+          <TwoFactorSettings 
+            twoFactorEnabled={profile.twoFactorEnabled} 
+            onStatusChange={fetchProfile}
+          />
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

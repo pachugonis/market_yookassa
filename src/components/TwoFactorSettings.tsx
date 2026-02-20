@@ -1,7 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import { motion } from "framer-motion"
 import { Shield, Loader2, Copy, Check, AlertTriangle, Lock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -205,21 +204,16 @@ export default function TwoFactorSettings({ twoFactorEnabled, onStatusChange }: 
 
   return (
     <>
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
-      >
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Shield className="h-5 w-5" />
-              <CardTitle>Двухфакторная аутентификация</CardTitle>
-            </div>
-            <CardDescription>
-              Добавьте дополнительный уровень безопасности для вашего аккаунта
-            </CardDescription>
-          </CardHeader>
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Shield className="h-5 w-5" />
+            <CardTitle>Двухфакторная аутентификация</CardTitle>
+          </div>
+          <CardDescription>
+            Добавьте дополнительный уровень безопасности для вашего аккаунта
+          </CardDescription>
+        </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between p-4 rounded-lg border bg-card">
               <div className="flex-1">
@@ -257,7 +251,6 @@ export default function TwoFactorSettings({ twoFactorEnabled, onStatusChange }: 
             )}
           </CardContent>
         </Card>
-      </motion.div>
 
       {/* Setup Dialog */}
       <Dialog open={isSetupOpen} onOpenChange={handleCloseSetup}>
