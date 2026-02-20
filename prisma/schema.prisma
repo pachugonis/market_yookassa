@@ -187,3 +187,9 @@ model LicenseKey {
   @@index([productId])
   @@index([isSold])
 }
+
+model PlatformSettings {
+  id              String   @id @default(cuid())
+  commissionRate  Int      @default(10)
+  updatedAt       DateTime @updatedAt
+}

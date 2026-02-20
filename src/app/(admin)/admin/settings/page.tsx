@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -22,6 +22,7 @@ import { useToast } from "@/hooks/use-toast"
 export default function SettingsPage() {
   const { toast } = useToast()
   const [isLoading, setIsLoading] = useState(false)
+  const [isLoadingSettings, setIsLoadingSettings] = useState(true)
 
   // Platform settings
   const [platformSettings, setPlatformSettings] = useState({
@@ -33,6 +34,29 @@ export default function SettingsPage() {
     maxProductPrice: 1000000,
     maxFileSize: 500,
   })
+
+  // Load settings on mount
+  useEffect(() => {
+    loadSettings()
+  }, [])
+
+  const loadSettings = async () => {
+    try {
+      const response = await fetch("/api/admin/settings")
+      const data = await response.json()
+
+      if (data.success && data.data) {
+        setPlatformSettings(prev => ({
+          ...prev,
+          commissionRate: data.data.commissionRate,
+        }))
+      }
+    } catch (error) {
+      console.error("Error loading settings:", error)
+    } finally {
+      setIsLoadingSettings(false)
+    }
+  }
 
   // Email settings
   const [emailSettings, setEmailSettings] = useState({
@@ -64,14 +88,28 @@ export default function SettingsPage() {
   const handleSavePlatformSettings = async () => {
     setIsLoading(true)
     try {
-      // Here you would typically save to a settings table in the database
-      // For now, just simulate saving
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      toast({
-        title: "Успех",
-        description: "Настройки платформы сохранены",
+      const response = await fetch("/api/admin/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          commissionRate: platformSettings.commissionRate,
+        }),
       })
+
+      const data = await response.json()
+
+      if (data.success) {
+        toast({
+          title: "Успех",
+          description: "Настройки платформы сохранены",
+        })
+      } else {
+        toast({
+          title: "Ошибка",
+          description: data.error || "Не удалось сохранить настройки",
+          variant: "destructive",
+        })
+      }
     } catch (error) {
       toast({
         title: "Ошибка",
