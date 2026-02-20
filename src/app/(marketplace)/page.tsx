@@ -147,16 +147,27 @@ export default function HomePage() {
             {categories.map((category) => (
               <motion.div key={category.slug} variants={itemVariants}>
                 <Link href={`/category/${category.slug}`}>
-                  <Card className="group cursor-pointer card-hover border-0 shadow-md hover:shadow-xl overflow-hidden">
-                    <CardContent className="p-6 text-center">
-                      <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${category.color} flex items-center justify-center mx-auto mb-4 transform group-hover:scale-110 transition-transform duration-300`}>
-                        <category.icon className="h-7 w-7 text-white" />
-                      </div>
-                      <h3 className="font-semibold group-hover:text-primary transition-colors">
-                        {category.name}
-                      </h3>
-                    </CardContent>
-                  </Card>
+                  <div className="relative group">
+                    <Card className="relative overflow-hidden h-full border-0 shadow-lg hover:shadow-2xl transition-all duration-500">
+                      {/* Animated Background Gradient */}
+                      <div className={`absolute inset-0 opacity-50 group-hover:opacity-70 transition-opacity duration-500 bg-gradient-to-br ${category.color}`} />
+                      
+                      {/* Animated Border Glow */}
+                      <div className="absolute inset-0 bg-gradient-to-br from-primary/0 via-primary/20 to-primary/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                      
+                      <CardContent className="p-6 text-center relative">
+                        <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${category.color} flex items-center justify-center mx-auto mb-4 transform group-hover:scale-110 transition-transform duration-300`}>
+                          <category.icon className="h-7 w-7 text-white" />
+                        </div>
+                        <h3 className="font-semibold group-hover:text-primary transition-colors">
+                          {category.name}
+                        </h3>
+                      </CardContent>
+                      
+                      {/* Decorative Element */}
+                      <div className="absolute bottom-0 right-0 w-20 h-20 bg-primary/5 rounded-tl-full transform translate-x-10 translate-y-10 group-hover:translate-x-8 group-hover:translate-y-8 transition-transform duration-500" />
+                    </Card>
+                  </div>
                 </Link>
               </motion.div>
             ))}
