@@ -64,7 +64,7 @@ export function ProductManager({ product }: ProductManagerProps) {
   const [formData, setFormData] = useState({
     title: product.title,
     description: product.description,
-    price: product.price / 100,
+    price: product.price,
     status: product.status,
     categoryId: product.categoryId,
   })
@@ -95,7 +95,7 @@ export function ProductManager({ product }: ProductManagerProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...formData,
-          price: Math.round(formData.price * 100),
+          price: Math.round(formData.price),
         }),
       })
 
