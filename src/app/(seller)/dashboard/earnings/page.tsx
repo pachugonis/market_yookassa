@@ -150,7 +150,7 @@ export default function EarningsPage() {
                 </span>
               </div>
               <p className="text-sm text-muted-foreground">
-                Минимальная сумма для вывода: {formatPrice(minPayoutAmount)}
+                Минимальная сумма для вывода: {(minPayoutAmount / 100).toLocaleString('ru-RU')} ₽
               </p>
             </div>
 
@@ -165,7 +165,7 @@ export default function EarningsPage() {
 
             {(stats?.balance || 0) < minPayoutAmount && (
               <p className="text-sm text-center text-muted-foreground">
-                Накопите минимум {formatPrice(minPayoutAmount)} для вывода средств
+                Накопите минимум {(minPayoutAmount / 100).toLocaleString('ru-RU')} ₽ для вывода средств
               </p>
             )}
           </CardContent>
