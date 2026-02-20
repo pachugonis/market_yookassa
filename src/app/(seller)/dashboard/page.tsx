@@ -155,7 +155,13 @@ export default function DashboardPage() {
                     <div>
                       <p className="font-medium">{sale.product.title}</p>
                       <p className="text-sm text-muted-foreground">
-                        {sale.buyer.name} • {formatDate(new Date(sale.createdAt))}
+                        {sale.buyer.name} • {new Date(sale.createdAt).toLocaleString("ru-RU", {
+                          day: "2-digit",
+                          month: "2-digit",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
                       </p>
                     </div>
                     <div className="text-right">

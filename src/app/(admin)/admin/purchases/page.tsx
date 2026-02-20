@@ -125,7 +125,7 @@ export default async function PurchasesPage() {
                   </td>
                   <td className="p-4">{getStatusBadge(purchase.status)}</td>
                   <td className="p-4 text-sm text-muted-foreground whitespace-nowrap">
-                    {new Date(purchase.createdAt).toLocaleDateString("ru-RU", {
+                    {new Date(purchase.createdAt).toLocaleString("ru-RU", {
                       day: "2-digit",
                       month: "2-digit",
                       year: "numeric",

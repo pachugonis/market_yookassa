@@ -62,6 +62,7 @@ export default function DisputeChatPage() {
   const [newMessage, setNewMessage] = useState("")
   const [isLoading, setIsLoading] = useState(true)
   const [isSending, setIsSending] = useState(false)
+  const [isClosing, setIsClosing] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -81,6 +82,33 @@ export default function DisputeChatPage() {
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+  }
+
+  const handleCloseDispute = async () => {
+    if (!confirm("Вы уверены, что хотите закрыть спор? Это действие нельзя отменить.")) {
+      return
+    }
+
+    setIsClosing(true)
+    try {
+      const res = await fetch(`/api/disputes/${disputeId}/close`, {
+        method: "POST",
+      })
+
+      const data = await res.json()
+
+      if (data.success) {
+        alert(data.message || "Спор закрыт")
+        router.push("/disputes")
+      } else {
+        alert(data.error || "Ошибка при закрытии спора")
+      }
+    } catch (error) {
+      console.error("Error closing dispute:", error)
+      alert("Ошибка при закрытии спора")
+    } finally {
+      setIsClosing(false)
+    }
   }
 
   const fetchDispute = async () => {
@@ -239,10 +267,13 @@ export default function DisputeChatPage() {
             {dispute.status === "OPEN" && (
               <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg flex items-start gap-2">
                 <AlertCircle className="h-5 w-5 text-yellow-600 dark:text-yellow-500 shrink-0" />
-                <div className="text-sm">
+                <div className="text-sm flex-1">
                   <p className="font-medium text-yellow-900 dark:text-yellow-100">Спор активен</p>
                   <p className="text-yellow-700 dark:text-yellow-300">
                     Сделка на паузе. Средства заблокированы до разрешения спора.
+                  </p>
+                  <p className="text-yellow-700 dark:text-yellow-300 mt-1">
+                    Если проблема решена, вы можете закрыть спор в чате ниже.
                   </p>
                 </div>
               </div>
@@ -254,7 +285,26 @@ export default function DisputeChatPage() {
       {/* Chat */}
       <Card>
         <CardHeader>
-          <CardTitle>Чат</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle>Чат</CardTitle>
+            {dispute.status === "OPEN" && (
+              <Button
+                variant="outline"
+                onClick={handleCloseDispute}
+                disabled={isClosing}
+                className="text-green-600 hover:text-green-700 hover:bg-green-50"
+              >
+                {isClosing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    Закрываем...
+                  </>
+                ) : (
+                  "Закрыть спор"
+                )}
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           <div className="space-y-4 mb-4 max-h-[500px] overflow-y-auto">
