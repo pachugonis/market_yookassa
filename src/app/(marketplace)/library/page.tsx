@@ -29,6 +29,7 @@ interface Purchase {
     id: string
     key: string
   } | null
+  hasReview?: boolean
 }
 
 export default function LibraryPage() {
@@ -56,7 +57,20 @@ export default function LibraryPage() {
       const res = await fetch("/api/purchases")
       const data = await res.json()
       if (data.success) {
-        setPurchases(data.data)
+        // Fetch user reviews to check which products already have reviews
+        const reviewsRes = await fetch("/api/reviews/my-reviews")
+        const reviewsData = await reviewsRes.json()
+        const reviewedProductIds = reviewsData.success 
+          ? new Set(reviewsData.data.map((r: any) => r.productId))
+          : new Set()
+        
+        // Mark purchases that already have reviews
+        const purchasesWithReviewStatus = data.data.map((p: Purchase) => ({
+          ...p,
+          hasReview: reviewedProductIds.has(p.product.id)
+        }))
+        
+        setPurchases(purchasesWithReviewStatus)
       }
     } catch (error) {
       console.error("Error fetching purchases:", error)
@@ -261,13 +275,15 @@ export default function LibraryPage() {
                                 </>
                               )}
                             </Button>
-                            <Button
-                              variant="outline"
-                              onClick={() => router.push(`/products/${purchase.product.id}#reviews`)}
-                            >
-                              <MessageSquare className="h-4 w-4" />
-                              Оставить отзыв
-                            </Button>
+                            {!purchase.hasReview && (
+                              <Button
+                                variant="outline"
+                                onClick={() => router.push(`/products/${purchase.product.id}#reviews`)}
+                              >
+                                <MessageSquare className="h-4 w-4" />
+                                Оставить отзыв
+                              </Button>
+                            )}
                             <span className="text-sm text-muted-foreground">
                               Скачано: {purchase.downloadCount} раз
                             </span>

@@ -281,20 +281,20 @@ export function ProductDetail({ product, avgRating, availableStock }: ProductDet
               <h2 className="text-xl font-semibold">
                 Отзывы ({product._count.reviews})
               </h2>
-              {hasPurchased && session?.user && (
+              {hasPurchased && session?.user && !userReview && (
                 <Button
                   variant={showReviewForm ? "outline" : "default"}
                   size="sm"
                   onClick={() => setShowReviewForm(!showReviewForm)}
                 >
                   <MessageSquare className="h-4 w-4 mr-2" />
-                  {userReview ? "Редактировать отзыв" : "Оставить отзыв"}
+                  Оставить отзыв
                 </Button>
               )}
             </div>
 
             {/* Review Form */}
-            {showReviewForm && hasPurchased && (
+            {showReviewForm && hasPurchased && !userReview && (
               <Card className="mb-4">
                 <CardContent className="p-4">
                   <div className="space-y-4">
@@ -352,7 +352,7 @@ export function ProductDetail({ product, avgRating, availableStock }: ProductDet
                             Отправка...
                           </>
                         ) : (
-                          userReview ? "Обновить отзыв" : "Отправить отзыв"
+                          "Отправить отзыв"
                         )}
                       </Button>
                       <Button
@@ -361,6 +361,50 @@ export function ProductDetail({ product, avgRating, availableStock }: ProductDet
                       >
                         Отмена
                       </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* User's existing review - shown instead of form */}
+            {userReview && (
+              <Card className="mb-4 border-primary/50">
+                <CardContent className="p-4">
+                  <div className="flex items-start gap-3">
+                    <Avatar>
+                      <AvatarImage src={userReview.buyer.avatar || ""} />
+                      <AvatarFallback>
+                        {userReview.buyer.name.charAt(0)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">{userReview.buyer.name}</span>
+                          <Badge variant="secondary" className="text-xs">Ваш отзыв</Badge>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {[...Array(5)].map((_, i) => (
+                            <Star
+                              key={i}
+                              className={`h-4 w-4 ${
+                                i < userReview.rating
+                                  ? "fill-yellow-400 text-yellow-400"
+                                  : "text-gray-200"
+                              }`}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                      {userReview.comment && (
+                        <p className="text-muted-foreground text-sm">
+                          {userReview.comment}
+                        </p>
+                      )}
+                      <p className="text-xs text-muted-foreground mt-2">
+                        {formatDate(new Date(userReview.createdAt))}
+                      </p>
                     </div>
                   </div>
                 </CardContent>
