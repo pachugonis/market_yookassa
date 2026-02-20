@@ -300,7 +300,7 @@ export default async function AnalyticsPage() {
             <div>
               <p className="text-sm font-medium text-muted-foreground">Выручка</p>
               <h3 className="text-2xl font-bold mt-2">
-                {(analytics.revenue.current / 100).toFixed(2)} ₽
+                {analytics.revenue.current.toLocaleString('ru-RU')} ₽
               </h3>
               <div className={`flex items-center gap-1 mt-2 text-sm ${
                 analytics.revenue.growth >= 0 ? "text-green-600" : "text-red-600"
@@ -337,7 +337,7 @@ export default async function AnalyticsPage() {
                 </div>
                 <div className="text-right">
                   <p className="font-medium">{product._count.purchases} продаж</p>
-                  <p className="text-xs text-muted-foreground">{(product.price / 100).toFixed(2)} ₽</p>
+                  <p className="text-xs text-muted-foreground">{product.price.toLocaleString('ru-RU')} ₽</p>
                 </div>
               </div>
             ))}
@@ -389,7 +389,7 @@ export default async function AnalyticsPage() {
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm font-medium">{category.name}</span>
                   <div className="text-right">
-                    <span className="text-sm font-bold">{(category.revenue / 100).toFixed(2)} ₽</span>
+                    <span className="text-sm font-bold">{category.revenue.toLocaleString('ru-RU')} ₽</span>
                     <span className="text-xs text-muted-foreground ml-2">({category.count} продаж)</span>
                   </div>
                 </div>
@@ -414,7 +414,7 @@ export default async function AnalyticsPage() {
               <span className="text-sm font-medium">{day.date}</span>
               <div className="flex items-center gap-6">
                 <span className="text-sm">{day.count} покупок</span>
-                <span className="text-sm font-bold">{(day.revenue / 100).toFixed(2)} ₽</span>
+                <span className="text-sm font-bold">{day.revenue.toLocaleString('ru-RU')} ₽</span>
               </div>
             </div>
           ))}

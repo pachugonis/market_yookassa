@@ -115,7 +115,7 @@ export default async function PurchasesPage() {
                     <p className="text-sm max-w-xs truncate">{purchase.product.title}</p>
                   </td>
                   <td className="p-4">
-                    <span className="font-medium">{(purchase.amount / 100).toFixed(2)} ₽</span>
+                    <span className="font-medium">{purchase.amount.toLocaleString('ru-RU')} ₽</span>
                   </td>
                   <td className="p-4">
                     <span className="text-sm text-red-600">{(purchase.commission / 100).toFixed(2)} ₽</span>

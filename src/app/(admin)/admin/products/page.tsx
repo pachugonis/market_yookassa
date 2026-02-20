@@ -148,7 +148,7 @@ export default async function ProductsPage() {
         <Card className="p-6">
           <h3 className="font-semibold mb-2">Общая выручка</h3>
           <p className="text-3xl font-bold">
-            {(products.reduce((sum: number, p: any) => sum + (p.price * p._count.purchases), 0) / 100).toFixed(2)} ₽
+            {products.reduce((sum: number, p: any) => sum + (p.price * p._count.purchases), 0).toLocaleString('ru-RU')} ₽
           </p>
         </Card>
       </div>
