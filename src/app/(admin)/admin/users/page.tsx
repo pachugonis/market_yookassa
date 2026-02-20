@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { UserRole } from "@prisma/client"
+import { UserManager } from "@/components/admin/user-manager"
 
 async function getUsers() {
   const users = await prisma.user.findMany({
@@ -60,6 +61,7 @@ export default async function UsersPage() {
                 <th className="text-left p-4 font-medium">Покупки</th>
                 <th className="text-left p-4 font-medium">Баланс</th>
                 <th className="text-left p-4 font-medium">Дата регистрации</th>
+                <th className="text-right p-4 font-medium">Действия</th>
               </tr>
             </thead>
             <tbody>
@@ -89,6 +91,11 @@ export default async function UsersPage() {
                   </td>
                   <td className="p-4 text-sm text-muted-foreground">
                     {new Date(user.createdAt).toLocaleDateString("ru-RU")}
+                  </td>
+                  <td className="p-4">
+                    <div className="flex justify-end">
+                      <UserManager user={user} />
+                    </div>
                   </td>
                 </tr>
               ))}
