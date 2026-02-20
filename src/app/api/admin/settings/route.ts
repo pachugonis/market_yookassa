@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth"
 import { z } from "zod"
 
 const settingsSchema = z.object({
-  commissionRate: z.number().min(0).max(100),
+  commissionRate: z.number().min(0).max(100).optional(),
   minPayoutAmount: z.number().min(0).optional(),
   notifyNewUser: z.boolean().optional(),
   notifyNewProduct: z.boolean().optional(),
