@@ -80,7 +80,7 @@ export default async function PurchasesPage() {
         </Card>
         <Card className="p-6">
           <h3 className="font-semibold mb-2">Выручка</h3>
-          <p className="text-3xl font-bold">{(stats.totalRevenue / 100).toFixed(2)} ₽</p>
+          <p className="text-3xl font-bold">{stats.totalRevenue.toLocaleString('ru-RU')} ₽</p>
         </Card>
       </div>
 
@@ -118,10 +118,10 @@ export default async function PurchasesPage() {
                     <span className="font-medium">{purchase.amount.toLocaleString('ru-RU')} ₽</span>
                   </td>
                   <td className="p-4">
-                    <span className="text-sm text-red-600">{(purchase.commission / 100).toFixed(2)} ₽</span>
+                    <span className="text-sm text-red-600">{purchase.commission.toLocaleString('ru-RU')} ₽</span>
                   </td>
                   <td className="p-4">
-                    <span className="text-sm text-green-600">{(purchase.sellerEarnings / 100).toFixed(2)} ₽</span>
+                    <span className="text-sm text-green-600">{purchase.sellerEarnings.toLocaleString('ru-RU')} ₽</span>
                   </td>
                   <td className="p-4">{getStatusBadge(purchase.status)}</td>
                   <td className="p-4 text-sm text-muted-foreground whitespace-nowrap">
