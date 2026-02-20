@@ -5,7 +5,7 @@ import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
 import { motion } from "framer-motion"
-import { Download, Package, Calendar, FileDown, Loader2, Key, Copy, Check, MessageSquare } from "lucide-react"
+import { Download, Package, Calendar, FileDown, Loader2, Key, Copy, Check, MessageSquare, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -29,6 +29,11 @@ interface Purchase {
     id: string
     key: string
   } | null
+  dispute: {
+    id: string
+    status: string
+    createdAt: string
+  } | null
   hasReview?: boolean
 }
 
@@ -39,6 +44,9 @@ export default function LibraryPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [downloadingId, setDownloadingId] = useState<string | null>(null)
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
+  const [openingDispute, setOpeningDispute] = useState<string | null>(null)
+  const [disputeReason, setDisputeReason] = useState("")
+  const [showDisputeDialog, setShowDisputeDialog] = useState<string | null>(null)
 
   useEffect(() => {
     if (sessionStatus === "unauthenticated") {
@@ -123,6 +131,50 @@ export default function LibraryPage() {
       setTimeout(() => setCopiedKey(null), 2000)
     } catch (error) {
       console.error("Failed to copy:", error)
+    }
+  }
+
+  const canOpenDispute = (purchase: Purchase) => {
+    if (purchase.status !== "COMPLETED") return false
+    if (purchase.dispute) return false
+    if (purchase.hasReview) return false
+    
+    const hoursSincePurchase = (Date.now() - new Date(purchase.createdAt).getTime()) / (1000 * 60 * 60)
+    return hoursSincePurchase <= 24
+  }
+
+  const handleOpenDispute = async (purchaseId: string) => {
+    if (!disputeReason.trim()) {
+      alert("Пожалуйста, укажите причину спора")
+      return
+    }
+
+    setOpeningDispute(purchaseId)
+    try {
+      const res = await fetch("/api/disputes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          purchaseId,
+          reason: disputeReason,
+        }),
+      })
+
+      const data = await res.json()
+
+      if (data.success) {
+        alert(data.message || "Спор открыт")
+        setShowDisputeDialog(null)
+        setDisputeReason("")
+        fetchPurchases()
+      } else {
+        alert(data.error || "Ошибка при открытии спора")
+      }
+    } catch (error) {
+      console.error("Error opening dispute:", error)
+      alert("Ошибка при открытии спора")
+    } finally {
+      setOpeningDispute(null)
     }
   }
 
@@ -225,6 +277,27 @@ export default function LibraryPage() {
                       {/* Download Button */}
                       {purchase.status === "COMPLETED" && purchase.downloadToken && (
                         <div className="mt-4 space-y-3">
+                          {/* Dispute Warning */}
+                          {purchase.dispute && purchase.dispute.status === "OPEN" && (
+                            <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg flex items-start gap-2">
+                              <AlertCircle className="h-5 w-5 text-yellow-600 dark:text-yellow-500 shrink-0 mt-0.5" />
+                              <div className="text-sm">
+                                <p className="font-medium text-yellow-900 dark:text-yellow-100">Открыт спор</p>
+                                <p className="text-yellow-700 dark:text-yellow-300 mt-0.5">
+                                  Сделка на паузе. Средства заблокированы до разрешения.
+                                </p>
+                                <Button
+                                  variant="link"
+                                  size="sm"
+                                  className="p-0 h-auto text-yellow-700 dark:text-yellow-300 hover:text-yellow-900 dark:hover:text-yellow-100"
+                                  onClick={() => router.push(`/disputes`)}
+                                >
+                                  Перейти к спору →
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+
                           {/* License Key */}
                           {purchase.licenseKey && (
                             <div className="p-3 bg-primary/5 border border-primary/20 rounded-lg">
@@ -258,7 +331,7 @@ export default function LibraryPage() {
                           )}
 
                           {/* Download Button */}
-                          <div className="flex items-center gap-4">
+                          <div className="flex items-center gap-4 flex-wrap">
                             <Button
                               onClick={() => handleDownload(purchase)}
                               disabled={downloadingId === purchase.id}
@@ -275,7 +348,7 @@ export default function LibraryPage() {
                                 </>
                               )}
                             </Button>
-                            {!purchase.hasReview && (
+                            {!purchase.hasReview && !purchase.dispute && (
                               <Button
                                 variant="outline"
                                 onClick={() => router.push(`/products/${purchase.product.id}#reviews`)}
@@ -284,10 +357,60 @@ export default function LibraryPage() {
                                 Оставить отзыв
                               </Button>
                             )}
+                            {canOpenDispute(purchase) && (
+                              <Button
+                                variant="destructive"
+                                onClick={() => setShowDisputeDialog(purchase.id)}
+                              >
+                                <AlertCircle className="h-4 w-4" />
+                                Открыть спор
+                              </Button>
+                            )}
                             <span className="text-sm text-muted-foreground">
                               Скачано: {purchase.downloadCount} раз
                             </span>
                           </div>
+
+                          {/* Dispute Dialog */}
+                          {showDisputeDialog === purchase.id && (
+                            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                              <div className="bg-white dark:bg-gray-900 rounded-lg p-6 max-w-md w-full">
+                                <h3 className="text-lg font-semibold mb-4">Открыть спор</h3>
+                                <p className="text-sm text-muted-foreground mb-4">
+                                  Опишите причину открытия спора. Продавец будет уведомлен.
+                                </p>
+                                <textarea
+                                  className="w-full p-3 border rounded-lg mb-4 min-h-[120px]"
+                                  placeholder="Опишите проблему..."
+                                  value={disputeReason}
+                                  onChange={(e) => setDisputeReason(e.target.value)}
+                                />
+                                <div className="flex gap-2">
+                                  <Button
+                                    onClick={() => handleOpenDispute(purchase.id)}
+                                    disabled={openingDispute === purchase.id}
+                                    className="flex-1"
+                                  >
+                                    {openingDispute === purchase.id ? (
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                      "Открыть спор"
+                                    )}
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    onClick={() => {
+                                      setShowDisputeDialog(null)
+                                      setDisputeReason("")
+                                    }}
+                                    className="flex-1"
+                                  >
+                                    Отмена
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>

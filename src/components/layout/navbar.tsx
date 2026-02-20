@@ -12,7 +12,8 @@ import {
   Package,
   Menu,
   X,
-  Shield
+  Shield,
+  AlertCircle
 } from "lucide-react"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -114,6 +115,12 @@ export function Navbar() {
                     <Link href="/library" className="cursor-pointer">
                       <Package className="mr-2 h-4 w-4" />
                       Мои покупки
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/disputes" className="cursor-pointer">
+                      <AlertCircle className="mr-2 h-4 w-4" />
+                      Споры
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>

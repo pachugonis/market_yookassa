@@ -33,6 +33,19 @@ enum PayoutStatus {
   FAILED
 }
 
+enum DisputeStatus {
+  OPEN
+  RESOLVED_REFUNDED
+  RESOLVED_REJECTED
+  CLOSED
+}
+
+enum DisputeResolution {
+  REFUND_BUYER
+  REJECT_DISPUTE
+  PARTIAL_REFUND
+}
+
 model User {
   id                  String    @id @default(cuid())
   email               String    @unique
@@ -52,6 +65,8 @@ model User {
   purchases     Purchase[]
   payouts       Payout[]
   reviews       Review[]
+  disputes      Dispute[]
+  disputeMessages DisputeMessage[]
 
   @@index([email])
   @@index([role])
@@ -124,6 +139,7 @@ model Purchase {
   licenseKey        LicenseKey?    @relation(fields: [licenseKeyId], references: [id])
 
   downloadLogs      DownloadLog[]
+  dispute           Dispute?
 
   @@index([buyerId])
   @@index([productId])
@@ -205,4 +221,44 @@ model PlatformSettings {
   sessionTimeout          Int      @default(24)
   maxLoginAttempts        Int      @default(5)
   updatedAt               DateTime @updatedAt
+}
+
+model Dispute {
+  id              String          @id @default(cuid())
+  reason          String
+  status          DisputeStatus   @default(OPEN)
+  resolution      DisputeResolution?
+  resolutionNote  String?
+  refundAmount    Int?
+  createdAt       DateTime        @default(now())
+  resolvedAt      DateTime?
+  updatedAt       DateTime        @updatedAt
+
+  purchaseId      String          @unique
+  purchase        Purchase        @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+
+  buyerId         String
+  buyer           User            @relation(fields: [buyerId], references: [id], onDelete: Cascade)
+
+  messages        DisputeMessage[]
+
+  @@index([buyerId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model DisputeMessage {
+  id          String   @id @default(cuid())
+  message     String
+  isFromBuyer Boolean
+  createdAt   DateTime @default(now())
+
+  disputeId   String
+  dispute     Dispute  @relation(fields: [disputeId], references: [id], onDelete: Cascade)
+
+  senderId    String
+  sender      User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([disputeId])
+  @@index([createdAt])
 }

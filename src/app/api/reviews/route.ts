@@ -36,12 +36,23 @@ export async function POST(request: NextRequest) {
         productId,
         status: "COMPLETED",
       },
+      include: {
+        dispute: true,
+      },
     })
 
     if (!purchase) {
       return NextResponse.json(
         { success: false, error: "Вы можете оставить отзыв только на купленный товар" },
         { status: 403 }
+      )
+    }
+
+    // Check if there's an active dispute
+    if (purchase.dispute && purchase.dispute.status === "OPEN") {
+      return NextResponse.json(
+        { success: false, error: "Невозможно оставить отзыв пока открыт спор по данной покупке" },
+        { status: 400 }
       )
     }
 

@@ -31,6 +31,13 @@ export async function GET() {
             key: true,
           },
         },
+        dispute: {
+          select: {
+            id: true,
+            status: true,
+            createdAt: true,
+          },
+        },
       },
       orderBy: { createdAt: "desc" },
     })

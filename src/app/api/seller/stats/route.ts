@@ -28,12 +28,16 @@ export async function GET() {
       totalSales,
       recentSales,
     ] = await Promise.all([
-      // Available balance - only purchases older than 24 hours
+      // Available balance - only purchases older than 24 hours AND no active disputes
       prisma.purchase.aggregate({
         where: {
           product: { sellerId: session.user.id },
           status: "COMPLETED",
           createdAt: { lt: twentyFourHoursAgo },
+          OR: [
+            { dispute: null },
+            { dispute: { status: { not: "OPEN" } } },
+          ],
         },
         _sum: { sellerEarnings: true },
       }),

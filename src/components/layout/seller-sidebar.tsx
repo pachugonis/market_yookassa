@@ -11,7 +11,8 @@ import {
   Settings,
   LogOut,
   ShoppingBag,
-  ChevronLeft
+  ChevronLeft,
+  AlertCircle
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -22,6 +23,7 @@ const navItems = [
   { href: "/dashboard/products", icon: Package, label: "Товары" },
   { href: "/dashboard/sales", icon: ShoppingCart, label: "Продажи" },
   { href: "/dashboard/earnings", icon: Wallet, label: "Доходы" },
+  { href: "/dashboard/disputes", icon: AlertCircle, label: "Споры" },
 ]
 
 export function SellerSidebar() {
