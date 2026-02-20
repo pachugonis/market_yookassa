@@ -34,6 +34,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           return null
         }
 
+        // If 2FA is enabled, return user info with 2FA flag
+        // The login page will handle the 2FA verification step
         return {
           id: user.id,
           email: user.email,

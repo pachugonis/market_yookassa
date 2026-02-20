@@ -34,16 +34,19 @@ enum PayoutStatus {
 }
 
 model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
-  name          String
-  password      String
-  role          UserRole  @default(BUYER)
-  avatar        String?
-  verified      Boolean   @default(false)
-  balance       Int       @default(0)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id                  String    @id @default(cuid())
+  email               String    @unique
+  name                String
+  password            String
+  role                UserRole  @default(BUYER)
+  avatar              String?
+  verified            Boolean   @default(false)
+  balance             Int       @default(0)
+  twoFactorEnabled    Boolean   @default(false)
+  twoFactorSecret     String?
+  twoFactorBackupCodes String[]  @default([])
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
   products      Product[]
   purchases     Purchase[]

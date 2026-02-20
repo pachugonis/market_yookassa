@@ -23,6 +23,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { formatPrice, formatDate } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
+import TwoFactorSettings from "@/components/TwoFactorSettings"
 
 interface UserProfile {
   id: string
@@ -32,6 +33,7 @@ interface UserProfile {
   avatar: string | null
   verified: boolean
   balance: number
+  twoFactorEnabled: boolean
   createdAt: string
   _count: {
     purchases: number
@@ -344,6 +346,12 @@ export default function ProfilePage() {
             </Card>
           )}
         </motion.div>
+
+        {/* Two-Factor Authentication */}
+        <TwoFactorSettings 
+          twoFactorEnabled={profile.twoFactorEnabled} 
+          onStatusChange={fetchProfile}
+        />
       </div>
     </div>
   )

@@ -6,6 +6,7 @@ export default auth((req) => {
   const isLoggedIn = !!session?.user
 
   const isAuthPage = nextUrl.pathname.startsWith("/login") || nextUrl.pathname.startsWith("/register")
+  const is2FAPage = nextUrl.pathname.startsWith("/verify-2fa")
   const isSellerPage = nextUrl.pathname.startsWith("/dashboard")
   const isAdminPage = nextUrl.pathname.startsWith("/admin")
   const isApiRoute = nextUrl.pathname.startsWith("/api")
@@ -14,6 +15,11 @@ export default auth((req) => {
 
   // Allow public API routes
   if (isApiRoute && isPublicApiRoute) {
+    return NextResponse.next()
+  }
+
+  // Allow 2FA verification page
+  if (is2FAPage) {
     return NextResponse.next()
   }
 

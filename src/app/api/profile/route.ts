@@ -23,6 +23,7 @@ export async function GET() {
         avatar: true,
         verified: true,
         balance: true,
+        twoFactorEnabled: true,
         createdAt: true,
         _count: {
           select: {
@@ -89,6 +90,7 @@ export async function PATCH(request: NextRequest) {
         avatar: true,
         verified: true,
         balance: true,
+        twoFactorEnabled: true,
         createdAt: true,
         _count: {
           select: {

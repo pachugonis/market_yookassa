@@ -24,6 +24,30 @@ export default function LoginPage() {
     setIsLoading(true)
 
     try {
+      // First validate credentials
+      const credentialsCheck = await fetch("/api/auth/validate-credentials", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      })
+
+      const credData = await credentialsCheck.json()
+
+      if (!credData.success) {
+        setError("Неверный email или пароль")
+        return
+      }
+
+      // If 2FA is enabled, redirect to verification WITHOUT signing in
+      if (credData.twoFactorEnabled) {
+        // Store credentials temporarily for verification page
+        sessionStorage.setItem("2fa_pending_email", email)
+        sessionStorage.setItem("2fa_pending_password", password)
+        router.push(`/verify-2fa?email=${encodeURIComponent(email)}`)
+        return
+      }
+
+      // Try to sign in (only if 2FA is not enabled)
       const result = await signIn("credentials", {
         email,
         password,
