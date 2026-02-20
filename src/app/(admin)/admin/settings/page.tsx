@@ -50,7 +50,7 @@ export default function SettingsPage() {
         setPlatformSettings(prev => ({
           ...prev,
           commissionRate: data.data.commissionRate,
-          minPayoutAmount: (data.data.minPayoutAmount || 100000) / 100,
+          minPayoutAmount: data.data.minPayoutAmount || 100000,
         }))
       }
     } catch (error) {
@@ -95,7 +95,7 @@ export default function SettingsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           commissionRate: platformSettings.commissionRate,
-          minPayoutAmount: platformSettings.minPayoutAmount * 100,
+          minPayoutAmount: platformSettings.minPayoutAmount,
         }),
       })
 
@@ -286,7 +286,7 @@ export default function SettingsPage() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="minPayoutAmount">Минимальная сумма вывода (₽)</Label>
+            <Label htmlFor="minPayoutAmount">Минимальная сумма вывода (копейки)</Label>
             <Input
               id="minPayoutAmount"
               type="number"
@@ -295,7 +295,7 @@ export default function SettingsPage() {
               onChange={(e) => setPlatformSettings({ ...platformSettings, minPayoutAmount: Number(e.target.value) })}
               className="max-w-xs"
             />
-            <p className="text-xs text-muted-foreground">Минимальная сумма для вывода средств продавцами</p>
+            <p className="text-xs text-muted-foreground">Минимальная сумма для вывода средств продавцами (в копейках, например 100000 = 1000₽)</p>
           </div>
 
           <div className="flex justify-end">
