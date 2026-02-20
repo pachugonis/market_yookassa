@@ -8,6 +8,7 @@ const categorySchema = z.object({
   slug: z.string().min(1, "Slug обязателен"),
   icon: z.string().min(1, "Иконка обязательна"),
   description: z.string().optional(),
+  parentId: z.string().nullable().optional(),
 })
 
 export async function PUT(
@@ -56,7 +57,13 @@ export async function PUT(
 
     const category = await prisma.category.update({
       where: { id },
-      data: validatedData,
+      data: {
+        name: validatedData.name,
+        slug: validatedData.slug,
+        icon: validatedData.icon,
+        description: validatedData.description,
+        parentId: validatedData.parentId || null,
+      },
     })
 
     return NextResponse.json({ success: true, data: category })

@@ -24,8 +24,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Card } from "@/components/ui/card"
-import { Plus, Pencil, Trash2 } from "lucide-react"
+import { Plus, Pencil, Trash2, ChevronRight } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
 
@@ -35,6 +42,8 @@ interface Category {
   slug: string
   icon: string
   description: string | null
+  parentId: string | null
+  subcategories?: Category[]
   _count: {
     products: number
   }
@@ -53,11 +62,23 @@ export function CategoryManager({ categories }: CategoryManagerProps) {
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
+  // Flatten categories to show parent and subcategories in order
+  const flattenedCategories = categories.reduce((acc, category) => {
+    if (!category.parentId) {
+      acc.push(category)
+      if (category.subcategories) {
+        category.subcategories.forEach(sub => acc.push(sub))
+      }
+    }
+    return acc
+  }, [] as Category[])
+
   const [formData, setFormData] = useState({
     name: "",
     slug: "",
     icon: "",
     description: "",
+    parentId: null as string | null,
   })
 
   const resetForm = () => {
@@ -66,6 +87,7 @@ export function CategoryManager({ categories }: CategoryManagerProps) {
       slug: "",
       icon: "",
       description: "",
+      parentId: null,
     })
   }
 
@@ -190,6 +212,7 @@ export function CategoryManager({ categories }: CategoryManagerProps) {
       slug: category.slug,
       icon: category.icon,
       description: category.description || "",
+      parentId: category.parentId,
     })
     setIsEditOpen(true)
   }
@@ -249,6 +272,25 @@ export function CategoryManager({ categories }: CategoryManagerProps) {
                 />
               </div>
               <div>
+                <Label htmlFor="parent">Родительская категория (опционально)</Label>
+                <Select
+                  value={formData.parentId || "none"}
+                  onValueChange={(value) => setFormData({ ...formData, parentId: value === "none" ? null : value })}
+                >
+                  <SelectTrigger id="parent">
+                    <SelectValue placeholder="Выберите категорию" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Без родителя (основная категория)</SelectItem>
+                    {categories.filter(c => !c.parentId).map((category) => (
+                      <SelectItem key={category.id} value={category.id}>
+                        {category.icon} {category.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
                 <Label htmlFor="description">Описание</Label>
                 <Textarea
                   id="description"
@@ -284,7 +326,7 @@ export function CategoryManager({ categories }: CategoryManagerProps) {
               </tr>
             </thead>
             <tbody>
-              {categories.map((category) => (
+              {flattenedCategories.map((category) => (
                 <tr key={category.id} className="border-b border-border last:border-0 hover:bg-secondary/50">
                   <td className="p-4">
                     <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -292,7 +334,12 @@ export function CategoryManager({ categories }: CategoryManagerProps) {
                     </div>
                   </td>
                   <td className="p-4">
-                    <span className="font-semibold">{category.name}</span>
+                    <div className="flex items-center gap-2">
+                      {category.parentId && (
+                        <ChevronRight className="h-4 w-4 text-muted-foreground ml-4" />
+                      )}
+                      <span className="font-semibold">{category.name}</span>
+                    </div>
                   </td>
                   <td className="p-4">
                     <code className="text-xs bg-secondary px-2 py-1 rounded">/{category.slug}</code>
@@ -362,6 +409,25 @@ export function CategoryManager({ categories }: CategoryManagerProps) {
                 value={formData.icon}
                 onChange={(e) => setFormData({ ...formData, icon: e.target.value })}
               />
+            </div>
+            <div>
+              <Label htmlFor="edit-parent">Родительская категория (опционально)</Label>
+              <Select
+                value={formData.parentId || "none"}
+                onValueChange={(value) => setFormData({ ...formData, parentId: value === "none" ? null : value })}
+              >
+                <SelectTrigger id="edit-parent">
+                  <SelectValue placeholder="Выберите категорию" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Без родителя (основная категория)</SelectItem>
+                  {categories.filter(c => !c.parentId && c.id !== selectedCategory?.id).map((category) => (
+                    <SelectItem key={category.id} value={category.id}>
+                      {category.icon} {category.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <Label htmlFor="edit-description">Описание</Label>

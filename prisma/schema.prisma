@@ -104,11 +104,15 @@ model Category {
   slug        String    @unique
   icon        String
   description String?
+  parentId    String?
   createdAt   DateTime  @default(now())
 
+  parent      Category?  @relation("CategoryToSubcategory", fields: [parentId], references: [id], onDelete: Cascade)
+  subcategories Category[] @relation("CategoryToSubcategory")
   products    Product[]
 
   @@index([slug])
+  @@index([parentId])
 }
 
 model Product {

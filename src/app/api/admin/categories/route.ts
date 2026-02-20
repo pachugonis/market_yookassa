@@ -8,6 +8,7 @@ const categorySchema = z.object({
   slug: z.string().min(1, "Slug обязателен"),
   icon: z.string().min(1, "Иконка обязательна"),
   description: z.string().optional(),
+  parentId: z.string().nullable().optional(),
 })
 
 export async function POST(request: NextRequest) {
@@ -37,7 +38,13 @@ export async function POST(request: NextRequest) {
     }
 
     const category = await prisma.category.create({
-      data: validatedData,
+      data: {
+        name: validatedData.name,
+        slug: validatedData.slug,
+        icon: validatedData.icon,
+        description: validatedData.description,
+        parentId: validatedData.parentId || null,
+      },
     })
 
     return NextResponse.json({ success: true, data: category }, { status: 201 })
