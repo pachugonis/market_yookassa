@@ -270,45 +270,64 @@ export function CategoryManager({ categories }: CategoryManagerProps) {
         </Dialog>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {categories.map((category) => (
-          <Card key={category.id} className="p-6 hover:shadow-lg transition-shadow group relative">
-            <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-              <Button
-                size="icon"
-                variant="ghost"
-                onClick={() => openEditDialog(category)}
-              >
-                <Pencil className="h-4 w-4" />
-              </Button>
-              <Button
-                size="icon"
-                variant="ghost"
-                onClick={() => openDeleteDialog(category)}
-                disabled={category._count.products > 0}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
-            <div className="flex flex-col gap-3">
-              <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                <span className="text-2xl">{category.icon}</span>
-              </div>
-              <div>
-                <h3 className="font-semibold text-lg">{category.name}</h3>
-                <p className="text-sm text-muted-foreground mt-1">{category.description}</p>
-              </div>
-              <div className="flex items-center justify-between pt-3 border-t border-border">
-                <span className="text-sm text-muted-foreground">Товаров:</span>
-                <span className="text-lg font-bold">{category._count.products}</span>
-              </div>
-              <code className="text-xs bg-secondary px-2 py-1 rounded">
-                /{category.slug}
-              </code>
-            </div>
-          </Card>
-        ))}
-      </div>
+      <Card>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="border-b border-border">
+              <tr>
+                <th className="text-left p-4 font-medium">Иконка</th>
+                <th className="text-left p-4 font-medium">Название</th>
+                <th className="text-left p-4 font-medium">Slug</th>
+                <th className="text-left p-4 font-medium">Описание</th>
+                <th className="text-left p-4 font-medium">Товаров</th>
+                <th className="text-right p-4 font-medium">Действия</th>
+              </tr>
+            </thead>
+            <tbody>
+              {categories.map((category) => (
+                <tr key={category.id} className="border-b border-border last:border-0 hover:bg-secondary/50">
+                  <td className="p-4">
+                    <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <span className="text-xl">{category.icon}</span>
+                    </div>
+                  </td>
+                  <td className="p-4">
+                    <span className="font-semibold">{category.name}</span>
+                  </td>
+                  <td className="p-4">
+                    <code className="text-xs bg-secondary px-2 py-1 rounded">/{category.slug}</code>
+                  </td>
+                  <td className="p-4">
+                    <span className="text-sm text-muted-foreground">{category.description}</span>
+                  </td>
+                  <td className="p-4">
+                    <span className="font-medium">{category._count.products}</span>
+                  </td>
+                  <td className="p-4">
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => openEditDialog(category)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => openDeleteDialog(category)}
+                        disabled={category._count.products > 0}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
 
       {/* Edit Dialog */}
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
