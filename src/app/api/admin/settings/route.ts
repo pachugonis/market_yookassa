@@ -11,6 +11,10 @@ const settingsSchema = z.object({
   notifyNewPurchase: z.boolean().optional(),
   notifyPayoutRequest: z.boolean().optional(),
   notifyReportSubmission: z.boolean().optional(),
+  requireEmailVerification: z.boolean().optional(),
+  enableTwoFactor: z.boolean().optional(),
+  sessionTimeout: z.number().min(1).max(168).optional(),
+  maxLoginAttempts: z.number().min(3).max(10).optional(),
 })
 
 export async function GET() {
@@ -36,6 +40,10 @@ export async function GET() {
           notifyNewPurchase: true,
           notifyPayoutRequest: true,
           notifyReportSubmission: false,
+          requireEmailVerification: false,
+          enableTwoFactor: false,
+          sessionTimeout: 24,
+          maxLoginAttempts: 5,
         },
       })
     }

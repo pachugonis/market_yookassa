@@ -59,6 +59,12 @@ export default function SettingsPage() {
           notifyPayoutRequest: data.data.notifyPayoutRequest ?? true,
           notifyReportSubmission: data.data.notifyReportSubmission ?? false,
         })
+        setSecuritySettings({
+          requireEmailVerification: data.data.requireEmailVerification ?? false,
+          enableTwoFactor: data.data.enableTwoFactor ?? false,
+          sessionTimeout: data.data.sessionTimeout ?? 24,
+          maxLoginAttempts: data.data.maxLoginAttempts ?? 5,
+        })
       }
     } catch (error) {
       console.error("Error loading settings:", error)
@@ -188,12 +194,26 @@ export default function SettingsPage() {
   const handleSaveSecuritySettings = async () => {
     setIsLoading(true)
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      toast({
-        title: "Успех",
-        description: "Настройки безопасности сохранены",
+      const response = await fetch("/api/admin/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(securitySettings),
       })
+
+      const data = await response.json()
+
+      if (data.success) {
+        toast({
+          title: "Успех",
+          description: "Настройки безопасности сохранены",
+        })
+      } else {
+        toast({
+          title: "Ошибка",
+          description: data.error || "Не удалось сохранить настройки безопасности",
+          variant: "destructive",
+        })
+      }
     } catch (error) {
       toast({
         title: "Ошибка",

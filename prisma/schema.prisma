@@ -197,5 +197,9 @@ model PlatformSettings {
   notifyNewPurchase       Boolean  @default(true)
   notifyPayoutRequest     Boolean  @default(true)
   notifyReportSubmission  Boolean  @default(false)
+  requireEmailVerification Boolean @default(false)
+  enableTwoFactor         Boolean  @default(false)
+  sessionTimeout          Int      @default(24)
+  maxLoginAttempts        Int      @default(5)
   updatedAt               DateTime @updatedAt
 }
