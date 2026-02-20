@@ -5,7 +5,7 @@ import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
 import { motion } from "framer-motion"
-import { Download, Package, Calendar, FileDown, Loader2, Key, Copy, Check } from "lucide-react"
+import { Download, Package, Calendar, FileDown, Loader2, Key, Copy, Check, MessageSquare } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -260,6 +260,13 @@ export default function LibraryPage() {
                                   Скачать
                                 </>
                               )}
+                            </Button>
+                            <Button
+                              variant="outline"
+                              onClick={() => router.push(`/products/${purchase.product.id}#reviews`)}
+                            >
+                              <MessageSquare className="h-4 w-4" />
+                              Оставить отзыв
                             </Button>
                             <span className="text-sm text-muted-foreground">
                               Скачано: {purchase.downloadCount} раз

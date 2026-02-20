@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
@@ -14,13 +14,15 @@ import {
   User,
   Loader2,
   CheckCircle,
-  Package
+  Package,
+  MessageSquare
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
+import { Textarea } from "@/components/ui/textarea"
 import { formatPrice, formatDate } from "@/lib/utils"
 import { toast } from "@/hooks/use-toast"
 
@@ -62,11 +64,59 @@ export function ProductDetail({ product, avgRating, availableStock }: ProductDet
   const { data: session } = useSession()
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
+  const [hasPurchased, setHasPurchased] = useState(false)
+  const [userReview, setUserReview] = useState<Review | null>(null)
+  const [showReviewForm, setShowReviewForm] = useState(false)
+  const [rating, setRating] = useState(5)
+  const [comment, setComment] = useState("")
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false)
 
   const formatFileSize = (bytes: number) => {
     if (bytes < 1024) return bytes + " B"
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB"
     return (bytes / (1024 * 1024)).toFixed(1) + " MB"
+  }
+
+  useEffect(() => {
+    if (session?.user) {
+      checkPurchaseStatus()
+    }
+  }, [session])
+
+  useEffect(() => {
+    // Auto-open review form if coming from anchor link
+    if (window.location.hash === '#reviews' && hasPurchased) {
+      setShowReviewForm(true)
+      // Scroll to reviews section
+      setTimeout(() => {
+        document.getElementById('reviews')?.scrollIntoView({ behavior: 'smooth' })
+      }, 100)
+    }
+  }, [hasPurchased])
+
+  const checkPurchaseStatus = async () => {
+    try {
+      const res = await fetch("/api/purchases")
+      const data = await res.json()
+      if (data.success) {
+        const purchased = data.data.some(
+          (p: any) => p.productId === product.id && p.status === "COMPLETED"
+        )
+        setHasPurchased(purchased)
+        
+        // Check if user already has a review
+        const existingReview = product.reviews.find(
+          (r) => r.buyer.name === session?.user?.name
+        )
+        if (existingReview) {
+          setUserReview(existingReview)
+          setRating(existingReview.rating)
+          setComment(existingReview.comment || "")
+        }
+      }
+    } catch (error) {
+      console.error("Error checking purchase status:", error)
+    }
   }
 
   const handlePurchase = async () => {
@@ -102,6 +152,49 @@ export function ProductDetail({ product, avgRating, availableStock }: ProductDet
       })
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const handleSubmitReview = async () => {
+    if (!rating) return
+
+    setIsSubmittingReview(true)
+    try {
+      const res = await fetch("/api/reviews", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          productId: product.id,
+          rating,
+          comment: comment.trim() || null,
+        }),
+      })
+
+      const data = await res.json()
+
+      if (data.success) {
+        toast({
+          title: "Успешно",
+          description: data.message || "Отзыв добавлен",
+        })
+        setShowReviewForm(false)
+        // Refresh page to show new review
+        router.refresh()
+      } else {
+        toast({
+          title: "Ошибка",
+          description: data.error || "Не удалось добавить отзыв",
+          variant: "destructive",
+        })
+      }
+    } catch {
+      toast({
+        title: "Ошибка",
+        description: "Произошла ошибка при отправке отзыва",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmittingReview(false)
     }
   }
 
@@ -179,13 +272,100 @@ export function ProductDetail({ product, avgRating, availableStock }: ProductDet
 
           {/* Reviews */}
           <motion.div
+            id="reviews"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
           >
-            <h2 className="text-xl font-semibold mb-4">
-              Отзывы ({product._count.reviews})
-            </h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold">
+                Отзывы ({product._count.reviews})
+              </h2>
+              {hasPurchased && session?.user && (
+                <Button
+                  variant={showReviewForm ? "outline" : "default"}
+                  size="sm"
+                  onClick={() => setShowReviewForm(!showReviewForm)}
+                >
+                  <MessageSquare className="h-4 w-4 mr-2" />
+                  {userReview ? "Редактировать отзыв" : "Оставить отзыв"}
+                </Button>
+              )}
+            </div>
+
+            {/* Review Form */}
+            {showReviewForm && hasPurchased && (
+              <Card className="mb-4">
+                <CardContent className="p-4">
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">
+                        Ваша оценка
+                      </label>
+                      <div className="flex items-center gap-2">
+                        {[1, 2, 3, 4, 5].map((value) => (
+                          <button
+                            key={value}
+                            type="button"
+                            onClick={() => setRating(value)}
+                            className="transition-transform hover:scale-110"
+                          >
+                            <Star
+                              className={`h-8 w-8 cursor-pointer ${
+                                value <= rating
+                                  ? "fill-yellow-400 text-yellow-400"
+                                  : "text-gray-300 hover:text-yellow-200"
+                              }`}
+                            />
+                          </button>
+                        ))}
+                        <span className="ml-2 text-sm text-muted-foreground">
+                          {rating} из 5
+                        </span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">
+                        Комментарий (необязательно)
+                      </label>
+                      <Textarea
+                        value={comment}
+                        onChange={(e) => setComment(e.target.value)}
+                        placeholder="Расскажите о своем опыте использования товара..."
+                        rows={4}
+                        maxLength={1000}
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {comment.length}/1000
+                      </p>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={handleSubmitReview}
+                        disabled={isSubmittingReview}
+                      >
+                        {isSubmittingReview ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            Отправка...
+                          </>
+                        ) : (
+                          userReview ? "Обновить отзыв" : "Отправить отзыв"
+                        )}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => setShowReviewForm(false)}
+                      >
+                        Отмена
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
             
             {product.reviews.length === 0 ? (
               <p className="text-muted-foreground">Пока нет отзывов</p>
