@@ -111,7 +111,7 @@ export default async function AdminDashboard() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Оборот</p>
-              <h3 className="text-2xl font-bold mt-2">{(stats.totalRevenue / 100).toFixed(2)} ₽</h3>
+              <h3 className="text-2xl font-bold mt-2">{stats.totalRevenue.toLocaleString('ru-RU')} ₽</h3>
             </div>
             <DollarSign className="h-8 w-8 text-yellow-500" />
           </div>
@@ -158,7 +158,7 @@ export default async function AdminDashboard() {
                   <p className="text-xs text-muted-foreground">{purchase.buyer.name}</p>
                 </div>
                 <div className="text-right">
-                  <p className="font-medium text-sm">{(purchase.amount / 100).toFixed(2)} ₽</p>
+                  <p className="font-medium text-sm">{purchase.amount.toLocaleString('ru-RU')} ₽</p>
                   <p className="text-xs text-muted-foreground">
                     {new Date(purchase.createdAt).toLocaleDateString("ru-RU")}
                   </p>
