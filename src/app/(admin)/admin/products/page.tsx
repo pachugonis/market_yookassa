@@ -3,6 +3,7 @@ import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ProductStatus } from "@prisma/client"
 import Image from "next/image"
+import { ProductManager } from "@/components/admin/product-manager"
 
 async function getProducts() {
   const products = await prisma.product.findMany({
@@ -73,6 +74,7 @@ export default async function ProductsPage() {
                 <th className="text-left p-4 font-medium">Продано</th>
                 <th className="text-left p-4 font-medium">Скачано</th>
                 <th className="text-left p-4 font-medium">Дата</th>
+                <th className="text-right p-4 font-medium">Действия</th>
               </tr>
             </thead>
             <tbody>
@@ -117,6 +119,11 @@ export default async function ProductsPage() {
                   <td className="p-4 text-center">{product.downloadCount}</td>
                   <td className="p-4 text-sm text-muted-foreground whitespace-nowrap">
                     {new Date(product.createdAt).toLocaleDateString("ru-RU")}
+                  </td>
+                  <td className="p-4">
+                    <div className="flex justify-end">
+                      <ProductManager product={product} />
+                    </div>
                   </td>
                 </tr>
               ))}
