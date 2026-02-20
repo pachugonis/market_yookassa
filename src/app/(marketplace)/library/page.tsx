@@ -5,7 +5,7 @@ import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
 import { motion } from "framer-motion"
-import { Download, Package, Calendar, FileDown, Loader2 } from "lucide-react"
+import { Download, Package, Calendar, FileDown, Loader2, Key, Copy, Check } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -25,6 +25,10 @@ interface Purchase {
     fileName: string
     fileSize: number
   }
+  licenseKey: {
+    id: string
+    key: string
+  } | null
 }
 
 export default function LibraryPage() {
@@ -33,6 +37,7 @@ export default function LibraryPage() {
   const [purchases, setPurchases] = useState<Purchase[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [downloadingId, setDownloadingId] = useState<string | null>(null)
+  const [copiedKey, setCopiedKey] = useState<string | null>(null)
 
   useEffect(() => {
     if (sessionStatus === "unauthenticated") {
@@ -95,6 +100,16 @@ export default function LibraryPage() {
     if (bytes < 1024) return bytes + " B"
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB"
     return (bytes / (1024 * 1024)).toFixed(1) + " MB"
+  }
+
+  const copyLicenseKey = async (key: string, purchaseId: string) => {
+    try {
+      await navigator.clipboard.writeText(key)
+      setCopiedKey(purchaseId)
+      setTimeout(() => setCopiedKey(null), 2000)
+    } catch (error) {
+      console.error("Failed to copy:", error)
+    }
   }
 
   if (sessionStatus === "loading" || isLoading) {
@@ -195,26 +210,61 @@ export default function LibraryPage() {
 
                       {/* Download Button */}
                       {purchase.status === "COMPLETED" && purchase.downloadToken && (
-                        <div className="mt-4 flex items-center gap-4">
-                          <Button
-                            onClick={() => handleDownload(purchase)}
-                            disabled={downloadingId === purchase.id}
-                          >
-                            {downloadingId === purchase.id ? (
-                              <>
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                                Загрузка...
-                              </>
-                            ) : (
-                              <>
-                                <Download className="h-4 w-4" />
-                                Скачать
-                              </>
-                            )}
-                          </Button>
-                          <span className="text-sm text-muted-foreground">
-                            Скачано: {purchase.downloadCount} раз
-                          </span>
+                        <div className="mt-4 space-y-3">
+                          {/* License Key */}
+                          {purchase.licenseKey && (
+                            <div className="p-3 bg-primary/5 border border-primary/20 rounded-lg">
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2 flex-1 min-w-0">
+                                  <Key className="h-4 w-4 text-primary shrink-0" />
+                                  <span className="font-mono text-sm font-medium truncate">
+                                    {purchase.licenseKey.key}
+                                  </span>
+                                </div>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => copyLicenseKey(purchase.licenseKey!.key, purchase.id)}
+                                  className="shrink-0"
+                                >
+                                  {copiedKey === purchase.id ? (
+                                    <>
+                                      <Check className="h-4 w-4 text-green-500" />
+                                      Скопировано
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Copy className="h-4 w-4" />
+                                      Копировать
+                                    </>
+                                  )}
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Download Button */}
+                          <div className="flex items-center gap-4">
+                            <Button
+                              onClick={() => handleDownload(purchase)}
+                              disabled={downloadingId === purchase.id}
+                            >
+                              {downloadingId === purchase.id ? (
+                                <>
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                  Загрузка...
+                                </>
+                              ) : (
+                                <>
+                                  <Download className="h-4 w-4" />
+                                  Скачать
+                                </>
+                              )}
+                            </Button>
+                            <span className="text-sm text-muted-foreground">
+                              Скачано: {purchase.downloadCount} раз
+                            </span>
+                          </div>
                         </div>
                       )}
                     </div>

@@ -50,13 +50,35 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: true })
       }
 
+      // Check if product uses license keys
+      let licenseKey = null
+      if (purchase.product.hasLicenseKeys) {
+        // Find an available license key
+        licenseKey = await prisma.licenseKey.findFirst({
+          where: {
+            productId: purchase.productId,
+            isSold: false,
+          },
+        })
+
+        if (!licenseKey) {
+          console.error("No available license keys for product:", purchase.productId)
+          // Mark purchase as failed if no keys available
+          await prisma.purchase.update({
+            where: { id: purchase.id },
+            data: { status: "FAILED" },
+          })
+          return NextResponse.json({ success: true })
+        }
+      }
+
       // Generate download token
       const downloadToken = uuidv4()
       const downloadExpiresAt = new Date()
       downloadExpiresAt.setDate(downloadExpiresAt.getDate() + 30) // 30 days
 
       // Update purchase and product
-      await prisma.$transaction([
+      const updateOperations: any[] = [
         prisma.purchase.update({
           where: { id: purchase.id },
           data: {
@@ -64,6 +86,7 @@ export async function POST(request: NextRequest) {
             yookassaPaymentId: paymentId,
             downloadToken,
             downloadExpiresAt,
+            ...(licenseKey ? { licenseKeyId: licenseKey.id } : {}),
           },
         }),
         prisma.product.update({
@@ -78,7 +101,22 @@ export async function POST(request: NextRequest) {
             balance: { increment: purchase.sellerEarnings },
           },
         }),
-      ])
+      ]
+
+      // Mark license key as sold if applicable
+      if (licenseKey) {
+        updateOperations.push(
+          prisma.licenseKey.update({
+            where: { id: licenseKey.id },
+            data: {
+              isSold: true,
+              soldAt: new Date(),
+            },
+          })
+        )
+      }
+
+      await prisma.$transaction(updateOperations)
 
       console.log("Payment processed successfully:", purchase.id)
     }

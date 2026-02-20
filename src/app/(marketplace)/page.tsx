@@ -14,7 +14,10 @@ import {
   ArrowRight,
   Sparkles,
   Shield,
-  Zap
+  Zap,
+  Users,
+  TrendingUp,
+  HeadphonesIcon
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -52,6 +55,27 @@ const bentoItems = [
     icon: <Sparkles className="h-10 w-10 text-primary" />,
     className: "md:col-span-1",
     gradient: "bg-gradient-to-br from-green-500/20 to-emerald-500/10"
+  },
+  {
+    title: "Активное сообщество",
+    description: "Тысячи покупателей и продавцов со всего мира",
+    icon: <Users className="h-10 w-10 text-primary" />,
+    className: "md:col-span-1",
+    gradient: "bg-gradient-to-br from-orange-500/20 to-red-500/10"
+  },
+  {
+    title: "Выгодные цены",
+    description: "Конкурентные предложения и регулярные акции",
+    icon: <TrendingUp className="h-10 w-10 text-primary" />,
+    className: "md:col-span-1",
+    gradient: "bg-gradient-to-br from-yellow-500/20 to-amber-500/10"
+  },
+  {
+    title: "Поддержка 24/7",
+    description: "Всегда готовы помочь с любыми вопросами",
+    icon: <HeadphonesIcon className="h-10 w-10 text-primary" />,
+    className: "md:col-span-1",
+    gradient: "bg-gradient-to-br from-indigo-500/20 to-violet-500/10"
   },
 ]
 

@@ -25,6 +25,12 @@ export async function GET() {
             fileSize: true,
           },
         },
+        licenseKey: {
+          select: {
+            id: true,
+            key: true,
+          },
+        },
       },
       orderBy: { createdAt: "desc" },
     })

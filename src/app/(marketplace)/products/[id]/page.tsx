@@ -29,7 +29,11 @@ export default async function ProductPage({ params }: Props) {
         orderBy: { createdAt: "desc" },
         take: 10
       },
-      _count: { select: { reviews: true, purchases: true } }
+      _count: { select: { reviews: true, purchases: true } },
+      licenseKeys: {
+        where: { isSold: false },
+        select: { id: true }
+      }
     }
   })
 
@@ -41,5 +45,7 @@ export default async function ProductPage({ params }: Props) {
     ? product.reviews.reduce((acc, r) => acc + r.rating, 0) / product.reviews.length
     : 0
 
-  return <ProductDetail product={product} avgRating={avgRating} />
+  const availableStock = product.hasLicenseKeys ? product.licenseKeys.length : null
+
+  return <ProductDetail product={product} avgRating={avgRating} availableStock={availableStock} />
 }

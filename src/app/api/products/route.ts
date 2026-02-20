@@ -12,6 +12,8 @@ const createProductSchema = z.object({
   fileUrl: z.string(),
   fileName: z.string(),
   fileSize: z.number(),
+  hasLicenseKeys: z.boolean().optional(),
+  licenseKeys: z.array(z.string()).optional(),
 })
 
 export async function GET(request: NextRequest) {
@@ -107,15 +109,24 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const validatedData = createProductSchema.parse(body)
 
+    const { licenseKeys, hasLicenseKeys, ...productData } = validatedData
+
     const product = await prisma.product.create({
       data: {
-        ...validatedData,
+        ...productData,
         sellerId: session.user.id,
         status: "ACTIVE",
+        hasLicenseKeys: hasLicenseKeys || false,
+        ...(hasLicenseKeys && licenseKeys && licenseKeys.length > 0 ? {
+          licenseKeys: {
+            create: licenseKeys.map((key) => ({ key }))
+          }
+        } : {})
       },
       include: {
         seller: { select: { name: true, avatar: true } },
         category: { select: { name: true, slug: true } },
+        licenseKeys: { select: { id: true, key: true, isSold: true } }
       },
     })
 

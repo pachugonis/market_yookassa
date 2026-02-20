@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
-import { Upload, Loader2, ImageIcon, FileUp, X } from "lucide-react"
+import { Upload, Loader2, ImageIcon, FileUp, X, Key } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -40,6 +40,8 @@ export default function NewProductPage() {
     fileUrl: "",
     fileName: "",
     fileSize: 0,
+    hasLicenseKeys: false,
+    licenseKeys: "" as string,
   })
 
   useEffect(() => {
@@ -110,15 +112,25 @@ export default function NewProductPage() {
       return
     }
 
+    if (formData.hasLicenseKeys && !formData.licenseKeys.trim()) {
+      toast({ title: "Добавьте хотя бы один ключ лицензии", variant: "destructive" })
+      return
+    }
+
     setIsLoading(true)
 
     try {
+      const licenseKeysArray = formData.hasLicenseKeys 
+        ? formData.licenseKeys.split('\n').map(k => k.trim()).filter(k => k.length > 0)
+        : []
+
       const res = await fetch("/api/products", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...formData,
           price: parseInt(formData.price),
+          licenseKeys: licenseKeysArray,
         }),
       })
 
@@ -310,6 +322,49 @@ export default function NewProductPage() {
                     </>
                   )}
                 </label>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* License Keys */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Key className="h-5 w-5" />
+                Лицензионные ключи
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="hasLicenseKeys"
+                  checked={formData.hasLicenseKeys}
+                  onChange={(e) => setFormData({ ...formData, hasLicenseKeys: e.target.checked })}
+                  className="h-4 w-4 rounded border-gray-300"
+                />
+                <Label htmlFor="hasLicenseKeys" className="cursor-pointer">
+                  Этот товар использует лицензионные ключи
+                </Label>
+              </div>
+
+              {formData.hasLicenseKeys && (
+                <div className="space-y-2">
+                  <Label htmlFor="licenseKeys">
+                    Ключи (каждый ключ с новой строки)
+                  </Label>
+                  <Textarea
+                    id="licenseKeys"
+                    value={formData.licenseKeys}
+                    onChange={(e) => setFormData({ ...formData, licenseKeys: e.target.value })}
+                    placeholder="XXXX-XXXX-XXXX-XXXX\nYYYY-YYYY-YYYY-YYYY\nZZZZ-ZZZZ-ZZZZ-ZZZZ"
+                    rows={8}
+                    className="font-mono text-sm"
+                  />
+                  <p className="text-sm text-muted-foreground">
+                    Добавлено ключей: {formData.licenseKeys.split('\n').filter(k => k.trim().length > 0).length}
+                  </p>
+                </div>
               )}
             </CardContent>
           </Card>

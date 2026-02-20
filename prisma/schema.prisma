@@ -78,6 +78,7 @@ model Product {
   fileSize      Int
   status        ProductStatus @default(DRAFT)
   downloadCount Int           @default(0)
+  hasLicenseKeys Boolean      @default(false)
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
@@ -89,6 +90,7 @@ model Product {
 
   purchases     Purchase[]
   reviews       Review[]
+  licenseKeys   LicenseKey[]
 
   @@index([sellerId])
   @@index([categoryId])
@@ -114,6 +116,9 @@ model Purchase {
 
   productId         String
   product           Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  licenseKeyId      String?        @unique
+  licenseKey        LicenseKey?    @relation(fields: [licenseKeyId], references: [id])
 
   downloadLogs      DownloadLog[]
 
@@ -165,4 +170,20 @@ model DownloadLog {
   purchase     Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
 
   @@index([purchaseId])
+}
+
+model LicenseKey {
+  id          String    @id @default(cuid())
+  key         String
+  isSold      Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  soldAt      DateTime?
+
+  productId   String
+  product     Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  purchase    Purchase?
+
+  @@index([productId])
+  @@index([isSold])
 }

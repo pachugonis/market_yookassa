@@ -13,7 +13,8 @@ import {
   Calendar, 
   User,
   Loader2,
-  CheckCircle
+  CheckCircle,
+  Package
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -54,9 +55,10 @@ interface ProductDetailProps {
     _count: { reviews: number; purchases: number }
   }
   avgRating: number
+  availableStock: number | null
 }
 
-export function ProductDetail({ product, avgRating }: ProductDetailProps) {
+export function ProductDetail({ product, avgRating, availableStock }: ProductDetailProps) {
   const { data: session } = useSession()
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
@@ -256,6 +258,14 @@ export function ProductDetail({ product, avgRating }: ProductDetailProps) {
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <span>Размер: {formatFileSize(product.fileSize)}</span>
                   </div>
+                  {availableStock !== null && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <Package className="h-4 w-4 text-muted-foreground" />
+                      <span>
+                        В наличии: <span className="font-semibold text-foreground">{availableStock}</span> ключ{availableStock === 1 ? '' : availableStock < 5 ? 'а' : 'ей'}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-3">
@@ -263,13 +273,15 @@ export function ProductDetail({ product, avgRating }: ProductDetailProps) {
                     className="w-full" 
                     size="lg"
                     onClick={handlePurchase}
-                    disabled={isLoading}
+                    disabled={isLoading || (availableStock !== null && availableStock === 0)}
                   >
                     {isLoading ? (
                       <>
                         <Loader2 className="h-5 w-5 animate-spin" />
                         Обработка...
                       </>
+                    ) : availableStock === 0 ? (
+                      "Нет в наличии"
                     ) : (
                       <>
                         <ShoppingCart className="h-5 w-5" />
