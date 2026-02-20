@@ -11,7 +11,8 @@ import {
   LayoutDashboard, 
   Package,
   Menu,
-  X
+  X,
+  Shield
 } from "lucide-react"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -93,6 +94,14 @@ export function Navbar() {
                     <p className="text-xs text-muted-foreground">{session.user.email}</p>
                   </div>
                   <DropdownMenuSeparator />
+                  {session.user.role === "ADMIN" && (
+                    <DropdownMenuItem asChild>
+                      <Link href="/admin" className="cursor-pointer">
+                        <Shield className="mr-2 h-4 w-4" />
+                        Админ панель
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
                   {(session.user.role === "SELLER" || session.user.role === "ADMIN") && (
                     <DropdownMenuItem asChild>
                       <Link href="/dashboard" className="cursor-pointer">
@@ -172,6 +181,14 @@ export function Navbar() {
               
               {session ? (
                 <>
+                  {session.user.role === "ADMIN" && (
+                    <Link href="/admin" onClick={() => setIsMenuOpen(false)}>
+                      <Button variant="ghost" className="w-full justify-start">
+                        <Shield className="mr-2 h-4 w-4" />
+                        Админ панель
+                      </Button>
+                    </Link>
+                  )}
                   {(session.user.role === "SELLER" || session.user.role === "ADMIN") && (
                     <Link href="/dashboard" onClick={() => setIsMenuOpen(false)}>
                       <Button variant="ghost" className="w-full justify-start">

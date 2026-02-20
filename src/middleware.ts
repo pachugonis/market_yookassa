@@ -7,6 +7,7 @@ export default auth((req) => {
 
   const isAuthPage = nextUrl.pathname.startsWith("/login") || nextUrl.pathname.startsWith("/register")
   const isSellerPage = nextUrl.pathname.startsWith("/dashboard")
+  const isAdminPage = nextUrl.pathname.startsWith("/admin")
   const isApiRoute = nextUrl.pathname.startsWith("/api")
   const isPublicApiRoute = nextUrl.pathname.startsWith("/api/auth") || 
                            nextUrl.pathname.startsWith("/api/products") && req.method === "GET"
@@ -19,6 +20,16 @@ export default auth((req) => {
   // Redirect logged-in users away from auth pages
   if (isAuthPage && isLoggedIn) {
     return NextResponse.redirect(new URL("/", nextUrl))
+  }
+
+  // Protect admin panel
+  if (isAdminPage) {
+    if (!isLoggedIn) {
+      return NextResponse.redirect(new URL("/login", nextUrl))
+    }
+    if (session.user.role !== "ADMIN") {
+      return NextResponse.redirect(new URL("/", nextUrl))
+    }
   }
 
   // Protect seller dashboard
