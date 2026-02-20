@@ -11,14 +11,17 @@ interface Stats {
   balance: number
   totalEarnings: number
   totalSales: number
+  commissionRate?: number
 }
 
 export default function EarningsPage() {
   const [stats, setStats] = useState<Stats | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [commissionRate, setCommissionRate] = useState(10)
 
   useEffect(() => {
     fetchStats()
+    fetchCommissionRate()
   }, [])
 
   const fetchStats = async () => {
@@ -35,6 +38,18 @@ export default function EarningsPage() {
     }
   }
 
+  const fetchCommissionRate = async () => {
+    try {
+      const res = await fetch("/api/admin/settings")
+      const data = await res.json()
+      if (data.success && data.data) {
+        setCommissionRate(data.data.commissionRate)
+      }
+    } catch (error) {
+      console.error("Error fetching commission rate:", error)
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -43,8 +58,9 @@ export default function EarningsPage() {
     )
   }
 
+  const sellerPercentage = 100 - commissionRate
   const commission = stats?.totalEarnings 
-    ? Math.round((stats.totalEarnings / 0.9) * 0.1) 
+    ? Math.round((stats.totalEarnings / sellerPercentage) * commissionRate) 
     : 0
 
   return (
@@ -167,7 +183,7 @@ export default function EarningsPage() {
           <CardContent>
             <div className="space-y-4">
               <div className="flex items-center gap-4 p-4 bg-secondary/50 rounded-xl">
-                <div className="text-4xl font-bold text-primary">10%</div>
+                <div className="text-4xl font-bold text-primary">{commissionRate}%</div>
                 <div>
                   <p className="font-medium">Комиссия платформы</p>
                   <p className="text-sm text-muted-foreground">
@@ -176,7 +192,7 @@ export default function EarningsPage() {
                 </div>
               </div>
               <div className="flex items-center gap-4 p-4 bg-green-50 rounded-xl">
-                <div className="text-4xl font-bold text-green-600">90%</div>
+                <div className="text-4xl font-bold text-green-600">{100 - commissionRate}%</div>
                 <div>
                   <p className="font-medium">Ваш доход</p>
                   <p className="text-sm text-muted-foreground">
