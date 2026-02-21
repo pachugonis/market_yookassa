@@ -21,6 +21,7 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams
     const search = searchParams.get("search")
     const category = searchParams.get("category")
+    const seller = searchParams.get("seller")
     const sort = searchParams.get("sort") || "newest"
     const page = parseInt(searchParams.get("page") || "1")
     const limit = parseInt(searchParams.get("limit") || "20")
@@ -38,6 +39,10 @@ export async function GET(request: NextRequest) {
 
     if (category && category !== "all") {
       where.category = { slug: category }
+    }
+
+    if (seller) {
+      where.sellerId = seller
     }
 
     let orderBy: Record<string, unknown> = { createdAt: "desc" }

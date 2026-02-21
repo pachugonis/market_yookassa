@@ -41,6 +41,7 @@ function ProductsContent() {
   const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "")
   const [selectedCategory, setSelectedCategory] = useState(searchParams.get("category") || "all")
   const [sortBy, setSortBy] = useState("newest")
+  const [sellerFilter, setSellerFilter] = useState(searchParams.get("seller") || "")
 
   useEffect(() => {
     fetchCategories()
@@ -68,6 +69,7 @@ function ProductsContent() {
       const params = new URLSearchParams()
       if (searchQuery) params.set("search", searchQuery)
       if (selectedCategory && selectedCategory !== "all") params.set("category", selectedCategory)
+      if (sellerFilter) params.set("seller", sellerFilter)
       params.set("sort", sortBy)
 
       const res = await fetch(`/api/products?${params.toString()}`)

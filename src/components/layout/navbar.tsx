@@ -13,7 +13,8 @@ import {
   Menu,
   X,
   Shield,
-  AlertCircle
+  AlertCircle,
+  Store
 } from "lucide-react"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -74,6 +75,9 @@ export function Navbar() {
           <div className="hidden md:flex items-center gap-4">
             <Link href="/products">
               <Button variant="ghost">Каталог</Button>
+            </Link>
+            <Link href="/stores">
+              <Button variant="ghost">Магазины</Button>
             </Link>
             
             {session ? (
@@ -184,6 +188,9 @@ export function Navbar() {
             <div className="flex flex-col gap-2">
               <Link href="/products" onClick={() => setIsMenuOpen(false)}>
                 <Button variant="ghost" className="w-full justify-start">Каталог</Button>
+              </Link>
+              <Link href="/stores" onClick={() => setIsMenuOpen(false)}>
+                <Button variant="ghost" className="w-full justify-start">Магазины</Button>
               </Link>
               
               {session ? (
