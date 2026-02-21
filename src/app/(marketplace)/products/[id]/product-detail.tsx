@@ -27,6 +27,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { formatPrice, formatDate } from "@/lib/utils"
 import { toast } from "@/hooks/use-toast"
 import { ReportDialog } from "@/components/ReportDialog"
+import { ProductImageCarousel } from "@/components/ui/product-image-carousel"
 
 interface Review {
   id: string
@@ -56,6 +57,7 @@ interface ProductDetailProps {
     }
     category: { name: string; slug: string }
     reviews: Review[]
+    images?: Array<{ id: string; imageUrl: string; order: number }>
     _count: { reviews: number; purchases: number }
   }
   avgRating: number
@@ -72,6 +74,11 @@ export function ProductDetail({ product, avgRating, availableStock }: ProductDet
   const [rating, setRating] = useState(5)
   const [comment, setComment] = useState("")
   const [isSubmittingReview, setIsSubmittingReview] = useState(false)
+
+  // Prepare images for carousel
+  const displayImages = product.images && product.images.length > 0 
+    ? product.images.map(img => img.imageUrl)
+    : (product.coverImage ? [product.coverImage] : [])
 
   const formatFileSize = (bytes: number) => {
     if (bytes < 1024) return bytes + " B"
@@ -209,23 +216,13 @@ export function ProductDetail({ product, avgRating, availableStock }: ProductDet
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="relative aspect-video rounded-2xl overflow-hidden bg-secondary"
+            className="rounded-2xl overflow-hidden"
           >
-            {product.coverImage ? (
-              <Image
-                src={product.coverImage}
-                alt={product.title}
-                fill
-                className="object-cover"
-                priority
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/20 to-primary/5">
-                <span className="text-8xl font-bold text-primary/30">
-                  {product.title.charAt(0)}
-                </span>
-              </div>
-            )}
+            <ProductImageCarousel
+              images={displayImages}
+              productTitle={product.title}
+              className="aspect-video"
+            />
           </motion.div>
 
           {/* Title & Category */}

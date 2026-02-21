@@ -30,9 +30,11 @@ export async function GET(
           },
           orderBy: { createdAt: "desc" },
         },
+        // @ts-ignore - Prisma types not yet updated in IDE
+        images: { select: { id: true, imageUrl: true, order: true }, orderBy: { order: "asc" } },
         _count: { select: { reviews: true, purchases: true } },
       },
-    })
+    }) as any
 
     if (!product) {
       return NextResponse.json(

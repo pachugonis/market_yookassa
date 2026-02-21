@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { formatPrice } from "@/lib/utils"
+import { ProductImageCarousel } from "@/components/ui/product-image-carousel"
 
 interface ProductCardProps {
   id: string
@@ -24,6 +25,7 @@ interface ProductCardProps {
   }
   downloadCount?: number
   avgRating?: number
+  images?: string[]
 }
 
 export function ProductCard({
@@ -35,7 +37,10 @@ export function ProductCard({
   category,
   downloadCount = 0,
   avgRating,
+  images = [],
 }: ProductCardProps) {
+  // Use images array if available, otherwise fall back to coverImage
+  const displayImages = images.length > 0 ? images : (coverImage ? [coverImage] : [])
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -45,25 +50,14 @@ export function ProductCard({
     >
       <Link href={`/products/${id}`}>
         <Card className="overflow-hidden group cursor-pointer card-hover border-0 shadow-md hover:shadow-xl">
-          <div className="relative aspect-[4/3] bg-secondary overflow-hidden">
-            {coverImage ? (
-              <Image
-                src={coverImage}
-                alt={title}
-                fill
-                className="object-cover transition-transform duration-300 group-hover:scale-105"
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/20 to-primary/5">
-                <span className="text-4xl font-bold text-primary/30">
-                  {title.charAt(0)}
-                </span>
-              </div>
-            )}
-            <Badge className="absolute top-3 left-3" variant="secondary">
-              {category.name}
-            </Badge>
-          </div>
+          <ProductImageCarousel
+            images={displayImages}
+            productTitle={title}
+            className="rounded-t-lg"
+          />
+          <Badge className="absolute top-3 left-3 z-10" variant="secondary">
+            {category.name}
+          </Badge>
           <CardContent className="p-4 space-y-3">
             <h3 className="font-semibold text-lg line-clamp-1 group-hover:text-primary transition-colors">
               {title}

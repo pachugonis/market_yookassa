@@ -55,16 +55,17 @@ export async function GET(request: NextRequest) {
         seller: { select: { name: true, avatar: true } },
         category: { select: { name: true, slug: true } },
         reviews: { select: { rating: true } },
+        images: { select: { imageUrl: true, order: true }, orderBy: { order: "asc" } },
       },
       orderBy,
       skip: (page - 1) * limit,
       take: limit,
-    })
+    }) as any
 
-    const productsWithRating = products.map((product) => {
+    const productsWithRating = products.map((product: any) => {
       const avgRating =
         product.reviews.length > 0
-          ? product.reviews.reduce((acc, r) => acc + r.rating, 0) / product.reviews.length
+          ? product.reviews.reduce((acc: number, r: any) => acc + r.rating, 0) / product.reviews.length
           : 0
       return {
         id: product.id,
@@ -75,6 +76,7 @@ export async function GET(request: NextRequest) {
         seller: product.seller,
         category: product.category,
         avgRating,
+        images: product.images.map((img: any) => img.imageUrl),
       }
     })
 
