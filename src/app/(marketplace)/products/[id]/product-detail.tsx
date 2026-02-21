@@ -76,9 +76,21 @@ export function ProductDetail({ product, avgRating, availableStock }: ProductDet
   const [isSubmittingReview, setIsSubmittingReview] = useState(false)
 
   // Prepare images for carousel
-  const displayImages = product.images && product.images.length > 0 
-    ? product.images.map(img => img.imageUrl)
-    : (product.coverImage ? [product.coverImage] : [])
+  const displayImages = (() => {
+    const allImages: string[] = []
+    
+    // Add cover image first if it exists
+    if (product.coverImage) {
+      allImages.push(product.coverImage)
+    }
+    
+    // Add additional images
+    if (product.images && product.images.length > 0) {
+      allImages.push(...product.images.map(img => img.imageUrl))
+    }
+    
+    return allImages
+  })()
 
   const formatFileSize = (bytes: number) => {
     if (bytes < 1024) return bytes + " B"

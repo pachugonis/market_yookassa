@@ -39,8 +39,23 @@ export function ProductCard({
   avgRating,
   images = [],
 }: ProductCardProps) {
-  // Use images array if available, otherwise fall back to coverImage
-  const displayImages = images.length > 0 ? images : (coverImage ? [coverImage] : [])
+  // Combine coverImage with additional images
+  const displayImages = (() => {
+    const allImages: string[] = []
+    
+    // Add cover image first if it exists
+    if (coverImage) {
+      allImages.push(coverImage)
+    }
+    
+    // Add additional images
+    if (images.length > 0) {
+      allImages.push(...images)
+    }
+    
+    return allImages
+  })()
+  
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}

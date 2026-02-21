@@ -19,6 +19,7 @@ import {
 import { toast } from "@/hooks/use-toast"
 import Link from "next/link"
 import { ImageCropper } from "@/components/ui/image-cropper"
+import { MultiImageUpload } from "@/components/ui/multi-image-upload"
 
 interface Subcategory {
   id: string
@@ -58,6 +59,7 @@ export default function EditProductPage() {
   const [imageToCrop, setImageToCrop] = useState<string | null>(null)
   const [selectedParentCategory, setSelectedParentCategory] = useState<string>("")
   const [subcategories, setSubcategories] = useState<Subcategory[]>([])
+  const [productImages, setProductImages] = useState<Array<{ id: string; imageUrl: string; order: number }>>([])
 
   const [formData, setFormData] = useState({
     title: "",
@@ -76,6 +78,7 @@ export default function EditProductPage() {
   useEffect(() => {
     fetchCategories()
     fetchProduct()
+    fetchProductImages()
   }, [])
 
   const fetchCategories = async () => {
@@ -142,6 +145,18 @@ export default function EditProductPage() {
       router.push("/dashboard/products")
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const fetchProductImages = async () => {
+    try {
+      const res = await fetch(`/api/products/${productId}/images`)
+      const data = await res.json()
+      if (data.success) {
+        setProductImages(data.data)
+      }
+    } catch (error) {
+      console.error("Error fetching product images:", error)
     }
   }
 
@@ -423,6 +438,21 @@ export default function EditProductPage() {
                   )}
                 </label>
               )}
+            </CardContent>
+          </Card>
+
+          {/* Additional Images */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Дополнительные изображения</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <MultiImageUpload
+                productId={productId}
+                initialImages={productImages}
+                onImagesChange={setProductImages}
+                maxImages={10}
+              />
             </CardContent>
           </Card>
 

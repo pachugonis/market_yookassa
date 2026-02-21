@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/select"
 import { toast } from "@/hooks/use-toast"
 import { ImageCropper } from "@/components/ui/image-cropper"
+import { MultiImageUpload } from "@/components/ui/multi-image-upload"
 
 interface Subcategory {
   id: string
@@ -40,6 +41,7 @@ export default function NewProductPage() {
   const [uploadingCover, setUploadingCover] = useState(false)
   const [maxFileSize, setMaxFileSize] = useState(500)
   const [imageToCrop, setImageToCrop] = useState<string | null>(null)
+  const [productImages, setProductImages] = useState<Array<{ id: string; imageUrl: string; order: number }>>([])
 
   const [selectedParentCategory, setSelectedParentCategory] = useState<string>("")
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null)
@@ -200,6 +202,23 @@ export default function NewProductPage() {
       const data = await res.json()
 
       if (data.success) {
+        const productId = data.data.id
+
+        // Save additional images if any
+        if (productImages.length > 0) {
+          for (const image of productImages) {
+            try {
+              await fetch(`/api/products/${productId}/images`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ imageUrl: image.imageUrl }),
+              })
+            } catch (error) {
+              console.error("Error saving image:", error)
+            }
+          }
+        }
+
         toast({ title: "Товар создан!" })
         router.push("/dashboard/products")
       } else {
@@ -380,6 +399,20 @@ export default function NewProductPage() {
                   )}
                 </label>
               )}
+            </CardContent>
+          </Card>
+
+          {/* Additional Images */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Дополнительные изображения</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <MultiImageUpload
+                initialImages={productImages}
+                onImagesChange={setProductImages}
+                maxImages={10}
+              />
             </CardContent>
           </Card>
 
