@@ -418,57 +418,9 @@ export default function ProfilePage() {
                     <p className="font-medium">{formatDate(new Date(profile.createdAt))}</p>
                   </div>
                 </div>
-
-                {(profile.role === "SELLER" || profile.role === "ADMIN") && (
-                  <div className="flex items-center gap-3 p-3 rounded-lg bg-secondary/30">
-                    <Wallet className="h-5 w-5 text-muted-foreground" />
-                    <div>
-                      <p className="text-sm text-muted-foreground">Баланс</p>
-                      <p className="font-medium text-lg">{formatPrice(profile.balance)}</p>
-                    </div>
-                  </div>
-                )}
               </div>
             </CardContent>
           </Card>
-        </motion.div>
-
-        {/* Statistics Cards */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="grid sm:grid-cols-2 gap-4"
-        >
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Покупок</p>
-                  <p className="text-3xl font-bold mt-1">{profile._count.purchases}</p>
-                </div>
-                <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                  <User className="h-6 w-6 text-primary" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {(profile.role === "SELLER" || profile.role === "ADMIN") && (
-            <Card>
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Товаров</p>
-                    <p className="text-3xl font-bold mt-1">{profile._count.products}</p>
-                  </div>
-                  <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                    <ShieldCheck className="h-6 w-6 text-primary" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
         </motion.div>
           </div>
         </TabsContent>
