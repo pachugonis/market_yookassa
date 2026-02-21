@@ -112,9 +112,11 @@ export function StoresPage() {
                 key={seller.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
+                whileHover={{ y: -4 }}
+                transition={{ duration: 0.2, delay: index * 0.05 }}
               >
-                <Card className="h-full hover:shadow-lg transition-shadow duration-200">
+                <Link href={`/products?seller=${seller.id}`} className="block h-full">
+                  <Card className="h-full cursor-pointer card-hover border-0 shadow-md hover:shadow-xl">
                   <CardHeader>
                     <div className="flex items-start gap-4">
                       <Avatar className="h-16 w-16">
@@ -162,13 +164,14 @@ export function StoresPage() {
                     </div>
 
                     {/* View Products Button */}
-                    <Link href={`/products?seller=${seller.id}`} className="block">
+                    <div className="block">
                       <Button className="w-full" variant="outline">
                         Посмотреть товары
                       </Button>
-                    </Link>
+                    </div>
                   </CardContent>
                 </Card>
+                </Link>
               </motion.div>
             )
           })}
