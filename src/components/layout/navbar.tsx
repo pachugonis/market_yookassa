@@ -81,9 +81,9 @@ export function Navbar() {
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="flex items-center gap-2">
                     <Avatar className="h-8 w-8">
-                      <AvatarImage src={session.user.image || ""} />
+                      <AvatarImage src={session.user.image || undefined} alt={session.user.name || "User"} />
                       <AvatarFallback className="bg-primary text-primary-foreground">
-                        {session.user.name?.charAt(0).toUpperCase()}
+                        {session.user.name?.charAt(0).toUpperCase() || "U"}
                       </AvatarFallback>
                     </Avatar>
                     <span className="max-w-[100px] truncate">{session.user.name}</span>
@@ -188,6 +188,20 @@ export function Navbar() {
               
               {session ? (
                 <>
+                  {/* User info with avatar */}
+                  <div className="flex items-center gap-3 px-4 py-3 border-b">
+                    <Avatar className="h-10 w-10">
+                      <AvatarImage src={session.user.image || undefined} alt={session.user.name || "User"} />
+                      <AvatarFallback className="bg-primary text-primary-foreground">
+                        {session.user.name?.charAt(0).toUpperCase() || "U"}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{session.user.name}</p>
+                      <p className="text-xs text-muted-foreground truncate">{session.user.email}</p>
+                    </div>
+                  </div>
+
                   {session.user.role === "ADMIN" && (
                     <Link href="/admin" onClick={() => setIsMenuOpen(false)}>
                       <Button variant="ghost" className="w-full justify-start">

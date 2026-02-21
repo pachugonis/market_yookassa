@@ -63,25 +63,52 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { name } = body
+    const { name, avatar } = body
 
-    if (!name || typeof name !== "string" || name.trim().length === 0) {
-      return NextResponse.json(
-        { success: false, error: "Имя не может быть пустым" },
-        { status: 400 }
-      )
+    // Prepare update data
+    const updateData: { name?: string; avatar?: string } = {}
+
+    // Validate and add name if provided
+    if (name !== undefined) {
+      if (typeof name !== "string" || name.trim().length === 0) {
+        return NextResponse.json(
+          { success: false, error: "Имя не может быть пустым" },
+          { status: 400 }
+        )
+      }
+
+      if (name.trim().length > 100) {
+        return NextResponse.json(
+          { success: false, error: "Имя слишком длинное (максимум 100 символов)" },
+          { status: 400 }
+        )
+      }
+
+      updateData.name = name.trim()
     }
 
-    if (name.trim().length > 100) {
+    // Validate and add avatar if provided
+    if (avatar !== undefined) {
+      if (typeof avatar !== "string") {
+        return NextResponse.json(
+          { success: false, error: "Неверный формат аватара" },
+          { status: 400 }
+        )
+      }
+      updateData.avatar = avatar
+    }
+
+    // Check if there's anything to update
+    if (Object.keys(updateData).length === 0) {
       return NextResponse.json(
-        { success: false, error: "Имя слишком длинное (максимум 100 символов)" },
+        { success: false, error: "Нет данных для обновления" },
         { status: 400 }
       )
     }
 
     const updatedProfile = await prisma.user.update({
       where: { id: session.user.id },
-      data: { name: name.trim() },
+      data: updateData,
       select: {
         id: true,
         email: true,

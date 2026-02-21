@@ -13,7 +13,8 @@ import {
   Edit,
   Loader2,
   Save,
-  X
+  X,
+  Camera
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -26,6 +27,7 @@ import { formatPrice, formatDate } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 import TwoFactorSettings from "@/components/TwoFactorSettings"
 import ChangePassword from "@/components/ChangePassword"
+import { ImageCropper } from "@/components/ui/image-cropper"
 
 interface UserProfile {
   id: string
@@ -52,6 +54,8 @@ export default function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [editedName, setEditedName] = useState("")
+  const [imageToCrop, setImageToCrop] = useState<string | null>(null)
+  const [uploadingAvatar, setUploadingAvatar] = useState(false)
 
   useEffect(() => {
     if (sessionStatus === "unauthenticated") {
@@ -134,6 +138,83 @@ export default function ProfilePage() {
     setIsEditing(false)
   }
 
+  const handleAvatarFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Validate file type
+    const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"]
+    if (!allowedTypes.includes(file.type)) {
+      toast({
+        variant: "destructive",
+        title: "Ошибка",
+        description: "Недопустимый тип файла. Разрешены только изображения (JPG, PNG, WEBP)",
+      })
+      return
+    }
+
+    // Read file and open cropper
+    const reader = new FileReader()
+    reader.onload = () => {
+      setImageToCrop(reader.result as string)
+    }
+    reader.readAsDataURL(file)
+    e.target.value = ""
+  }
+
+  const handleCropComplete = async (croppedBlob: Blob) => {
+    setUploadingAvatar(true)
+    setImageToCrop(null)
+
+    const formData = new FormData()
+    formData.append("file", croppedBlob, "avatar.jpg")
+
+    try {
+      const uploadRes = await fetch("/api/upload/avatar", {
+        method: "POST",
+        body: formData,
+      })
+
+      const uploadData = await uploadRes.json()
+
+      if (uploadData.success) {
+        const avatarUrl = uploadData.data.avatarUrl
+
+        // Update profile with new avatar
+        const updateRes = await fetch("/api/profile", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ avatar: avatarUrl }),
+        })
+
+        const updateData = await updateRes.json()
+
+        if (updateData.success) {
+          setProfile(updateData.data)
+          // Update session
+          await update({ image: avatarUrl })
+          toast({
+            title: "Успешно",
+            description: "Аватар обновлен",
+          })
+        } else {
+          throw new Error(updateData.error)
+        }
+      } else {
+        throw new Error(uploadData.error)
+      }
+    } catch (error) {
+      console.error("Error updating avatar:", error)
+      toast({
+        variant: "destructive",
+        title: "Ошибка",
+        description: "Не удалось обновить аватар",
+      })
+    } finally {
+      setUploadingAvatar(false)
+    }
+  }
+
   const getRoleLabel = (role: string) => {
     switch (role) {
       case "ADMIN":
@@ -176,6 +257,15 @@ export default function ProfilePage() {
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
+      {imageToCrop && (
+        <ImageCropper
+          image={imageToCrop}
+          onCropComplete={handleCropComplete}
+          onCancel={() => setImageToCrop(null)}
+          aspectRatio={1}
+        />
+      )}
+
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -250,12 +340,36 @@ export default function ProfilePage() {
             <CardContent className="space-y-6">
               {/* Avatar and Name */}
               <div className="flex flex-col sm:flex-row items-center gap-6">
-                <Avatar className="h-24 w-24">
-                  <AvatarImage src={profile.avatar || undefined} />
-                  <AvatarFallback className="text-2xl">
-                    {profile.name.charAt(0).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
+                <div className="relative">
+                  <Avatar className="h-24 w-24">
+                    <AvatarImage src={profile.avatar || undefined} />
+                    <AvatarFallback className="text-2xl">
+                      {profile.name.charAt(0).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  {isEditing && (
+                    <>
+                      <input
+                        type="file"
+                        id="avatar-upload"
+                        className="hidden"
+                        accept="image/jpeg,image/jpg,image/png,image/webp"
+                        onChange={handleAvatarFileSelect}
+                        disabled={uploadingAvatar}
+                      />
+                      <label
+                        htmlFor="avatar-upload"
+                        className="absolute bottom-0 right-0 h-8 w-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center cursor-pointer hover:bg-primary/90 transition-colors shadow-lg"
+                      >
+                        {uploadingAvatar ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Camera className="h-4 w-4" />
+                        )}
+                      </label>
+                    </>
+                  )}
+                </div>
 
                 <div className="flex-1 w-full">
                   {isEditing ? (
