@@ -129,7 +129,7 @@ function CategoryMenuItem({ category }: { category: Category }) {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -10 }}
           transition={{ duration: 0.15 }}
-          className="fixed min-w-[200px] bg-background border rounded-lg shadow-lg py-2 z-[10000]"
+          className="fixed min-w-[200px] bg-background border rounded-lg shadow-lg py-2 z-[90]"
           style={{
             top: `${dropdownPosition.top}px`,
             left: `${dropdownPosition.left}px`
@@ -178,7 +178,7 @@ export function CategoryNav({ categories }: CategoryNavProps) {
       initial={{ opacity: 0, y: -10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.1 }}
-      className="sticky top-16 z-[9999] border-b bg-secondary/30 backdrop-blur-sm"
+      className="sticky top-16 z-[90] border-b bg-secondary/30 backdrop-blur-sm"
     >
       <div className="container mx-auto px-4">
         <div 
