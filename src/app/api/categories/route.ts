@@ -4,7 +4,15 @@ import { prisma } from "@/lib/prisma"
 export async function GET() {
   try {
     const categories = await prisma.category.findMany({
+      where: {
+        parentId: null, // Only get top-level categories
+      },
       orderBy: { name: "asc" },
+      include: {
+        subcategories: {
+          orderBy: { name: "asc" },
+        },
+      },
     })
 
     return NextResponse.json({ success: true, data: categories })

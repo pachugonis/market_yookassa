@@ -1,6 +1,6 @@
 "use client"
 
-import { Suspense, useEffect, useState } from "react"
+import React, { Suspense, useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { motion } from "framer-motion"
 import { Search, SlidersHorizontal, Loader2 } from "lucide-react"
@@ -30,6 +30,7 @@ interface Category {
   id: string
   name: string
   slug: string
+  subcategories?: Category[]
 }
 
 function ProductsContent() {
@@ -128,9 +129,16 @@ function ProductsContent() {
             <SelectContent>
               <SelectItem value="all">Все категории</SelectItem>
               {categories.map((cat) => (
-                <SelectItem key={cat.id} value={cat.slug}>
-                  {cat.name}
-                </SelectItem>
+                <React.Fragment key={cat.id}>
+                  <SelectItem value={cat.slug}>
+                    {cat.name}
+                  </SelectItem>
+                  {cat.subcategories?.map((subcat) => (
+                    <SelectItem key={subcat.id} value={subcat.slug} className="pl-8">
+                      ↳ {subcat.name}
+                    </SelectItem>
+                  ))}
+                </React.Fragment>
               ))}
             </SelectContent>
           </Select>
