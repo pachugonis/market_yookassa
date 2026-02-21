@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { useRouter, useParams } from "next/navigation"
 import { motion } from "framer-motion"
-import { Upload, Loader2, ImageIcon, FileUp, X, ArrowLeft, Key, Plus, Check, Trash2 } from "lucide-react"
+import { Upload, Loader2, ImageIcon, FileUp, X, ArrowLeft, Key, Plus, Check, Trash2, Edit2, Save } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -74,6 +74,10 @@ export default function EditProductPage() {
   const [newKeysText, setNewKeysText] = useState("")
   const [addingKeys, setAddingKeys] = useState(false)
   const [showAddKeys, setShowAddKeys] = useState(false)
+  const [editingKeyId, setEditingKeyId] = useState<string | null>(null)
+  const [editingKeyValue, setEditingKeyValue] = useState("")
+  const [updatingKey, setUpdatingKey] = useState(false)
+  const [deletingKeyId, setDeletingKeyId] = useState<string | null>(null)
 
   const [formData, setFormData] = useState({
     title: "",
@@ -237,6 +241,98 @@ export default function EditProductPage() {
       })
     } finally {
       setAddingKeys(false)
+    }
+  }
+
+  const handleEditKey = (key: LicenseKey) => {
+    setEditingKeyId(key.id)
+    setEditingKeyValue(key.key)
+  }
+
+  const handleSaveKey = async (keyId: string) => {
+    if (!editingKeyValue.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Ошибка",
+        description: "Ключ не может быть пустым",
+      })
+      return
+    }
+
+    setUpdatingKey(true)
+    try {
+      const res = await fetch(`/api/products/${productId}/license-keys`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ keyId, newKey: editingKeyValue }),
+      })
+
+      const data = await res.json()
+
+      if (data.success) {
+        toast({
+          title: "Успех",
+          description: data.message,
+        })
+        setEditingKeyId(null)
+        setEditingKeyValue("")
+        fetchLicenseKeys()
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Ошибка",
+          description: data.error,
+        })
+      }
+    } catch (error) {
+      console.error("Error updating key:", error)
+      toast({
+        variant: "destructive",
+        title: "Ошибка",
+        description: "Не удалось обновить ключ",
+      })
+    } finally {
+      setUpdatingKey(false)
+    }
+  }
+
+  const handleDeleteKey = async (keyId: string) => {
+    if (!confirm("Вы уверены, что хотите удалить этот ключ?")) {
+      return
+    }
+
+    setDeletingKeyId(keyId)
+    try {
+      const res = await fetch(`/api/products/${productId}/license-keys`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ keyId }),
+      })
+
+      const data = await res.json()
+
+      if (data.success) {
+        toast({
+          title: "Успех",
+          description: data.message,
+        })
+        fetchLicenseKeys()
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Ошибка",
+          description: data.error,
+        })
+      }
+    } catch (error) {
+      console.error("Error deleting key:", error)
+      toast({
+        variant: "destructive",
+        title: "Ошибка",
+        description: "Не удалось удалить ключ",
+      })
+    } finally {
+      setDeletingKeyId(null)
     }
   }
 
@@ -663,26 +759,100 @@ export default function EditProductPage() {
                     {licenseKeys.map((key) => (
                       <div
                         key={key.id}
-                        className={`flex items-center justify-between p-2 rounded ${
+                        className={`flex items-center justify-between p-3 rounded border ${
                           key.isSold
-                            ? 'bg-orange-50 dark:bg-orange-900/20'
-                            : 'bg-green-50 dark:bg-green-900/20'
+                            ? 'bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800'
+                            : 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
                         }`}
                       >
-                        <div className="flex items-center gap-2 flex-1 min-w-0">
-                          <span className="font-mono text-sm truncate">
-                            {key.key}
-                          </span>
-                        </div>
+                        {/* Key display or edit mode */}
+                        {editingKeyId === key.id ? (
+                          <div className="flex items-center gap-2 flex-1">
+                            <Input
+                              value={editingKeyValue}
+                              onChange={(e) => setEditingKeyValue(e.target.value)}
+                              className="font-mono text-sm"
+                              disabled={updatingKey}
+                            />
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <span className="font-mono text-sm truncate">
+                              {key.key}
+                            </span>
+                          </div>
+                        )}
+
+                        {/* Actions */}
                         <div className="flex items-center gap-2 shrink-0">
+                          {/* Status badge */}
                           {key.isSold ? (
-                            <span className="text-xs text-orange-600 dark:text-orange-400">
+                            <span className="text-xs px-2 py-1 rounded bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300">
                               Продан
                             </span>
                           ) : (
-                            <span className="text-xs text-green-600 dark:text-green-400">
+                            <span className="text-xs px-2 py-1 rounded bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300">
                               Доступен
                             </span>
+                          )}
+
+                          {/* Edit/Save and Delete buttons (only for unsold keys) */}
+                          {!key.isSold && (
+                            <>
+                              {editingKeyId === key.id ? (
+                                <>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => handleSaveKey(key.id)}
+                                    disabled={updatingKey}
+                                  >
+                                    {updatingKey ? (
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                      <Save className="h-4 w-4" />
+                                    )}
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => {
+                                      setEditingKeyId(null)
+                                      setEditingKeyValue("")
+                                    }}
+                                    disabled={updatingKey}
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                </>
+                              ) : (
+                                <>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => handleEditKey(key)}
+                                  >
+                                    <Edit2 className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => handleDeleteKey(key.id)}
+                                    disabled={deletingKeyId === key.id}
+                                  >
+                                    {deletingKeyId === key.id ? (
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                      <Trash2 className="h-4 w-4 text-red-500" />
+                                    )}
+                                  </Button>
+                                </>
+                              )}
+                            </>
                           )}
                         </div>
                       </div>
