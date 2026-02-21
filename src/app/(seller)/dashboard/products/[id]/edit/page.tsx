@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { useRouter, useParams } from "next/navigation"
 import { motion } from "framer-motion"
-import { Upload, Loader2, ImageIcon, FileUp, X, ArrowLeft } from "lucide-react"
+import { Upload, Loader2, ImageIcon, FileUp, X, ArrowLeft, Key, Plus, Check, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -45,6 +45,15 @@ interface Product {
   fileName: string
   fileSize: number
   status: string
+  hasLicenseKeys: boolean
+}
+
+interface LicenseKey {
+  id: string
+  key: string
+  isSold: boolean
+  soldAt: string | null
+  createdAt: string
 }
 
 export default function EditProductPage() {
@@ -60,6 +69,11 @@ export default function EditProductPage() {
   const [selectedParentCategory, setSelectedParentCategory] = useState<string>("")
   const [subcategories, setSubcategories] = useState<Subcategory[]>([])
   const [productImages, setProductImages] = useState<Array<{ id: string; imageUrl: string; order: number }>>([])
+  const [licenseKeys, setLicenseKeys] = useState<LicenseKey[]>([])
+  const [licenseKeyStats, setLicenseKeyStats] = useState({ total: 0, available: 0, sold: 0 })
+  const [newKeysText, setNewKeysText] = useState("")
+  const [addingKeys, setAddingKeys] = useState(false)
+  const [showAddKeys, setShowAddKeys] = useState(false)
 
   const [formData, setFormData] = useState({
     title: "",
@@ -113,6 +127,11 @@ export default function EditProductPage() {
           fileSize: product.fileSize,
         })
         
+        // Fetch license keys if product has them
+        if (product.hasLicenseKeys) {
+          fetchLicenseKeys()
+        }
+        
         // Find parent category and subcategories if the product's category is a subcategory
         setTimeout(() => {
           const allCategories = categories
@@ -157,6 +176,67 @@ export default function EditProductPage() {
       }
     } catch (error) {
       console.error("Error fetching product images:", error)
+    }
+  }
+
+  const fetchLicenseKeys = async () => {
+    try {
+      const res = await fetch(`/api/products/${productId}/license-keys`)
+      const data = await res.json()
+      if (data.success) {
+        setLicenseKeys(data.data.keys)
+        setLicenseKeyStats(data.data.stats)
+      }
+    } catch (error) {
+      console.error("Error fetching license keys:", error)
+    }
+  }
+
+  const handleAddKeys = async () => {
+    if (!newKeysText.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Ошибка",
+        description: "Введите ключи",
+      })
+      return
+    }
+
+    setAddingKeys(true)
+    try {
+      const keys = newKeysText.split('\n').filter(k => k.trim().length > 0)
+      const res = await fetch(`/api/products/${productId}/license-keys`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ keys }),
+      })
+
+      const data = await res.json()
+
+      if (data.success) {
+        toast({
+          title: "Успех",
+          description: data.message,
+        })
+        setNewKeysText("")
+        setShowAddKeys(false)
+        fetchLicenseKeys()
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Ошибка",
+          description: data.error,
+        })
+      }
+    } catch (error) {
+      console.error("Error adding keys:", error)
+      toast({
+        variant: "destructive",
+        title: "Ошибка",
+        description: "Не удалось добавить ключи",
+      })
+    } finally {
+      setAddingKeys(false)
     }
   }
 
@@ -479,6 +559,139 @@ export default function EditProductPage() {
               </p>
             </CardContent>
           </Card>
+
+          {/* License Keys */}
+          {licenseKeyStats.total > 0 && (
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <Key className="h-5 w-5" />
+                    Лицензионные ключи
+                  </CardTitle>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => setShowAddKeys(!showAddKeys)}
+                  >
+                    <Plus className="h-4 w-4" />
+                    Добавить ключи
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Stats */}
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="p-3 bg-secondary/50 rounded-lg">
+                    <p className="text-sm text-muted-foreground">Всего</p>
+                    <p className="text-2xl font-bold">{licenseKeyStats.total}</p>
+                  </div>
+                  <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                    <p className="text-sm text-muted-foreground">Доступно</p>
+                    <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+                      {licenseKeyStats.available}
+                    </p>
+                  </div>
+                  <div className="p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
+                    <p className="text-sm text-muted-foreground">Продано</p>
+                    <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">
+                      {licenseKeyStats.sold}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Add Keys Form */}
+                {showAddKeys && (
+                  <div className="space-y-3 p-4 border rounded-lg bg-secondary/30">
+                    <Label htmlFor="newKeys">
+                      Новые ключи (каждый с новой строки)
+                    </Label>
+                    <Textarea
+                      id="newKeys"
+                      value={newKeysText}
+                      onChange={(e) => setNewKeysText(e.target.value)}
+                      placeholder="XXXX-XXXX-XXXX-XXXX\nYYYY-YYYY-YYYY-YYYY\nZZZZ-ZZZZ-ZZZZ-ZZZZ"
+                      rows={6}
+                      className="font-mono text-sm"
+                    />
+                    <p className="text-sm text-muted-foreground">
+                      Ключей для добавления: {newKeysText.split('\n').filter(k => k.trim().length > 0).length}
+                    </p>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        onClick={handleAddKeys}
+                        disabled={addingKeys}
+                        className="flex-1"
+                      >
+                        {addingKeys ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Добавление...
+                          </>
+                        ) : (
+                          <>
+                            <Check className="h-4 w-4" />
+                            Добавить
+                          </>
+                        )}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          setShowAddKeys(false)
+                          setNewKeysText("")
+                        }}
+                        className="flex-1"
+                      >
+                        Отмена
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Keys List */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium">Список ключей</p>
+                    <p className="text-xs text-muted-foreground">
+                      Показано {licenseKeys.length} из {licenseKeyStats.total}
+                    </p>
+                  </div>
+                  <div className="max-h-64 overflow-y-auto space-y-2 border rounded-lg p-2">
+                    {licenseKeys.map((key) => (
+                      <div
+                        key={key.id}
+                        className={`flex items-center justify-between p-2 rounded ${
+                          key.isSold
+                            ? 'bg-orange-50 dark:bg-orange-900/20'
+                            : 'bg-green-50 dark:bg-green-900/20'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                          <span className="font-mono text-sm truncate">
+                            {key.key}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          {key.isSold ? (
+                            <span className="text-xs text-orange-600 dark:text-orange-400">
+                              Продан
+                            </span>
+                          ) : (
+                            <span className="text-xs text-green-600 dark:text-green-400">
+                              Доступен
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Submit */}
           <div className="flex gap-4">
