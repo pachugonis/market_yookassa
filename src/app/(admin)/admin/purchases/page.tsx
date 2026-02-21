@@ -56,6 +56,9 @@ export default async function PurchasesPage() {
     totalRevenue: purchases
       .filter((p: any) => p.status === "COMPLETED")
       .reduce((sum: number, p: any) => sum + p.amount, 0),
+    platformEarnings: purchases
+      .filter((p: any) => p.status === "COMPLETED")
+      .reduce((sum: number, p: any) => sum + p.commission, 0),
   }
 
   return (
@@ -65,7 +68,7 @@ export default async function PurchasesPage() {
         <p className="text-muted-foreground mt-2">Все транзакции на платформе</p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-3">
         <Card className="p-6">
           <h3 className="font-semibold mb-2">Всего покупок</h3>
           <p className="text-3xl font-bold">{stats.total}</p>
@@ -78,9 +81,16 @@ export default async function PurchasesPage() {
           <h3 className="font-semibold mb-2">В ожидании</h3>
           <p className="text-3xl font-bold">{stats.pending}</p>
         </Card>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
         <Card className="p-6">
           <h3 className="font-semibold mb-2">Выручка</h3>
           <p className="text-3xl font-bold">{stats.totalRevenue.toLocaleString('ru-RU')} ₽</p>
+        </Card>
+        <Card className="p-6">
+          <h3 className="font-semibold mb-2">Заработок</h3>
+          <p className="text-3xl font-bold text-green-600">{stats.platformEarnings.toLocaleString('ru-RU')} ₽</p>
         </Card>
       </div>
 
