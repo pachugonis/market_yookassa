@@ -1,8 +1,21 @@
 "use client"
 
 import { motion } from "framer-motion"
-import { Package } from "lucide-react"
+import { Package, Folder } from "lucide-react"
 import { ProductCard } from "@/components/products/product-card"
+import Link from "next/link"
+import { Card } from "@/components/ui/card"
+
+interface Subcategory {
+  id: string
+  name: string
+  slug: string
+  icon: string
+  description: string | null
+  _count: {
+    products: number
+  }
+}
 
 interface Product {
   id: string
@@ -21,9 +34,10 @@ interface CategoryProductsProps {
     description: string | null
   }
   products: Product[]
+  subcategories: Subcategory[]
 }
 
-export function CategoryProducts({ category, products }: CategoryProductsProps) {
+export function CategoryProducts({ category, products, subcategories }: CategoryProductsProps) {
   return (
     <div className="container mx-auto px-4 py-8">
       <motion.div
@@ -36,6 +50,42 @@ export function CategoryProducts({ category, products }: CategoryProductsProps) 
           <p className="text-muted-foreground">{category.description}</p>
         )}
       </motion.div>
+
+      {subcategories && subcategories.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="mb-12"
+        >
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {subcategories.map((subcategory) => (
+              <Link key={subcategory.id} href={`/category/${subcategory.slug}`}>
+                <Card className="p-4 hover:shadow-lg transition-all duration-300 hover:border-primary cursor-pointer group">
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 bg-primary/10 rounded-lg group-hover:bg-primary/20 transition-colors">
+                      <Folder className="h-5 w-5 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-sm group-hover:text-primary transition-colors truncate">
+                        {subcategory.name}
+                      </h3>
+                      {subcategory.description && (
+                        <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                          {subcategory.description}
+                        </p>
+                      )}
+                      <p className="text-xs text-muted-foreground mt-2">
+                        {subcategory._count.products} {subcategory._count.products === 1 ? 'product' : 'products'}
+                      </p>
+                    </div>
+                  </div>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        </motion.div>
+      )}
 
       {products.length === 0 ? (
         <motion.div

@@ -11,15 +11,28 @@ export default async function CategoryPage({ params }: Props) {
 
   const category = await prisma.category.findUnique({
     where: { slug },
+    include: {
+      subcategories: {
+        orderBy: { name: "asc" },
+        include: {
+          _count: {
+            select: { products: true }
+          }
+        }
+      }
+    }
   })
 
   if (!category) {
     notFound()
   }
 
+  // Get all category IDs (current category + subcategories)
+  const categoryIds = [category.id, ...(category.subcategories?.map(sub => sub.id) || [])]
+
   const products = await prisma.product.findMany({
     where: { 
-      categoryId: category.id,
+      categoryId: { in: categoryIds },
       status: "ACTIVE" 
     },
     include: {
@@ -47,5 +60,5 @@ export default async function CategoryPage({ params }: Props) {
     }
   })
 
-  return <CategoryProducts category={category} products={productsWithRating} />
+  return <CategoryProducts category={category} products={productsWithRating} subcategories={category.subcategories || []} />
 }
