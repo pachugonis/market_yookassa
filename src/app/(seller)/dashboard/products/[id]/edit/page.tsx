@@ -19,10 +19,17 @@ import {
 import { toast } from "@/hooks/use-toast"
 import Link from "next/link"
 
+interface Subcategory {
+  id: string
+  name: string
+  slug: string
+}
+
 interface Category {
   id: string
   name: string
   slug: string
+  subcategories?: Subcategory[]
 }
 
 interface Product {
@@ -47,6 +54,8 @@ export default function EditProductPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [uploadingCover, setUploadingCover] = useState(false)
+  const [selectedParentCategory, setSelectedParentCategory] = useState<string>("")
+  const [subcategories, setSubcategories] = useState<Subcategory[]>([])
 
   const [formData, setFormData] = useState({
     title: "",
@@ -98,6 +107,21 @@ export default function EditProductPage() {
           fileName: product.fileName,
           fileSize: product.fileSize,
         })
+        
+        // Find parent category and subcategories if the product's category is a subcategory
+        setTimeout(() => {
+          const allCategories = categories
+          const parentCat = allCategories.find(cat => 
+            cat.subcategories?.some(sub => sub.id === product.categoryId)
+          )
+          if (parentCat) {
+            setSelectedParentCategory(parentCat.id)
+            setSubcategories(parentCat.subcategories || [])
+          } else {
+            setSelectedParentCategory(product.categoryId)
+            setSubcategories([])
+          }
+        }, 100)
       } else {
         toast({
           variant: "destructive",
@@ -248,7 +272,7 @@ export default function EditProductPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="price">Цена (руб.)</Label>
                   <Input
@@ -265,8 +289,22 @@ export default function EditProductPage() {
                 <div className="space-y-2">
                   <Label htmlFor="category">Категория</Label>
                   <Select
-                    value={formData.categoryId}
-                    onValueChange={(value) => setFormData({ ...formData, categoryId: value })}
+                    value={selectedParentCategory}
+                    onValueChange={(value) => {
+                      setSelectedParentCategory(value)
+                      const category = categories.find(cat => cat.id === value)
+                      
+                      if (category?.subcategories && category.subcategories.length > 0) {
+                        setSubcategories(category.subcategories)
+                        // Don't reset categoryId if it's already a subcategory of this parent
+                        if (!category.subcategories.some(sub => sub.id === formData.categoryId)) {
+                          setFormData({ ...formData, categoryId: "" })
+                        }
+                      } else {
+                        setSubcategories([])
+                        setFormData({ ...formData, categoryId: value })
+                      }
+                    }}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Выберите категорию" />
@@ -280,6 +318,27 @@ export default function EditProductPage() {
                     </SelectContent>
                   </Select>
                 </div>
+
+                {subcategories.length > 0 && (
+                  <div className="space-y-2">
+                    <Label htmlFor="subcategory">Подкатегория</Label>
+                    <Select
+                      value={formData.categoryId}
+                      onValueChange={(value) => setFormData({ ...formData, categoryId: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Выберите подкатегорию" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {subcategories.map((subcat) => (
+                          <SelectItem key={subcat.id} value={subcat.id}>
+                            {subcat.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2">

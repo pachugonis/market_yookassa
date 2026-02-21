@@ -18,10 +18,17 @@ import {
 } from "@/components/ui/select"
 import { toast } from "@/hooks/use-toast"
 
+interface Subcategory {
+  id: string
+  name: string
+  slug: string
+}
+
 interface Category {
   id: string
   name: string
   slug: string
+  subcategories?: Subcategory[]
 }
 
 export default function NewProductPage() {
@@ -31,6 +38,10 @@ export default function NewProductPage() {
   const [uploadingFile, setUploadingFile] = useState(false)
   const [uploadingCover, setUploadingCover] = useState(false)
   const [maxFileSize, setMaxFileSize] = useState(500)
+
+  const [selectedParentCategory, setSelectedParentCategory] = useState<string>("")
+  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null)
+  const [subcategories, setSubcategories] = useState<Subcategory[]>([])
 
   const [formData, setFormData] = useState({
     title: "",
@@ -210,7 +221,7 @@ export default function NewProductPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="price">Цена (руб.)</Label>
                   <Input
@@ -227,8 +238,20 @@ export default function NewProductPage() {
                 <div className="space-y-2">
                   <Label htmlFor="category">Категория</Label>
                   <Select
-                    value={formData.categoryId}
-                    onValueChange={(value) => setFormData({ ...formData, categoryId: value })}
+                    value={selectedParentCategory}
+                    onValueChange={(value) => {
+                      setSelectedParentCategory(value)
+                      const category = categories.find(cat => cat.id === value)
+                      setSelectedCategory(category || null)
+                      
+                      if (category?.subcategories && category.subcategories.length > 0) {
+                        setSubcategories(category.subcategories)
+                        setFormData({ ...formData, categoryId: "" })
+                      } else {
+                        setSubcategories([])
+                        setFormData({ ...formData, categoryId: value })
+                      }
+                    }}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Выберите категорию" />
@@ -242,6 +265,27 @@ export default function NewProductPage() {
                     </SelectContent>
                   </Select>
                 </div>
+
+                {subcategories.length > 0 && (
+                  <div className="space-y-2">
+                    <Label htmlFor="subcategory">Подкатегория</Label>
+                    <Select
+                      value={formData.categoryId}
+                      onValueChange={(value) => setFormData({ ...formData, categoryId: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Выберите подкатегорию" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {subcategories.map((subcat) => (
+                          <SelectItem key={subcat.id} value={subcat.id}>
+                            {subcat.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>

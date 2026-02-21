@@ -2,49 +2,17 @@
 
 import Link from "next/link"
 import { motion } from "framer-motion"
-import Image from "next/image"
 import { 
-  Monitor, 
-  Gamepad2, 
-  Music, 
-  Video, 
-  Image as ImageIcon, 
-  Layout, 
-  BookOpen, 
-  FileText,
-  ArrowRight,
   Sparkles,
   Shield,
   Zap,
   Users,
   TrendingUp,
-  HeadphonesIcon
+  HeadphonesIcon,
+  ArrowRight
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
 import { MagicBento } from "@/components/ui/magic-bento"
-
-const iconMap: Record<string, any> = {
-  Monitor,
-  Gamepad2,
-  Music,
-  Video,
-  Image: ImageIcon,
-  Layout,
-  BookOpen,
-  FileText,
-}
-
-const colorMap: Record<string, string> = {
-  software: "from-blue-500 to-cyan-500",
-  games: "from-purple-500 to-pink-500",
-  music: "from-green-500 to-emerald-500",
-  video: "from-red-500 to-orange-500",
-  graphics: "from-yellow-500 to-amber-500",
-  templates: "from-indigo-500 to-violet-500",
-  ebooks: "from-teal-500 to-cyan-500",
-  documents: "from-slate-500 to-gray-500",
-}
 
 const bentoItems = [
   {
@@ -91,32 +59,7 @@ const bentoItems = [
   },
 ]
 
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.1
-    }
-  }
-}
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0 }
-}
-
-interface HomePageProps {
-  categories: Array<{
-    id: string
-    name: string
-    slug: string
-    icon: string
-    description: string | null
-  }>
-}
-
-export function HomePage({ categories }: HomePageProps) {
+export function HomePage() {
   return (
     <div className="flex flex-col">
       {/* Hero Section */}
@@ -168,66 +111,6 @@ export function HomePage({ categories }: HomePageProps) {
         <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-primary/10 rounded-full blur-3xl" />
       </section>
 
-      {/* Categories Section */}
-      <section className="py-16 md:py-24">
-        <div className="container mx-auto px-4">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-12"
-          >
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">Категории товаров</h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto">
-              Выберите интересующую вас категорию и найдите то, что нужно
-            </p>
-          </motion.div>
-
-          <motion.div
-            variants={containerVariants}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
-            className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6"
-          >
-            {categories.map((category) => {
-              const Icon = iconMap[category.icon] || Monitor
-              const color = colorMap[category.slug] || "from-gray-500 to-slate-500"
-              const isImageIcon = category.icon.startsWith("/") || category.icon.startsWith("http")
-              
-              return (
-                <motion.div key={category.slug} variants={itemVariants}>
-                  <Link href={`/category/${category.slug}`}>
-                    <Card className="group relative overflow-hidden hover:shadow-lg transition-all duration-300 hover:-translate-y-1 cursor-pointer h-full">
-                      <CardContent className="p-6">
-                        <div className={`absolute inset-0 bg-gradient-to-br ${color} opacity-0 group-hover:opacity-10 transition-opacity duration-300`} />
-                        <div className="relative z-10">
-                          {isImageIcon ? (
-                            <div className="relative w-12 h-12 mb-4 rounded overflow-hidden group-hover:scale-110 transition-transform duration-300">
-                              <Image
-                                src={category.icon}
-                                alt={category.name}
-                                width={48}
-                                height={48}
-                                className="object-cover"
-                              />
-                            </div>
-                          ) : (
-                            <Icon className="h-12 w-12 mb-4 text-primary group-hover:scale-110 transition-transform duration-300" />
-                          )}
-                          <h3 className="font-semibold text-lg group-hover:text-primary transition-colors">
-                            {category.name}
-                          </h3>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </Link>
-                </motion.div>
-              )
-            })}
-          </motion.div>
-        </div>
-      </section>
 
       {/* MagicBento Section */}
       <section className="py-16 md:py-24 bg-secondary/20">
