@@ -4,6 +4,7 @@ import Link from "next/link"
 import { motion } from "framer-motion"
 import { useState, useRef, useEffect } from "react"
 import { createPortal } from "react-dom"
+import Image from "next/image"
 import { 
   Monitor, 
   Gamepad2, 
@@ -54,6 +55,7 @@ function CategoryMenuItem({ category }: { category: Category }) {
   const triggerRef = useRef<HTMLDivElement>(null)
   const Icon = iconMap[category.icon] || Monitor
   const hasSubcategories = category.subcategories && category.subcategories.length > 0
+  const isImageIcon = category.icon.startsWith("/") || category.icon.startsWith("http")
 
   useEffect(() => {
     if (isOpen && triggerRef.current) {
@@ -71,7 +73,19 @@ function CategoryMenuItem({ category }: { category: Category }) {
         href={`/category/${category.slug}`}
         className="group flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-primary/10 transition-all duration-200 whitespace-nowrap shrink-0"
       >
-        <Icon className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+        {isImageIcon ? (
+          <div className="relative w-4 h-4 rounded overflow-hidden">
+            <Image
+              src={category.icon}
+              alt={category.name}
+              width={16}
+              height={16}
+              className="object-cover"
+            />
+          </div>
+        ) : (
+          <Icon className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+        )}
         <span className="text-sm font-medium text-muted-foreground group-hover:text-primary transition-colors">
           {category.name}
         </span>
@@ -90,7 +104,19 @@ function CategoryMenuItem({ category }: { category: Category }) {
         href={`/category/${category.slug}`}
         className="group flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-primary/10 transition-all duration-200 whitespace-nowrap shrink-0"
       >
-        <Icon className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+        {isImageIcon ? (
+          <div className="relative w-4 h-4 rounded overflow-hidden">
+            <Image
+              src={category.icon}
+              alt={category.name}
+              width={16}
+              height={16}
+              className="object-cover"
+            />
+          </div>
+        ) : (
+          <Icon className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+        )}
         <span className="text-sm font-medium text-muted-foreground group-hover:text-primary transition-colors">
           {category.name}
         </span>
@@ -113,13 +139,26 @@ function CategoryMenuItem({ category }: { category: Category }) {
         >
           {category.subcategories!.map((subcategory) => {
             const SubIcon = iconMap[subcategory.icon] || Monitor
+            const isSubImageIcon = subcategory.icon.startsWith("/") || subcategory.icon.startsWith("http")
             return (
               <Link
                 key={subcategory.id}
                 href={`/category/${subcategory.slug}`}
                 className="flex items-center gap-3 px-4 py-2 hover:bg-primary/10 transition-colors"
               >
-                <SubIcon className="h-4 w-4 text-muted-foreground" />
+                {isSubImageIcon ? (
+                  <div className="relative w-4 h-4 rounded overflow-hidden">
+                    <Image
+                      src={subcategory.icon}
+                      alt={subcategory.name}
+                      width={16}
+                      height={16}
+                      className="object-cover"
+                    />
+                  </div>
+                ) : (
+                  <SubIcon className="h-4 w-4 text-muted-foreground" />
+                )}
                 <span className="text-sm text-muted-foreground hover:text-primary">
                   {subcategory.name}
                 </span>

@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import { motion } from "framer-motion"
+import Image from "next/image"
 import { 
   Monitor, 
   Gamepad2, 
@@ -192,6 +193,7 @@ export function HomePage({ categories }: HomePageProps) {
             {categories.map((category) => {
               const Icon = iconMap[category.icon] || Monitor
               const color = colorMap[category.slug] || "from-gray-500 to-slate-500"
+              const isImageIcon = category.icon.startsWith("/") || category.icon.startsWith("http")
               
               return (
                 <motion.div key={category.slug} variants={itemVariants}>
@@ -200,7 +202,19 @@ export function HomePage({ categories }: HomePageProps) {
                       <CardContent className="p-6">
                         <div className={`absolute inset-0 bg-gradient-to-br ${color} opacity-0 group-hover:opacity-10 transition-opacity duration-300`} />
                         <div className="relative z-10">
-                          <Icon className="h-12 w-12 mb-4 text-primary group-hover:scale-110 transition-transform duration-300" />
+                          {isImageIcon ? (
+                            <div className="relative w-12 h-12 mb-4 rounded overflow-hidden group-hover:scale-110 transition-transform duration-300">
+                              <Image
+                                src={category.icon}
+                                alt={category.name}
+                                width={48}
+                                height={48}
+                                className="object-cover"
+                              />
+                            </div>
+                          ) : (
+                            <Icon className="h-12 w-12 mb-4 text-primary group-hover:scale-110 transition-transform duration-300" />
+                          )}
                           <h3 className="font-semibold text-lg group-hover:text-primary transition-colors">
                             {category.name}
                           </h3>
