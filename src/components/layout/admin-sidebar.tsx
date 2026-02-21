@@ -12,7 +12,8 @@ import {
   Shield,
   Settings,
   BarChart3,
-  Flag
+  Flag,
+  Store
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
@@ -37,6 +38,11 @@ const menuItems = [
     title: "Покупки", 
     href: "/admin/purchases", 
     icon: ShoppingCart 
+  },
+  { 
+    title: "Магазины", 
+    href: "/admin/stores", 
+    icon: Store 
   },
   { 
     title: "Категории", 
