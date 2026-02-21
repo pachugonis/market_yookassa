@@ -119,7 +119,7 @@ export function HomePage({ categories }: HomePageProps) {
   return (
     <div className="flex flex-col">
       {/* Hero Section */}
-      <section className="relative overflow-hidden gradient-bg">
+      <section className="relative gradient-bg overflow-hidden">
         <div className="absolute inset-0 bg-grid-pattern opacity-5" />
         <div className="container mx-auto px-4 py-20 md:py-32 relative">
           <motion.div
