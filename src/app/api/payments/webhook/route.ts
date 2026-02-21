@@ -114,6 +114,26 @@ export async function POST(request: NextRequest) {
             },
           })
         )
+
+        // Check if this was the last available key
+        const remainingKeys = await prisma.licenseKey.count({
+          where: {
+            productId: purchase.productId,
+            isSold: false,
+            id: { not: licenseKey.id }, // Exclude the key we're about to mark as sold
+          },
+        })
+
+        // If no keys left, deactivate the product
+        if (remainingKeys === 0) {
+          updateOperations.push(
+            prisma.product.update({
+              where: { id: purchase.productId },
+              data: { status: "INACTIVE" },
+            })
+          )
+          console.log(`Product ${purchase.productId} deactivated - all license keys sold`)
+        }
       }
 
       await prisma.$transaction(updateOperations)

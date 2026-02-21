@@ -99,7 +99,7 @@ export async function POST(
     // Check if user owns this product
     const product = await prisma.product.findUnique({
       where: { id },
-      select: { sellerId: true, hasLicenseKeys: true },
+      select: { sellerId: true, hasLicenseKeys: true, status: true },
     })
 
     if (!product) {
@@ -162,6 +162,15 @@ export async function POST(
         key,
       })),
     })
+
+    // Check if product was inactive and should be reactivated
+    if (product.status === "INACTIVE") {
+      await prisma.product.update({
+        where: { id },
+        data: { status: "ACTIVE" },
+      })
+      console.log(`Product ${id} reactivated - new license keys added`)
+    }
 
     return NextResponse.json({
       success: true,
