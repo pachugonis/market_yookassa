@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/select"
 import { toast } from "@/hooks/use-toast"
 import Link from "next/link"
+import { ImageCropper } from "@/components/ui/image-cropper"
 
 interface Subcategory {
   id: string
@@ -54,6 +55,7 @@ export default function EditProductPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [uploadingCover, setUploadingCover] = useState(false)
+  const [imageToCrop, setImageToCrop] = useState<string | null>(null)
   const [selectedParentCategory, setSelectedParentCategory] = useState<string>("")
   const [subcategories, setSubcategories] = useState<Subcategory[]>([])
 
@@ -147,10 +149,19 @@ export default function EditProductPage() {
     const file = e.target.files?.[0]
     if (!file) return
 
+    const reader = new FileReader()
+    reader.onload = () => {
+      setImageToCrop(reader.result as string)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const handleCropComplete = async (croppedBlob: Blob) => {
     setUploadingCover(true)
+    setImageToCrop(null)
 
     const formDataUpload = new FormData()
-    formDataUpload.append("file", file)
+    formDataUpload.append("file", croppedBlob, "cover.jpg")
     formDataUpload.append("type", "cover")
 
     try {
@@ -224,6 +235,15 @@ export default function EditProductPage() {
 
   return (
     <div className="max-w-2xl mx-auto">
+      {imageToCrop && (
+        <ImageCropper
+          image={imageToCrop}
+          onCropComplete={handleCropComplete}
+          onCancel={() => setImageToCrop(null)}
+          aspectRatio={4 / 3}
+        />
+      )}
+      
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}

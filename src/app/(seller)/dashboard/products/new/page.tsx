@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { toast } from "@/hooks/use-toast"
+import { ImageCropper } from "@/components/ui/image-cropper"
 
 interface Subcategory {
   id: string
@@ -38,6 +39,7 @@ export default function NewProductPage() {
   const [uploadingFile, setUploadingFile] = useState(false)
   const [uploadingCover, setUploadingCover] = useState(false)
   const [maxFileSize, setMaxFileSize] = useState(500)
+  const [imageToCrop, setImageToCrop] = useState<string | null>(null)
 
   const [selectedParentCategory, setSelectedParentCategory] = useState<string>("")
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null)
@@ -92,7 +94,18 @@ export default function NewProductPage() {
     const file = e.target.files?.[0]
     if (!file) return
 
-    const setter = type === "cover" ? setUploadingCover : setUploadingFile
+    // For cover images, show cropper
+    if (type === "cover") {
+      const reader = new FileReader()
+      reader.onload = () => {
+        setImageToCrop(reader.result as string)
+      }
+      reader.readAsDataURL(file)
+      return
+    }
+
+    // For product files, upload directly
+    const setter = setUploadingFile
     setter(true)
 
     const formDataUpload = new FormData()
@@ -108,16 +121,12 @@ export default function NewProductPage() {
       const data = await res.json()
 
       if (data.success) {
-        if (type === "cover") {
-          setFormData((prev) => ({ ...prev, coverImage: data.data.fileUrl }))
-        } else {
-          setFormData((prev) => ({
-            ...prev,
-            fileUrl: data.data.fileUrl,
-            fileName: data.data.fileName,
-            fileSize: data.data.fileSize,
-          }))
-        }
+        setFormData((prev) => ({
+          ...prev,
+          fileUrl: data.data.fileUrl,
+          fileName: data.data.fileName,
+          fileSize: data.data.fileSize,
+        }))
         toast({ title: "Файл загружен" })
       } else {
         toast({ title: "Ошибка", description: data.error, variant: "destructive" })
@@ -126,6 +135,35 @@ export default function NewProductPage() {
       toast({ title: "Ошибка загрузки", variant: "destructive" })
     } finally {
       setter(false)
+    }
+  }
+
+  const handleCropComplete = async (croppedBlob: Blob) => {
+    setUploadingCover(true)
+    setImageToCrop(null)
+
+    const formDataUpload = new FormData()
+    formDataUpload.append("file", croppedBlob, "cover.jpg")
+    formDataUpload.append("type", "cover")
+
+    try {
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formDataUpload,
+      })
+
+      const data = await res.json()
+
+      if (data.success) {
+        setFormData((prev) => ({ ...prev, coverImage: data.data.fileUrl }))
+        toast({ title: "Обложка загружена" })
+      } else {
+        toast({ title: "Ошибка", description: data.error, variant: "destructive" })
+      }
+    } catch {
+      toast({ title: "Ошибка загрузки", variant: "destructive" })
+    } finally {
+      setUploadingCover(false)
     }
   }
 
@@ -182,6 +220,15 @@ export default function NewProductPage() {
 
   return (
     <div className="max-w-2xl mx-auto">
+      {imageToCrop && (
+        <ImageCropper
+          image={imageToCrop}
+          onCropComplete={handleCropComplete}
+          onCancel={() => setImageToCrop(null)}
+          aspectRatio={4 / 3}
+        />
+      )}
+      
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
