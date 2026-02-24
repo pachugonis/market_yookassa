@@ -3,6 +3,8 @@ import { Footer } from "@/components/layout/footer"
 import { CategoryNav } from "@/components/layout/category-nav"
 import { prisma } from "@/lib/prisma"
 
+export const dynamic = 'force-dynamic'
+
 export default async function MarketplaceLayout({
   children,
 }: {
