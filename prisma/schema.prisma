@@ -269,6 +269,12 @@ model PlatformSettings {
   enableTwoFactor         Boolean  @default(false)
   sessionTimeout          Int      @default(24)
   maxLoginAttempts        Int      @default(5)
+  smtpHost                String?
+  smtpPort                Int      @default(587)
+  smtpUser                String?
+  smtpPassword            String?
+  fromEmail               String   @default("noreply@digimarket.com")
+  fromName                String   @default("DigiMarket")
   updatedAt               DateTime @updatedAt
 }
 

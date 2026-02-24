@@ -19,6 +19,12 @@ const settingsSchema = z.object({
   enableTwoFactor: z.boolean().optional(),
   sessionTimeout: z.number().min(1).max(168).optional(),
   maxLoginAttempts: z.number().min(3).max(10).optional(),
+  smtpHost: z.string().optional(),
+  smtpPort: z.number().min(1).max(65535).optional(),
+  smtpUser: z.string().optional(),
+  smtpPassword: z.string().optional(),
+  fromEmail: z.string().email().optional(),
+  fromName: z.string().min(1).max(100).optional(),
 })
 
 export async function GET() {

@@ -15,7 +15,8 @@ import {
   Percent,
   DollarSign,
   Shield,
-  Bell
+  Bell,
+  Send
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
@@ -56,6 +57,14 @@ export default function SettingsPage() {
           minPayoutAmount: (data.data.minPayoutAmount || 100000) / 100,
           maxFileSize: data.data.maxFileSize || 500,
         }))
+        setEmailSettings({
+          smtpHost: data.data.smtpHost || "",
+          smtpPort: data.data.smtpPort || 587,
+          smtpUser: data.data.smtpUser || "",
+          smtpPassword: data.data.smtpPassword || "",
+          fromEmail: data.data.fromEmail || "noreply@digimarket.com",
+          fromName: data.data.fromName || "DigiMarket",
+        })
         setNotifications({
           notifyNewUser: data.data.notifyNewUser ?? true,
           notifyNewProduct: data.data.notifyNewProduct ?? true,
@@ -148,16 +157,71 @@ export default function SettingsPage() {
   const handleSaveEmailSettings = async () => {
     setIsLoading(true)
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      toast({
-        title: "Успех",
-        description: "Настройки email сохранены",
+      const response = await fetch("/api/admin/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          smtpHost: emailSettings.smtpHost,
+          smtpPort: emailSettings.smtpPort,
+          smtpUser: emailSettings.smtpUser,
+          smtpPassword: emailSettings.smtpPassword,
+          fromEmail: emailSettings.fromEmail,
+          fromName: emailSettings.fromName,
+        }),
       })
+
+      const data = await response.json()
+
+      if (data.success) {
+        toast({
+          title: "Успех",
+          description: "Настройки email сохранены",
+        })
+      } else {
+        toast({
+          title: "Ошибка",
+          description: data.error || "Не удалось сохранить настройки email",
+          variant: "destructive",
+        })
+      }
     } catch (error) {
       toast({
         title: "Ошибка",
         description: "Не удалось сохранить настройки email",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleTestEmail = async () => {
+    setIsLoading(true)
+    try {
+      const response = await fetch("/api/admin/test-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(emailSettings),
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        toast({
+          title: "Успех",
+          description: "Тестовое письмо отправлено!",
+        })
+      } else {
+        toast({
+          title: "Ошибка",
+          description: data.error || "Не удалось отправить тестовое письмо",
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      toast({
+        title: "Ошибка",
+        description: "Не удалось отправить тестовое письмо",
         variant: "destructive",
       })
     } finally {
@@ -430,7 +494,15 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={handleTestEmail}
+              disabled={isLoading || !emailSettings.smtpHost || !emailSettings.smtpUser}
+            >
+              {isLoading ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
+              Тестировать
+            </Button>
             <Button onClick={handleSaveEmailSettings} disabled={isLoading}>
               {isLoading ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
               Сохранить
