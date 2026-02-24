@@ -53,10 +53,12 @@ COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
+COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
+COPY --from=builder /app/node_modules/.bin/prisma ./node_modules/.bin/prisma
 
 # Create directories for file uploads
-RUN mkdir -p uploads public/avatars public/covers public/category-icons && \
-    chown -R nextjs:nodejs uploads public
+RUN mkdir -p uploads public/avatars public/covers public/category-icons node_modules/.bin && \
+    chown -R nextjs:nodejs uploads public node_modules
 
 # Switch to non-root user
 USER nextjs
