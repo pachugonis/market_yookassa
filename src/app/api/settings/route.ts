@@ -8,6 +8,9 @@ export async function GET() {
     if (!settings) {
       settings = await prisma.platformSettings.create({
         data: {
+          siteName: "DigiMarket",
+          siteDescription: "Маркетплейс цифровых товаров",
+          supportEmail: "support@digimarket.com",
           commissionRate: 10,
           minPayoutAmount: 100000,
           maxFileSize: 500,
@@ -28,6 +31,9 @@ export async function GET() {
     return NextResponse.json({ 
       success: true, 
       data: {
+        siteName: settings.siteName,
+        siteDescription: settings.siteDescription,
+        supportEmail: settings.supportEmail,
         maxFileSize: settings.maxFileSize,
       }
     })
