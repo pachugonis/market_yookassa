@@ -49,6 +49,9 @@ export default function SettingsPage() {
       if (data.success && data.data) {
         setPlatformSettings(prev => ({
           ...prev,
+          siteName: data.data.siteName || "DigiMarket",
+          siteDescription: data.data.siteDescription || "Маркетплейс цифровых товаров",
+          supportEmail: data.data.supportEmail || "support@digimarket.com",
           commissionRate: data.data.commissionRate,
           minPayoutAmount: (data.data.minPayoutAmount || 100000) / 100,
           maxFileSize: data.data.maxFileSize || 500,
@@ -108,6 +111,9 @@ export default function SettingsPage() {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          siteName: platformSettings.siteName,
+          siteDescription: platformSettings.siteDescription,
+          supportEmail: platformSettings.supportEmail,
           commissionRate: platformSettings.commissionRate,
           minPayoutAmount: platformSettings.minPayoutAmount * 100,
           maxFileSize: platformSettings.maxFileSize,

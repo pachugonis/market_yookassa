@@ -4,6 +4,9 @@ import { auth } from "@/lib/auth"
 import { z } from "zod"
 
 const settingsSchema = z.object({
+  siteName: z.string().min(1).max(100).optional(),
+  siteDescription: z.string().min(1).max(500).optional(),
+  supportEmail: z.string().email().optional(),
   commissionRate: z.number().min(0).max(100).optional(),
   minPayoutAmount: z.number().min(0).optional(),
   maxFileSize: z.number().min(1).max(5000).optional(),
@@ -34,6 +37,9 @@ export async function GET() {
     if (!settings) {
       settings = await prisma.platformSettings.create({
         data: {
+          siteName: "DigiMarket",
+          siteDescription: "Маркетплейс цифровых товаров",
+          supportEmail: "support@digimarket.com",
           commissionRate: 10,
           minPayoutAmount: 100000,
           maxFileSize: 500,

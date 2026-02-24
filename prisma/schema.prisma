@@ -254,6 +254,9 @@ model ProductImage {
 
 model PlatformSettings {
   id                      String   @id @default(cuid())
+  siteName                String   @default("DigiMarket")
+  siteDescription         String   @default("Маркетплейс цифровых товаров")
+  supportEmail            String   @default("support@digimarket.com")
   commissionRate          Int      @default(10)
   minPayoutAmount         Int      @default(100000)
   maxFileSize             Int      @default(500)
