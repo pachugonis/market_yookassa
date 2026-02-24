@@ -3,7 +3,7 @@ FROM node:20-alpine AS base
 
 # Install dependencies only when needed
 FROM base AS deps
-RUN apk add --no-cache libc6-compat openssl
+RUN apk add --no-cache libc6-compat openssl openssl-dev
 WORKDIR /app
 
 # Copy dependency files
@@ -19,6 +19,7 @@ RUN npx prisma generate
 
 # Rebuild the source code only when needed
 FROM base AS builder
+RUN apk add --no-cache openssl openssl-dev
 WORKDIR /app
 
 # Copy dependencies from deps stage
@@ -34,6 +35,7 @@ RUN npm run build
 
 # Production image, copy all the files and run next
 FROM base AS runner
+RUN apk add --no-cache openssl openssl-dev
 WORKDIR /app
 
 ENV NODE_ENV=production
