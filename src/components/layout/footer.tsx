@@ -1,7 +1,24 @@
+"use client"
+
 import Link from "next/link"
 import { ShoppingBag } from "lucide-react"
+import { useState, useEffect } from "react"
 
 export function Footer() {
+  const [siteName, setSiteName] = useState("DigiMarket")
+  const [siteDescription, setSiteDescription] = useState("Маркетплейс цифровых товаров. Покупайте и продавайте программы, игры, музыку и многое другое.")
+
+  useEffect(() => {
+    fetch("/api/settings")
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.data) {
+          if (data.data.siteName) setSiteName(data.data.siteName)
+          if (data.data.siteDescription) setSiteDescription(data.data.siteDescription)
+        }
+      })
+      .catch(() => {})
+  }, [])
   return (
     <footer className="border-t bg-secondary/30">
       <div className="container mx-auto px-4 py-12">
@@ -10,10 +27,10 @@ export function Footer() {
           <div className="space-y-4">
             <Link href="/" className="flex items-center gap-2 font-bold text-xl text-primary">
               <ShoppingBag className="h-7 w-7" />
-              DigiMarket
+              {siteName}
             </Link>
             <p className="text-sm text-muted-foreground">
-              Маркетплейс цифровых товаров. Покупайте и продавайте программы, игры, музыку и многое другое.
+              {siteDescription}
             </p>
           </div>
 
@@ -52,7 +69,7 @@ export function Footer() {
         </div>
 
         <div className="mt-8 pt-8 border-t text-center text-sm text-muted-foreground">
-          <p>&copy; {new Date().getFullYear()} DigiMarket. Все права защищены.</p>
+          <p>&copy; {new Date().getFullYear()} {siteName}. Все права защищены.</p>
         </div>
       </div>
     </footer>

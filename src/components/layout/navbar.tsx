@@ -16,7 +16,7 @@ import {
   AlertCircle,
   Store
 } from "lucide-react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -32,6 +32,18 @@ export function Navbar() {
   const { data: session } = useSession()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
+  const [siteName, setSiteName] = useState("DigiMarket")
+
+  useEffect(() => {
+    fetch("/api/settings")
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.data?.siteName) {
+          setSiteName(data.data.siteName)
+        }
+      })
+      .catch(() => {})
+  }, [])
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
@@ -54,7 +66,7 @@ export function Navbar() {
             className="flex items-center gap-2 font-bold text-xl text-primary shrink-0"
           >
             <ShoppingBag className="h-7 w-7" />
-            <span className="hidden sm:inline">DigiMarket</span>
+            <span className="hidden sm:inline">{siteName}</span>
           </Link>
 
           {/* Search - Desktop */}
