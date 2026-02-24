@@ -80,6 +80,8 @@ model User {
   role                UserRole  @default(BUYER)
   avatar              String?
   verified            Boolean   @default(false)
+  verificationToken   String?   @unique
+  verificationTokenExpires DateTime?
   balance             Int       @default(0)
   twoFactorEnabled    Boolean   @default(false)
   twoFactorSecret     String?
@@ -97,6 +99,7 @@ model User {
 
   @@index([email])
   @@index([role])
+  @@index([verificationToken])
 }
 
 model Category {

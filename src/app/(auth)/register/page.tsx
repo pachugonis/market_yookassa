@@ -36,7 +36,12 @@ export default function RegisterPage() {
       if (!data.success) {
         setError(data.error || "Ошибка при регистрации")
       } else {
-        router.push("/login?registered=true")
+        // Check if email verification is required
+        if (data.requiresVerification) {
+          router.push("/login?registered=true&verification=required")
+        } else {
+          router.push("/login?registered=true")
+        }
       }
     } catch {
       setError("Произошла ошибка при регистрации")

@@ -111,3 +111,32 @@ export async function sendNewProductNotification(
     `,
   })
 }
+
+export async function sendVerificationEmail(
+  userEmail: string,
+  userName: string,
+  verificationUrl: string
+) {
+  return sendEmail({
+    to: userEmail,
+    subject: "Подтвердите вашу регистрацию",
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #333;">Добро пожаловать, ${userName}!</h2>
+        <p>Спасибо за регистрацию на DigiMarket!</p>
+        <p>Пожалуйста, подтвердите ваш email адрес, нажав на кнопку ниже:</p>
+        <a href="${verificationUrl}" style="display: inline-block; padding: 12px 24px; background: #0070f3; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0;">
+          Подтвердить Email
+        </a>
+        <p>Или скопируйте и вставьте эту ссылку в браузер:</p>
+        <p style="color: #666; word-break: break-all;">${verificationUrl}</p>
+        <p style="color: #999; font-size: 12px; margin-top: 20px;">Если вы не регистрировались на DigiMarket, просто проигнорируйте это письмо.</p>
+        <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+        <p style="color: #666; font-size: 12px;">
+          С уважением,<br>
+          Команда DigiMarket
+        </p>
+      </div>
+    `,
+  })
+}

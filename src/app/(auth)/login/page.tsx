@@ -1,11 +1,11 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { signIn } from "next-auth/react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { motion } from "framer-motion"
-import { Mail, Lock, Loader2, ShoppingBag } from "lucide-react"
+import { Mail, Lock, Loader2, ShoppingBag, CheckCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -13,10 +13,25 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 
 export default function LoginPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
+  const [success, setSuccess] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+
+  useEffect(() => {
+    if (searchParams.get("registered") === "true") {
+      if (searchParams.get("verification") === "required") {
+        setSuccess("Регистрация успешна! Проверьте вашу почту для подтверждения email.")
+      } else {
+        setSuccess("Регистрация успешна! Теперь вы можете войти.")
+      }
+    }
+    if (searchParams.get("verified") === "true") {
+      setSuccess("Email подтвержден! Теперь вы можете войти.")
+    }
+  }, [searchParams])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -98,6 +113,17 @@ export default function LoginPage() {
                   className="p-3 rounded-xl bg-red-50 text-red-600 text-sm text-center"
                 >
                   {error}
+                </motion.div>
+              )}
+
+              {success && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="p-3 rounded-xl bg-green-50 text-green-600 text-sm text-center flex items-center justify-center gap-2"
+                >
+                  <CheckCircle className="h-4 w-4" />
+                  {success}
                 </motion.div>
               )}
 

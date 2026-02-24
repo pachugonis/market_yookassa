@@ -34,6 +34,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           return null
         }
 
+        // Check if email verification is required
+        const settings = await prisma.platformSettings.findFirst()
+        const requireEmailVerification = settings?.requireEmailVerification ?? false
+
+        // If email verification is required and user is not verified, reject login
+        if (requireEmailVerification && !user.verified) {
+          throw new Error("Пожалуйста, подтвердите ваш email перед входом")
+        }
+
         // If 2FA is enabled, return user info with 2FA flag
         // The login page will handle the 2FA verification step
         return {
