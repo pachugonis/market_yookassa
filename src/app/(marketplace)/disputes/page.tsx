@@ -11,6 +11,8 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { formatPrice, formatDate } from "@/lib/utils"
 
+export const dynamic = 'force-dynamic'
+
 interface Dispute {
   id: string
   reason: string
