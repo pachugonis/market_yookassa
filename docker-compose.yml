@@ -72,6 +72,9 @@ services:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/ssl:/etc/nginx/ssl:ro
       - ./nginx/logs:/var/log/nginx
+      - ./public/avatars:/usr/share/nginx/html/avatars:ro
+      - ./public/covers:/usr/share/nginx/html/covers:ro
+      - ./public/category-icons:/usr/share/nginx/html/category-icons:ro
     depends_on:
       - app
     networks:
