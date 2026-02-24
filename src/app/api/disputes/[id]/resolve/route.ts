@@ -5,9 +5,10 @@ import { auth } from "@/lib/auth"
 // POST - Resolve a dispute (seller or admin only)
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const session = await auth()
 
     if (!session?.user) {
@@ -35,7 +36,7 @@ export async function POST(
     }
 
     const dispute = await prisma.dispute.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         purchase: {
           include: {
@@ -166,7 +167,7 @@ export async function POST(
 
     // Update dispute
     const updatedDispute = await prisma.dispute.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         status: newDisputeStatus,
         resolution,
