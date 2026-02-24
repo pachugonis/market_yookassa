@@ -139,22 +139,23 @@ FROM node:20-alpine AS base
 
 # Install dependencies only when needed
 FROM base AS deps
-RUN apk add --no-cache libc6-compat openssl
+RUN apk add --no-cache libc6-compat openssl openssl-dev
 WORKDIR /app
 
 # Copy dependency files
 COPY package*.json ./
 COPY prisma ./prisma/
 
-# Install dependencies
-RUN npm ci --only=production && \
+# Install all dependencies (including devDependencies for Prisma)
+RUN npm ci && \
     npm cache clean --force
 
-# Generate Prisma Client
+# Generate Prisma Client using the installed version from package.json
 RUN npx prisma generate
 
 # Rebuild the source code only when needed
 FROM base AS builder
+RUN apk add --no-cache openssl openssl-dev
 WORKDIR /app
 
 # Copy dependencies from deps stage
@@ -164,12 +165,15 @@ COPY . .
 # Set environment variables for build
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
+# Placeholder DATABASE_URL for Prisma validation during build
+ENV DATABASE_URL="postgresql://placeholder:placeholder@localhost:5432/placeholder?schema=public"
 
 # Build Next.js application
 RUN npm run build
 
 # Production image, copy all the files and run next
 FROM base AS runner
+RUN apk add --no-cache openssl openssl-dev
 WORKDIR /app
 
 ENV NODE_ENV=production
@@ -287,6 +291,9 @@ services:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/ssl:/etc/nginx/ssl:ro
       - ./nginx/logs:/var/log/nginx
+      - ./public/avatars:/usr/share/nginx/html/avatars:ro
+      - ./public/covers:/usr/share/nginx/html/covers:ro
+      - ./public/category-icons:/usr/share/nginx/html/category-icons:ro
     depends_on:
       - app
     networks:
@@ -437,8 +444,9 @@ http {
 
     # HTTPS Server (uncomment after SSL setup)
     # server {
-    #     listen 443 ssl http2;
-    #     listen [::]:443 ssl http2;
+    #     listen 443 ssl;
+    #     listen [::]:443 ssl;
+    #     http2 on;
     #     server_name yourdomain.com www.yourdomain.com;
     #
     #     # SSL certificates
@@ -460,6 +468,33 @@ http {
     #     add_header X-Content-Type-Options "nosniff" always;
     #     add_header X-XSS-Protection "1; mode=block" always;
     #
+    #     # Static files - avatars, covers, category icons (serve directly)
+    #     location ~ ^/(avatars|covers|category-icons)/ {
+    #         root /usr/share/nginx/html;
+    #         try_files $uri =404;
+    #         add_header Cache-Control "public, max-age=86400";
+    #         add_header X-Content-Type-Options "nosniff";
+    #     }
+    #
+    #     # API endpoints with higher rate limit
+    #     location /api/ {
+    #         limit_req zone=api burst=50 nodelay;
+    #         
+    #         proxy_pass http://app_backend;
+    #         proxy_http_version 1.1;
+    #         proxy_set_header Host $host;
+    #         proxy_set_header X-Real-IP $remote_addr;
+    #         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    #         proxy_set_header X-Forwarded-Proto $scheme;
+    #     }
+    #
+    #     # Static files caching
+    #     location /_next/static/ {
+    #         proxy_pass http://app_backend;
+    #         proxy_cache_valid 200 365d;
+    #         add_header Cache-Control "public, immutable";
+    #     }
+    #
     #     # Application proxy
     #     location / {
     #         limit_req zone=general burst=20 nodelay;
@@ -480,25 +515,6 @@ http {
     #         proxy_connect_timeout 60s;
     #         proxy_send_timeout 60s;
     #         proxy_read_timeout 60s;
-    #     }
-    #
-    #     # API endpoints with higher rate limit
-    #     location /api/ {
-    #         limit_req zone=api burst=50 nodelay;
-    #         
-    #         proxy_pass http://app_backend;
-    #         proxy_http_version 1.1;
-    #         proxy_set_header Host $host;
-    #         proxy_set_header X-Real-IP $remote_addr;
-    #         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    #         proxy_set_header X-Forwarded-Proto $scheme;
-    #     }
-    #
-    #     # Static files caching
-    #     location /_next/static/ {
-    #         proxy_pass http://app_backend;
-    #         proxy_cache_valid 200 365d;
-    #         add_header Cache-Control "public, immutable";
     #     }
     # }
 }
@@ -540,7 +556,9 @@ openssl rand -base64 32
 openssl rand -base64 24
 ```
 
-### Step 7: Update next.config.ts
+### Step 7: Update Configuration Files
+
+#### Update next.config.ts
 
 Add standalone output mode to `next.config.ts`:
 
@@ -556,6 +574,36 @@ const nextConfig: NextConfig = {
 };
 
 export default nextConfig;
+```
+
+#### Update prisma/schema.prisma
+
+Add Alpine Linux binaryTargets for Prisma:
+
+```prisma
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x", "linux-musl"]
+}
+
+// ... rest of your schema
+```
+
+#### Update src/lib/auth.ts
+
+Add `trustHost: true` to NextAuth configuration:
+
+```typescript
+export const { handlers, signIn, signOut, auth } = NextAuth({
+  providers: [
+    // ... your providers
+  ],
+  trustHost: true,  // Required for Docker deployment with custom domain
+  callbacks: {
+    // ... your callbacks
+  },
+  // ... rest of your config
+})
 ```
 
 ### Step 8: Create Health Check Endpoint
