@@ -93,7 +93,7 @@ export default function LoginPage() {
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2 text-2xl font-bold text-primary">
             <ShoppingBag className="h-8 w-8" />
-            DigiMarket
+            Amazonus
           </Link>
         </div>
 
