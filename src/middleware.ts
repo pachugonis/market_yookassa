@@ -31,9 +31,12 @@ export default auth(async (req) => {
       const settings = await prisma.platformSettings.findFirst()
       const isMaintenanceMode = settings?.maintenanceMode ?? false
       
-      // If maintenance mode is enabled and user is not admin, redirect to maintenance page
-      if (isMaintenanceMode && session?.user?.role !== "ADMIN") {
-        return NextResponse.redirect(new URL("/maintenance", nextUrl))
+      // If maintenance mode is enabled and user is not logged in as admin, redirect to maintenance page
+      if (isMaintenanceMode) {
+        const isAdmin = isLoggedIn && session.user.role === "ADMIN"
+        if (!isAdmin) {
+          return NextResponse.redirect(new URL("/maintenance", nextUrl))
+        }
       }
     } catch (error) {
       console.error("Error checking maintenance mode:", error)
