@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "DigiMarket - Маркетплейс цифровых товаров",
+  title: "Amazonus - Маркетплейс цифровых товаров",
   description: "Покупайте и продавайте цифровые товары: программы, игры, музыку, графику и многое другое",
 };
 
