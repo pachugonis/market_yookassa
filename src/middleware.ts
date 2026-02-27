@@ -1,7 +1,8 @@
 import { auth } from "@/lib/auth"
 import { NextResponse } from "next/server"
+import { prisma } from "@/lib/prisma"
 
-export default auth((req) => {
+export default auth(async (req) => {
   const { nextUrl, auth: session } = req
   const isLoggedIn = !!session?.user
 
@@ -9,9 +10,40 @@ export default auth((req) => {
   const is2FAPage = nextUrl.pathname.startsWith("/verify-2fa")
   const isSellerPage = nextUrl.pathname.startsWith("/dashboard")
   const isAdminPage = nextUrl.pathname.startsWith("/admin")
+  const isAdminLoginPage = nextUrl.pathname === "/admin-login"
   const isApiRoute = nextUrl.pathname.startsWith("/api")
+  const isMaintenancePage = nextUrl.pathname.startsWith("/maintenance")
   const isPublicApiRoute = nextUrl.pathname.startsWith("/api/auth") || 
                            nextUrl.pathname.startsWith("/api/products") && req.method === "GET"
+
+  // Always allow admin login page
+  if (isAdminLoginPage) {
+    // If already logged in as admin, redirect to admin panel
+    if (isLoggedIn && session.user.role === "ADMIN") {
+      return NextResponse.redirect(new URL("/admin", nextUrl))
+    }
+    return NextResponse.next()
+  }
+
+  // Check maintenance mode (exclude admin routes and admin login)
+  if (!isMaintenancePage && !isAdminPage && !isApiRoute) {
+    try {
+      const settings = await prisma.platformSettings.findFirst()
+      const isMaintenanceMode = settings?.maintenanceMode ?? false
+      
+      // If maintenance mode is enabled and user is not admin, redirect to maintenance page
+      if (isMaintenanceMode && session?.user?.role !== "ADMIN") {
+        return NextResponse.redirect(new URL("/maintenance", nextUrl))
+      }
+    } catch (error) {
+      console.error("Error checking maintenance mode:", error)
+    }
+  }
+
+  // If maintenance mode is disabled, don't allow access to maintenance page
+  if (isMaintenancePage && session?.user?.role === "ADMIN") {
+    return NextResponse.redirect(new URL("/", nextUrl))
+  }
 
   // Allow public API routes
   if (isApiRoute && isPublicApiRoute) {
@@ -28,10 +60,10 @@ export default auth((req) => {
     return NextResponse.redirect(new URL("/", nextUrl))
   }
 
-  // Protect admin panel
-  if (isAdminPage) {
+  // Protect admin panel (but not admin login)
+  if (isAdminPage && !isAdminLoginPage) {
     if (!isLoggedIn) {
-      return NextResponse.redirect(new URL("/login", nextUrl))
+      return NextResponse.redirect(new URL("/admin-login", nextUrl))
     }
     if (session.user.role !== "ADMIN") {
       return NextResponse.redirect(new URL("/", nextUrl))

@@ -19,6 +19,8 @@ const settingsSchema = z.object({
   enableTwoFactor: z.boolean().optional(),
   sessionTimeout: z.number().min(1).max(168).optional(),
   maxLoginAttempts: z.number().min(3).max(10).optional(),
+  maintenanceMode: z.boolean().optional(),
+  maintenanceMessage: z.string().min(1).max(500).optional(),
   smtpHost: z.string().optional(),
   smtpPort: z.number().min(1).max(65535).optional(),
   smtpUser: z.string().optional(),
@@ -58,6 +60,8 @@ export async function GET() {
           enableTwoFactor: false,
           sessionTimeout: 24,
           maxLoginAttempts: 5,
+          maintenanceMode: false,
+          maintenanceMessage: "Сайт временно недоступен. Ведутся технические работы.",
         },
       })
     }

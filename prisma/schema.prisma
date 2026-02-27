@@ -272,6 +272,8 @@ model PlatformSettings {
   enableTwoFactor         Boolean  @default(false)
   sessionTimeout          Int      @default(24)
   maxLoginAttempts        Int      @default(5)
+  maintenanceMode         Boolean  @default(false)
+  maintenanceMessage      String   @default("Сайт временно недоступен. Ведутся технические работы.")
   smtpHost                String?
   smtpPort                Int      @default(587)
   smtpUser                String?

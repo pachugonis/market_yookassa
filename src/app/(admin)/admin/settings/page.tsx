@@ -16,7 +16,8 @@ import {
   DollarSign,
   Shield,
   Bell,
-  Send
+  Send,
+  Construction
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
@@ -78,6 +79,10 @@ export default function SettingsPage() {
           sessionTimeout: data.data.sessionTimeout ?? 24,
           maxLoginAttempts: data.data.maxLoginAttempts ?? 5,
         })
+        setMaintenanceSettings({
+          maintenanceMode: data.data.maintenanceMode ?? false,
+          maintenanceMessage: data.data.maintenanceMessage ?? "Сайт временно недоступен. Ведутся технические работы.",
+        })
       }
     } catch (error) {
       console.error("Error loading settings:", error)
@@ -111,6 +116,12 @@ export default function SettingsPage() {
     enableTwoFactor: false,
     sessionTimeout: 24,
     maxLoginAttempts: 5,
+  })
+
+  // Maintenance settings
+  const [maintenanceSettings, setMaintenanceSettings] = useState({
+    maintenanceMode: false,
+    maintenanceMessage: "Сайт временно недоступен. Ведутся технические работы.",
   })
 
   const handleSavePlatformSettings = async () => {
@@ -290,6 +301,42 @@ export default function SettingsPage() {
       toast({
         title: "Ошибка",
         description: "Не удалось сохранить настройки безопасности",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleSaveMaintenanceSettings = async () => {
+    setIsLoading(true)
+    try {
+      const response = await fetch("/api/admin/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(maintenanceSettings),
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        toast({
+          title: "Успех",
+          description: maintenanceSettings.maintenanceMode 
+            ? "Режим технических работ включён" 
+            : "Режим технических работ выключён",
+        })
+      } else {
+        toast({
+          title: "Ошибка",
+          description: data.error || "Не удалось сохранить настройки",
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      toast({
+        title: "Ошибка",
+        description: "Не удалось сохранить настройки",
         variant: "destructive",
       })
     } finally {
@@ -643,6 +690,64 @@ export default function SettingsPage() {
 
           <div className="flex justify-end">
             <Button onClick={handleSaveSecuritySettings} disabled={isLoading}>
+              {isLoading ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+              Сохранить
+            </Button>
+          </div>
+        </div>
+      </Card>
+
+      {/* Maintenance Mode Settings */}
+      <Card className="p-6 border-2 border-warning/50">
+        <div className="flex items-center gap-2 mb-6">
+          <Construction className="h-5 w-5 text-warning" />
+          <h2 className="text-xl font-semibold">Режим технических работ</h2>
+        </div>
+        
+        <div className="space-y-4">
+          <div className="bg-warning/10 p-4 rounded-lg border border-warning/20">
+            <p className="text-sm text-muted-foreground mb-2">
+              При включении этого режима все пользователи (кроме администраторов) будут перенаправлены на страницу технических работ. 
+              Вы сохраните доступ к сайту для управления и настройки.
+            </p>
+            <p className="text-sm font-medium text-warning mt-3">
+              🔐 Адрес для входа администратора: <code className="bg-background px-2 py-1 rounded">/admin-login</code>
+            </p>
+          </div>
+
+          <div className="flex items-center justify-between py-3 border-b border-border">
+            <div>
+              <p className="font-medium">Включить режим технических работ</p>
+              <p className="text-sm text-muted-foreground">
+                {maintenanceSettings.maintenanceMode 
+                  ? "Сайт сейчас в режиме технических работ" 
+                  : "Сайт доступен для всех пользователей"}
+              </p>
+            </div>
+            <Switch
+              checked={maintenanceSettings.maintenanceMode}
+              onCheckedChange={(checked: boolean) => setMaintenanceSettings({ ...maintenanceSettings, maintenanceMode: checked })}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="maintenanceMessage">Сообщение для пользователей</Label>
+            <Textarea
+              id="maintenanceMessage"
+              value={maintenanceSettings.maintenanceMessage}
+              onChange={(e) => setMaintenanceSettings({ ...maintenanceSettings, maintenanceMessage: e.target.value })}
+              rows={3}
+              placeholder="Сайт временно недоступен. Ведутся технические работы."
+            />
+            <p className="text-xs text-muted-foreground">Это сообщение будет показано посетителям сайта</p>
+          </div>
+
+          <div className="flex justify-end">
+            <Button 
+              onClick={handleSaveMaintenanceSettings} 
+              disabled={isLoading}
+              variant={maintenanceSettings.maintenanceMode ? "destructive" : "default"}
+            >
               {isLoading ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
               Сохранить
             </Button>
