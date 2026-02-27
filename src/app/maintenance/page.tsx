@@ -1,6 +1,5 @@
-import { Construction, Shield } from "lucide-react"
+import { Construction } from "lucide-react"
 import { Card } from "@/components/ui/card"
-import Link from "next/link"
 
 export default function MaintenancePage() {
   return (
@@ -20,19 +19,9 @@ export default function MaintenancePage() {
           Сайт временно недоступен. Ведутся технические работы.
         </p>
         
-        <p className="text-sm text-muted-foreground mb-8">
+        <p className="text-sm text-muted-foreground">
           Пожалуйста, попробуйте зайти позже. Приносим извинения за неудобства.
         </p>
-
-        <div className="mt-8 pt-8 border-t border-border">
-          <Link 
-            href="/admin-login"
-            className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors"
-          >
-            <Shield className="h-4 w-4" />
-            Вход для администратора
-          </Link>
-        </div>
       </Card>
     </div>
   )

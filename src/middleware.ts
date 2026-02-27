@@ -1,6 +1,5 @@
 import { auth } from "@/lib/auth"
 import { NextResponse } from "next/server"
-import { prisma } from "@/lib/prisma"
 
 export default auth(async (req) => {
   const { nextUrl, auth: session } = req
@@ -14,7 +13,8 @@ export default auth(async (req) => {
   const isApiRoute = nextUrl.pathname.startsWith("/api")
   const isMaintenancePage = nextUrl.pathname.startsWith("/maintenance")
   const isPublicApiRoute = nextUrl.pathname.startsWith("/api/auth") || 
-                           nextUrl.pathname.startsWith("/api/products") && req.method === "GET"
+                           nextUrl.pathname.startsWith("/api/products") && req.method === "GET" ||
+                           nextUrl.pathname.startsWith("/api/maintenance")
 
   // Always allow admin login page
   if (isAdminLoginPage) {
@@ -28,11 +28,13 @@ export default auth(async (req) => {
   // Check maintenance mode (exclude admin routes and admin login)
   if (!isMaintenancePage && !isAdminPage && !isApiRoute) {
     try {
-      const settings = await prisma.platformSettings.findFirst()
-      const isMaintenanceMode = settings?.maintenanceMode ?? false
+      // Fetch maintenance status from API
+      const maintenanceCheckUrl = new URL('/api/maintenance/status', req.url)
+      const response = await fetch(maintenanceCheckUrl.toString())
+      const { maintenanceMode } = await response.json()
       
       // If maintenance mode is enabled and user is not logged in as admin, redirect to maintenance page
-      if (isMaintenanceMode) {
+      if (maintenanceMode) {
         const isAdmin = isLoggedIn && session.user.role === "ADMIN"
         if (!isAdmin) {
           return NextResponse.redirect(new URL("/maintenance", nextUrl))
