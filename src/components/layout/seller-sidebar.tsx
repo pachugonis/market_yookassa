@@ -35,7 +35,7 @@ export function SellerSidebar() {
       <div className="p-6">
         <Link href="/" className="flex items-center gap-2 font-bold text-xl text-primary">
           <ShoppingBag className="h-7 w-7" />
-          DigiMarket
+          Amazonus
         </Link>
       </div>
 

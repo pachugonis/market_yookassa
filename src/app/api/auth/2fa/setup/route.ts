@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
     // Generate OTP auth URL
     const otpauth = authenticator.keyuri(
       user.email,
-      "DigiMarket",
+      "Amazonus",
       secret
     )
 

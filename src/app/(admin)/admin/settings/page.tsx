@@ -27,9 +27,9 @@ export default function SettingsPage() {
 
   // Platform settings
   const [platformSettings, setPlatformSettings] = useState({
-    siteName: "DigiMarket",
+    siteName: "Amazonus",
     siteDescription: "Маркетплейс цифровых товаров",
-    supportEmail: "support@digimarket.com",
+    supportEmail: "support@amazonus.ru",
     commissionRate: 10,
     minProductPrice: 1,
     maxProductPrice: 1000000,
@@ -50,9 +50,9 @@ export default function SettingsPage() {
       if (data.success && data.data) {
         setPlatformSettings(prev => ({
           ...prev,
-          siteName: data.data.siteName || "DigiMarket",
+          siteName: data.data.siteName || "Amazonus",
           siteDescription: data.data.siteDescription || "Маркетплейс цифровых товаров",
-          supportEmail: data.data.supportEmail || "support@digimarket.com",
+          supportEmail: data.data.supportEmail || "support@amazonus.ru",
           commissionRate: data.data.commissionRate,
           minPayoutAmount: (data.data.minPayoutAmount || 100000) / 100,
           maxFileSize: data.data.maxFileSize || 500,

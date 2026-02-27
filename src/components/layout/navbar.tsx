@@ -32,7 +32,7 @@ export function Navbar() {
   const { data: session } = useSession()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
-  const [siteName, setSiteName] = useState("DigiMarket")
+  const [siteName, setSiteName] = useState("Amazonus")
 
   useEffect(() => {
     fetch("/api/settings")

@@ -5,7 +5,7 @@ import { ShoppingBag } from "lucide-react"
 import { useState, useEffect } from "react"
 
 export function Footer() {
-  const [siteName, setSiteName] = useState("DigiMarket")
+  const [siteName, setSiteName] = useState("Amazonus")
   const [siteDescription, setSiteDescription] = useState("Маркетплейс цифровых товаров. Покупайте и продавайте программы, игры, музыку и многое другое.")
 
   useEffect(() => {

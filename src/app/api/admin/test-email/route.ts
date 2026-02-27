@@ -39,17 +39,17 @@ export async function POST(request: NextRequest) {
 
     // Send test email
     await transporter.sendMail({
-      from: `${fromName || "DigiMarket"} <${fromEmail || smtpUser}>`,
+      from: `${fromName || "Amazonus"} <${fromEmail || smtpUser}>`,
       to: session.user.email,
-      subject: "Тестовое письмо - DigiMarket",
+      subject: "Тестовое письмо - Amazonus",
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #333;">Тестовое письмо</h2>
-          <p>Это тестовое письмо от DigiMarket.</p>
+          <p>Это тестовое письмо от Amazonus.</p>
           <p>Если вы получили это письмо, значит настройки SMTP работают корректно!</p>
           <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
           <p style="color: #666; font-size: 12px;">
-            Отправлено из панели администратора DigiMarket<br>
+            Отправлено из панели администратора Amazonus<br>
             ${new Date().toLocaleString('ru-RU')}
           </p>
         </div>
