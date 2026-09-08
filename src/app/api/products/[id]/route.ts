@@ -2,13 +2,17 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
 import { z } from "zod"
+import { COVER_IMAGE_PATTERN } from "@/lib/storage"
 
 const updateProductSchema = z.object({
-  title: z.string().min(3).optional(),
-  description: z.string().min(10).optional(),
-  price: z.number().min(1).optional(),
+  title: z.string().min(3).max(200).optional(),
+  description: z.string().min(10).max(10000).optional(),
+  price: z.number().int().min(1).max(10_000_000).optional(),
   categoryId: z.string().optional(),
-  coverImage: z.string().optional(),
+  coverImage: z
+    .string()
+    .regex(COVER_IMAGE_PATTERN, "Недопустимый путь к обложке")
+    .optional(),
   status: z.enum(["DRAFT", "ACTIVE", "INACTIVE"]).optional(),
 })
 
@@ -30,11 +34,10 @@ export async function GET(
           },
           orderBy: { createdAt: "desc" },
         },
-        // @ts-ignore - Prisma types not yet updated in IDE
         images: { select: { id: true, imageUrl: true, order: true }, orderBy: { order: "asc" } },
         _count: { select: { reviews: true, purchases: true } },
       },
-    }) as any
+    })
 
     if (!product) {
       return NextResponse.json(

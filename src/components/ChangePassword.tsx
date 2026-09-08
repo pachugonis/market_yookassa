@@ -44,11 +44,11 @@ export default function ChangePassword({ onPasswordChanged }: ChangePasswordProp
       return
     }
 
-    if (newPassword.length < 6) {
+    if (newPassword.length < 8) {
       toast({
         variant: "destructive",
         title: "Ошибка",
-        description: "Пароль должен содержать минимум 6 символов",
+        description: "Пароль должен содержать минимум 8 символов",
       })
       return
     }
@@ -169,7 +169,7 @@ export default function ChangePassword({ onPasswordChanged }: ChangePasswordProp
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   required
-                  minLength={6}
+                  minLength={8}
                   className="pr-10"
                 />
                 <button
@@ -199,7 +199,7 @@ export default function ChangePassword({ onPasswordChanged }: ChangePasswordProp
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
-                  minLength={6}
+                  minLength={8}
                   className="pr-10"
                 />
                 <button

@@ -4,6 +4,17 @@ import { prisma } from "@/lib/prisma"
 import { writeFile, mkdir } from "fs/promises"
 import path from "path"
 import { v4 as uuidv4 } from "uuid"
+import { validateImageBuffer } from "@/lib/storage"
+
+/**
+ * Расширение файла товара. Сам файл наружу статикой не отдаётся
+ * (только через /api/purchases/[id]/download), но подставляется
+ * в путь на диске, поэтому оставляем лишь безопасные символы.
+ */
+function safeExtension(fileName: string): string {
+  const ext = path.extname(path.basename(fileName)).toLowerCase()
+  return /^\.[a-z0-9]{1,16}$/.test(ext) ? ext : ""
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -67,21 +78,34 @@ export async function POST(request: NextRequest) {
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
 
-    const ext = path.extname(file.name)
-    const uniqueName = `${uuidv4()}${ext}`
-    
-    const uploadDir = type === "cover" 
-      ? path.join(process.cwd(), "public", "covers")
-      : path.join(process.cwd(), "uploads", session.user.id)
+    let uploadDir: string
+    let uniqueName: string
+    let fileUrl: string
+
+    if (type === "cover") {
+      // Обложка попадает в public/ и отдаётся веб-сервером напрямую,
+      // поэтому расширение берём из проверенного содержимого:
+      // иначе можно было бы залить .html и получить XSS на домене.
+      const validation = validateImageBuffer(buffer, file.type)
+
+      if (!validation.ok) {
+        return NextResponse.json(
+          { success: false, error: validation.error },
+          { status: 400 }
+        )
+      }
+
+      uniqueName = `${uuidv4()}${validation.extension}`
+      uploadDir = path.join(process.cwd(), "public", "covers")
+      fileUrl = `/covers/${uniqueName}`
+    } else {
+      uniqueName = `${uuidv4()}${safeExtension(file.name)}`
+      uploadDir = path.join(process.cwd(), "uploads", session.user.id)
+      fileUrl = `${session.user.id}/${uniqueName}`
+    }
 
     await mkdir(uploadDir, { recursive: true })
-
-    const filePath = path.join(uploadDir, uniqueName)
-    await writeFile(filePath, buffer)
-
-    const fileUrl = type === "cover"
-      ? `/covers/${uniqueName}`
-      : `${session.user.id}/${uniqueName}`
+    await writeFile(path.join(uploadDir, uniqueName), buffer)
 
     return NextResponse.json({
       success: true,

@@ -7,6 +7,20 @@ export interface EmailOptions {
   html: string
 }
 
+/**
+ * Экранирует значения, попадающие в HTML письма. Имя пользователя и
+ * название товара задаются самими пользователями: без экранирования
+ * туда можно вписать разметку и ссылки.
+ */
+function escapeHtml(value: string): string {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;")
+}
+
 export async function sendEmail(options: EmailOptions) {
   try {
     // Get email settings from database
@@ -36,7 +50,7 @@ export async function sendEmail(options: EmailOptions) {
     })
 
     return { success: true, messageId: info.messageId }
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error sending email:", error)
     throw error
   }
@@ -53,9 +67,9 @@ export async function sendPurchaseEmail(
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #333;">Спасибо за покупку!</h2>
-        <p>Вы успешно приобрели: <strong>${productTitle}</strong></p>
+        <p>Вы успешно приобрели: <strong>${escapeHtml(productTitle)}</strong></p>
         <p>Скачать товар можно по ссылке:</p>
-        <a href="${downloadUrl}" style="display: inline-block; padding: 10px 20px; background: #0070f3; color: white; text-decoration: none; border-radius: 5px; margin: 10px 0;">
+        <a href="${encodeURI(downloadUrl)}" style="display: inline-block; padding: 10px 20px; background: #0070f3; color: white; text-decoration: none; border-radius: 5px; margin: 10px 0;">
           Скачать
         </a>
         <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
@@ -79,7 +93,7 @@ export async function sendPayoutRequestEmail(
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #333;">Новый запрос на выплату</h2>
-        <p>Продавец <strong>${sellerName}</strong> запросил выплату на сумму <strong>${amount / 100} ₽</strong></p>
+        <p>Продавец <strong>${escapeHtml(sellerName)}</strong> запросил выплату на сумму <strong>${amount} ₽</strong></p>
         <p>Пожалуйста, обработайте запрос в панели администратора.</p>
         <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
         <p style="color: #666; font-size: 12px;">
@@ -101,7 +115,7 @@ export async function sendNewProductNotification(
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #333;">Новый товар</h2>
-        <p>Продавец <strong>${sellerName}</strong> загрузил новый товар: <strong>${productTitle}</strong></p>
+        <p>Продавец <strong>${escapeHtml(sellerName)}</strong> загрузил новый товар: <strong>${escapeHtml(productTitle)}</strong></p>
         <p>Проверьте товар в панели администратора.</p>
         <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
         <p style="color: #666; font-size: 12px;">
@@ -122,14 +136,14 @@ export async function sendVerificationEmail(
     subject: "Подтвердите вашу регистрацию",
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #333;">Добро пожаловать, ${userName}!</h2>
+        <h2 style="color: #333;">Добро пожаловать, ${escapeHtml(userName)}!</h2>
         <p>Спасибо за регистрацию на Amazonus!</p>
         <p>Пожалуйста, подтвердите ваш email адрес, нажав на кнопку ниже:</p>
-        <a href="${verificationUrl}" style="display: inline-block; padding: 12px 24px; background: #0070f3; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0;">
+        <a href="${encodeURI(verificationUrl)}" style="display: inline-block; padding: 12px 24px; background: #0070f3; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0;">
           Подтвердить Email
         </a>
         <p>Или скопируйте и вставьте эту ссылку в браузер:</p>
-        <p style="color: #666; word-break: break-all;">${verificationUrl}</p>
+        <p style="color: #666; word-break: break-all;">${escapeHtml(verificationUrl)}</p>
         <p style="color: #999; font-size: 12px; margin-top: 20px;">Если вы не регистрировались на Amazonus, просто проигнорируйте это письмо.</p>
         <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
         <p style="color: #666; font-size: 12px;">

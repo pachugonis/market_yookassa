@@ -37,7 +37,9 @@ export default function TwoFactorSettings({ twoFactorEnabled, onStatusChange }: 
   const [isSetupOpen, setIsSetupOpen] = useState(false)
   const [isDisableOpen, setIsDisableOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
-  const [step, setStep] = useState<"qr" | "verify">("qr")
+  // Резервные коды выдаёт сервер только после подтверждения кода,
+  // поэтому показываем их отдельным, финальным шагом.
+  const [step, setStep] = useState<"qr" | "verify" | "backup">("qr")
   
   // Setup state
   const [secret, setSecret] = useState("")
@@ -61,7 +63,6 @@ export default function TwoFactorSettings({ twoFactorEnabled, onStatusChange }: 
       if (data.success) {
         setSecret(data.data.secret)
         setQrCode(data.data.qrCode)
-        setBackupCodes(data.data.backupCodes)
         setIsSetupOpen(true)
         setStep("qr")
       } else {
@@ -94,11 +95,8 @@ export default function TwoFactorSettings({ twoFactorEnabled, onStatusChange }: 
       const response = await fetch("/api/auth/2fa/enable", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          token: verificationCode,
-          secret,
-          backupCodes,
-        }),
+        // Секрет уже сохранён на сервере — отправляем только код
+        body: JSON.stringify({ token: verificationCode }),
       })
 
       const data = await response.json()
@@ -108,8 +106,8 @@ export default function TwoFactorSettings({ twoFactorEnabled, onStatusChange }: 
           title: "Успешно!",
           description: "Двухфакторная аутентификация включена",
         })
-        setIsSetupOpen(false)
-        resetSetupState()
+        setBackupCodes(data.data?.backupCodes ?? [])
+        setStep("backup")
         onStatusChange?.()
       } else {
         toast({
@@ -257,12 +255,18 @@ export default function TwoFactorSettings({ twoFactorEnabled, onStatusChange }: 
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>
-              {step === "qr" ? "Настройка 2FA" : "Подтверждение"}
+              {step === "qr"
+                ? "Настройка 2FA"
+                : step === "verify"
+                  ? "Подтверждение"
+                  : "Резервные коды"}
             </DialogTitle>
             <DialogDescription>
               {step === "qr"
                 ? "Отсканируйте QR-код в приложении-аутентификаторе"
-                : "Введите код из приложения для подтверждения"}
+                : step === "verify"
+                  ? "Введите код из приложения для подтверждения"
+                  : "Сохраните эти коды — они больше не будут показаны"}
             </DialogDescription>
           </DialogHeader>
 
@@ -291,38 +295,52 @@ export default function TwoFactorSettings({ twoFactorEnabled, onStatusChange }: 
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label>Резервные коды:</Label>
-                <div className="p-3 bg-secondary rounded-lg">
-                  <div className="grid grid-cols-2 gap-2 font-mono text-sm">
-                    {backupCodes.map((code, idx) => (
-                      <div key={idx}>{code}</div>
-                    ))}
-                  </div>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full"
-                  onClick={copyBackupCodes}
-                >
-                  {copiedCodes ? (
-                    <>
-                      <Check className="h-4 w-4 mr-2" />
-                      Скопировано
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="h-4 w-4 mr-2" />
-                      Скопировать коды
-                    </>
-                  )}
-                </Button>
-              </div>
-
               <DialogFooter>
                 <Button onClick={() => setStep("verify")} className="w-full">
                   Продолжить
+                </Button>
+              </DialogFooter>
+            </div>
+          ) : step === "backup" ? (
+            <div className="space-y-4">
+              <div className="flex items-start gap-2 p-3 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800">
+                <AlertTriangle className="h-5 w-5 text-yellow-600 dark:text-yellow-500 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                  Каждый код можно использовать один раз. Сохраните их сейчас —
+                  повторно они не отображаются.
+                </p>
+              </div>
+
+              <div className="p-3 bg-secondary rounded-lg">
+                <div className="grid grid-cols-2 gap-2 font-mono text-sm">
+                  {backupCodes.map((code, idx) => (
+                    <div key={idx}>{code}</div>
+                  ))}
+                </div>
+              </div>
+
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full"
+                onClick={copyBackupCodes}
+              >
+                {copiedCodes ? (
+                  <>
+                    <Check className="h-4 w-4 mr-2" />
+                    Скопировано
+                  </>
+                ) : (
+                  <>
+                    <Copy className="h-4 w-4 mr-2" />
+                    Скопировать коды
+                  </>
+                )}
+              </Button>
+
+              <DialogFooter>
+                <Button onClick={handleCloseSetup} className="w-full">
+                  Я сохранил коды
                 </Button>
               </DialogFooter>
             </div>

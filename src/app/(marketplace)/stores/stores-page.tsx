@@ -12,7 +12,6 @@ import { Store, Package, Star, TrendingUp } from "lucide-react"
 interface Seller {
   id: string
   name: string
-  email: string
   avatar: string | null
   createdAt: string
   _count: {

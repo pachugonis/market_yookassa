@@ -11,21 +11,25 @@ import Link from "next/link"
 function VerifyEmailContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
-  const [status, setStatus] = useState<"loading" | "success" | "error">("loading")
-  const [message, setMessage] = useState("")
+  const token = searchParams.get("token")
+
+  // Отсутствие токена известно уже при рендере — выводим состояние
+  // сразу, а не через setState внутри эффекта (лишний ре-рендер).
+  const [status, setStatus] = useState<"loading" | "success" | "error">(
+    token ? "loading" : "error"
+  )
+  const [message, setMessage] = useState(
+    token ? "" : "Токен верификации не найден"
+  )
 
   useEffect(() => {
-    const token = searchParams.get("token")
-
-    if (!token) {
-      setStatus("error")
-      setMessage("Токен верификации не найден")
-      return
-    }
+    if (!token) return
 
     const verifyEmail = async () => {
       try {
-        const response = await fetch(`/api/auth/verify-email?token=${token}`)
+        const response = await fetch(
+          `/api/auth/verify-email?token=${encodeURIComponent(token)}`
+        )
         const data = await response.json()
 
         if (data.success) {
@@ -40,14 +44,14 @@ function VerifyEmailContent() {
           setStatus("error")
           setMessage(data.error || "Ошибка при подтверждении email")
         }
-      } catch (error) {
+      } catch {
         setStatus("error")
         setMessage("Произошла ошибка при подтверждении email")
       }
     }
 
     verifyEmail()
-  }, [searchParams, router])
+  }, [token, router])
 
   return (
     <div className="min-h-screen flex items-center justify-center gradient-bg p-4">

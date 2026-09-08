@@ -5,21 +5,38 @@ import { prisma } from "@/lib/prisma"
 import { UserRole } from "@prisma/client"
 import crypto from "crypto"
 import { sendVerificationEmail } from "@/lib/email"
+import { rateLimit, getClientIp } from "@/lib/rate-limit"
 
 const registerSchema = z.object({
-  name: z.string().min(2, "Имя должно содержать минимум 2 символа"),
-  email: z.string().email("Некорректный email"),
-  password: z.string().min(6, "Пароль должен содержать минимум 6 символов"),
+  name: z.string().min(2, "Имя должно содержать минимум 2 символа").max(100),
+  // Приводим к нижнему регистру: вход ищет пользователя без учёта
+  // регистра, и два аккаунта, различающихся только им, недопустимы.
+  email: z
+    .string()
+    .email("Некорректный email")
+    .max(255)
+    .transform((value) => value.trim().toLowerCase()),
+  password: z.string().min(8, "Пароль должен содержать минимум 8 символов").max(200),
   role: z.enum(["BUYER", "SELLER"]).default("BUYER"),
 })
 
 export async function POST(request: NextRequest) {
   try {
+    const limit = rateLimit(`register:${getClientIp(request)}`, 5, 60 * 60 * 1000)
+    if (!limit.success) {
+      return NextResponse.json(
+        { success: false, error: "Слишком много регистраций. Попробуйте позже." },
+        { status: 429 }
+      )
+    }
+
     const body = await request.json()
     const validatedData = registerSchema.parse(body)
 
-    const existingUser = await prisma.user.findUnique({
-      where: { email: validatedData.email },
+    // Регистронезависимая проверка: иначе можно завести Admin@site.ru
+    // при уже существующем admin@site.ru
+    const existingUser = await prisma.user.findFirst({
+      where: { email: { equals: validatedData.email, mode: "insensitive" } },
     })
 
     if (existingUser) {

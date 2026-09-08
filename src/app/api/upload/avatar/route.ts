@@ -3,6 +3,7 @@ import { writeFile, mkdir } from "fs/promises"
 import { auth } from "@/lib/auth"
 import path from "path"
 import { v4 as uuidv4 } from "uuid"
+import { validateImageBuffer } from "@/lib/storage"
 
 export async function POST(request: NextRequest) {
   try {
@@ -25,15 +26,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validate file type - only images
-    const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"]
-    if (!allowedTypes.includes(file.type)) {
-      return NextResponse.json(
-        { success: false, error: "Недопустимый тип файла. Разрешены только изображения (JPG, PNG, WEBP)" },
-        { status: 400 }
-      )
-    }
-
     // Validate file size (max 5MB for avatars)
     const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
     if (file.size > MAX_FILE_SIZE) {
@@ -46,9 +38,20 @@ export async function POST(request: NextRequest) {
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
 
-    const ext = path.extname(file.name)
-    const uniqueName = `${uuidv4()}${ext}`
-    
+    // Аватар отдаётся статикой из public/, поэтому и тип, и расширение
+    // определяем по содержимому: заголовок Content-Type и имя файла
+    // задаёт клиент, доверять им нельзя.
+    const validation = validateImageBuffer(buffer, file.type)
+
+    if (!validation.ok) {
+      return NextResponse.json(
+        { success: false, error: validation.error },
+        { status: 400 }
+      )
+    }
+
+    const uniqueName = `${uuidv4()}${validation.extension}`
+
     const uploadDir = path.join(process.cwd(), "public", "avatars")
     await mkdir(uploadDir, { recursive: true })
 

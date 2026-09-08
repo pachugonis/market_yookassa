@@ -2,16 +2,24 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
 import { z } from "zod"
+import { isValidProductFileUrl, COVER_IMAGE_PATTERN } from "@/lib/storage"
 
 const createProductSchema = z.object({
-  title: z.string().min(3, "Название должно содержать минимум 3 символа"),
-  description: z.string().min(10, "Описание должно содержать минимум 10 символов"),
-  price: z.number().min(1, "Цена должна быть больше 0"),
+  title: z.string().min(3, "Название должно содержать минимум 3 символа").max(200),
+  description: z.string().min(10, "Описание должно содержать минимум 10 символов").max(10000),
+  price: z.number().int().min(1, "Цена должна быть больше 0").max(10_000_000),
   categoryId: z.string(),
-  coverImage: z.string().optional(),
-  fileUrl: z.string(),
-  fileName: z.string(),
-  fileSize: z.number(),
+  coverImage: z
+    .string()
+    .regex(COVER_IMAGE_PATTERN, "Недопустимый путь к обложке")
+    .optional(),
+  // fileUrl приходит от клиента, но подставляется в путь на диске,
+  // поэтому принимаем только формат, который выдаёт /api/upload.
+  fileUrl: z
+    .string()
+    .refine(isValidProductFileUrl, "Недопустимый путь к файлу"),
+  fileName: z.string().min(1).max(255),
+  fileSize: z.number().int().min(0),
   hasLicenseKeys: z.boolean().optional(),
   licenseKeys: z.array(z.string()).optional(),
 })
@@ -115,6 +123,15 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json()
     const validatedData = createProductSchema.parse(body)
+
+    // Файл обязан лежать в каталоге самого продавца: иначе можно было
+    // бы сослаться на чужую загрузку, зная её путь.
+    if (!validatedData.fileUrl.startsWith(`${session.user.id}/`)) {
+      return NextResponse.json(
+        { success: false, error: "Недопустимый путь к файлу" },
+        { status: 400 }
+      )
+    }
 
     const { licenseKeys, hasLicenseKeys, ...productData } = validatedData
 

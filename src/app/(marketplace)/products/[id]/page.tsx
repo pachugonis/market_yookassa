@@ -29,7 +29,6 @@ export default async function ProductPage({ params }: Props) {
         orderBy: { createdAt: "desc" },
         take: 10
       },
-      // @ts-ignore - Prisma types not yet updated in IDE
       images: {
         select: { id: true, imageUrl: true, order: true },
         orderBy: { order: "asc" }

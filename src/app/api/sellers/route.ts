@@ -14,10 +14,10 @@ export async function GET() {
           }
         }
       },
+      // Эндпоинт публичный — email продавцов наружу не отдаём
       select: {
         id: true,
         name: true,
-        email: true,
         avatar: true,
         createdAt: true,
         _count: {

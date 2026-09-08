@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
 import bcrypt from "bcryptjs"
+import { rateLimit } from "@/lib/rate-limit"
+
+const BCRYPT_ROUNDS = 12
 
 export async function POST(req: NextRequest) {
   try {
@@ -14,8 +17,24 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    // Ограничиваем перебор текущего пароля при угнанной сессии
+    const limit = rateLimit(`change-password:${session.user.id}`, 5, 15 * 60 * 1000)
+    if (!limit.success) {
+      return NextResponse.json(
+        { success: false, error: "Слишком много попыток. Попробуйте позже." },
+        { status: 429 }
+      )
+    }
+
     const body = await req.json()
     const { currentPassword, newPassword } = body
+
+    if (typeof currentPassword !== "string" || typeof newPassword !== "string") {
+      return NextResponse.json(
+        { success: false, error: "Все поля обязательны" },
+        { status: 400 }
+      )
+    }
 
     if (!currentPassword || !newPassword) {
       return NextResponse.json(
@@ -24,9 +43,9 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    if (newPassword.length < 6) {
+    if (newPassword.length < 8) {
       return NextResponse.json(
-        { success: false, error: "Новый пароль должен содержать минимум 6 символов" },
+        { success: false, error: "Новый пароль должен содержать минимум 8 символов" },
         { status: 400 }
       )
     }
@@ -54,8 +73,8 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Hash new password
-    const hashedPassword = await bcrypt.hash(newPassword, 10)
+    // Тот же cost-фактор, что и при регистрации
+    const hashedPassword = await bcrypt.hash(newPassword, BCRYPT_ROUNDS)
 
     // Update password
     await prisma.user.update({

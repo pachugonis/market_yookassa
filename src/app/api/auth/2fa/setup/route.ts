@@ -1,14 +1,21 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { authenticator } from "@otplib/preset-default"
 import QRCode from "qrcode"
-import crypto from "crypto"
 
-export async function POST(req: NextRequest) {
+/**
+ * Шаг 1 подключения 2FA: сервер генерирует секрет и СРАЗУ сохраняет
+ * его в профиль, оставляя twoFactorEnabled = false.
+ *
+ * Секрет намеренно не принимается обратно от клиента: иначе
+ * пользователь (или тот, кто перехватил его сессию) мог бы включить
+ * 2FA с заранее известным ему значением.
+ */
+export async function POST() {
   try {
     const session = await auth()
-    
+
     if (!session?.user) {
       return NextResponse.json(
         { success: false, error: "Unauthorized" },
@@ -16,11 +23,9 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Generate 2FA secret
-    const secret = authenticator.generateSecret()
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { email: true, name: true }
+      select: { email: true, twoFactorEnabled: true },
     })
 
     if (!user) {
@@ -30,28 +35,33 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Generate OTP auth URL
-    const otpauth = authenticator.keyuri(
-      user.email,
-      "Amazonus",
-      secret
-    )
+    // Пока 2FA включена, перегенерация секрета отключила бы вход
+    if (user.twoFactorEnabled) {
+      return NextResponse.json(
+        { success: false, error: "Двухфакторная аутентификация уже включена" },
+        { status: 400 }
+      )
+    }
 
-    // Generate QR code
-    const qrCode = await QRCode.toDataURL(otpauth)
+    const secret = authenticator.generateSecret()
 
-    // Generate backup codes (10 codes)
-    const backupCodes = Array.from({ length: 10 }, () => {
-      return crypto.randomBytes(4).toString("hex").toUpperCase()
+    await prisma.user.update({
+      where: { id: session.user.id },
+      data: {
+        twoFactorSecret: secret,
+        twoFactorEnabled: false,
+        twoFactorBackupCodes: [],
+      },
     })
 
+    const otpauth = authenticator.keyuri(user.email, "Amazonus", secret)
+    const qrCode = await QRCode.toDataURL(otpauth)
+
+    // Резервные коды выдаются на шаге подтверждения (/2fa/enable),
+    // когда пользователь доказал, что приложение настроено.
     return NextResponse.json({
       success: true,
-      data: {
-        secret,
-        qrCode,
-        backupCodes,
-      }
+      data: { secret, qrCode },
     })
   } catch (error) {
     console.error("2FA setup error:", error)

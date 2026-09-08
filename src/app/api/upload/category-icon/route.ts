@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth"
 import { writeFile, mkdir } from "fs/promises"
 import path from "path"
 import { v4 as uuidv4 } from "uuid"
+import { validateImageBuffer, svgContainsActiveContent } from "@/lib/storage"
 
 export async function POST(request: NextRequest) {
   try {
@@ -25,15 +26,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validate file type - only images
-    const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/svg+xml", "image/webp"]
-    if (!allowedTypes.includes(file.type)) {
-      return NextResponse.json(
-        { success: false, error: "Недопустимый тип файла. Разрешены только изображения (JPG, PNG, SVG, WEBP)" },
-        { status: 400 }
-      )
-    }
-
     // Validate file size (max 2MB for icons)
     const MAX_FILE_SIZE = 2 * 1024 * 1024 // 2MB
     if (file.size > MAX_FILE_SIZE) {
@@ -46,9 +38,27 @@ export async function POST(request: NextRequest) {
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
 
-    const ext = path.extname(file.name)
-    const uniqueName = `${uuidv4()}${ext}`
-    
+    // Иконка отдаётся статикой — расширение определяем по содержимому
+    const validation = validateImageBuffer(buffer, file.type, { allowSvg: true })
+
+    if (!validation.ok) {
+      return NextResponse.json(
+        { success: false, error: validation.error },
+        { status: 400 }
+      )
+    }
+
+    // SVG исполняется браузером как документ: скрипты и обработчики
+    // событий внутри дали бы XSS на основном домене.
+    if (validation.extension === ".svg" && svgContainsActiveContent(buffer)) {
+      return NextResponse.json(
+        { success: false, error: "SVG содержит скрипты или внешние ссылки и был отклонён" },
+        { status: 400 }
+      )
+    }
+
+    const uniqueName = `${uuidv4()}${validation.extension}`
+
     const uploadDir = path.join(process.cwd(), "public", "category-icons")
     await mkdir(uploadDir, { recursive: true })
 

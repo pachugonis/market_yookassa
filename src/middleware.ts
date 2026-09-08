@@ -1,63 +1,81 @@
 import { auth } from "@/lib/auth"
 import { NextResponse } from "next/server"
 
+/**
+ * Middleware отвечает ТОЛЬКО за навигацию (редиректы для страниц).
+ *
+ * Авторизация обязана проверяться в каждом API-роуте и серверном
+ * компоненте отдельно: middleware можно обойти (см. серию CVE
+ * «Next.js Middleware bypass»), поэтому полагаться на него как на
+ * единственный барьер нельзя.
+ */
+
+// Статус техработ меняется редко, а запрос идёт на каждый переход.
+// Кэшируем на несколько секунд, чтобы не ходить в API постоянно.
+const MAINTENANCE_TTL_MS = 10_000
+let maintenanceCache: { value: boolean; expiresAt: number } | null = null
+
+async function isMaintenanceMode(requestUrl: string): Promise<boolean> {
+  const now = Date.now()
+
+  if (maintenanceCache && maintenanceCache.expiresAt > now) {
+    return maintenanceCache.value
+  }
+
+  try {
+    const url = new URL("/api/maintenance/status", requestUrl)
+    const response = await fetch(url.toString())
+    const { maintenanceMode } = await response.json()
+    const value = Boolean(maintenanceMode)
+
+    maintenanceCache = { value, expiresAt: now + MAINTENANCE_TTL_MS }
+    return value
+  } catch (error) {
+    console.error("Error checking maintenance mode:", error)
+    // При недоступности API сайт не блокируем
+    return false
+  }
+}
+
 export default auth(async (req) => {
   const { nextUrl, auth: session } = req
   const isLoggedIn = !!session?.user
+  const isAdmin = isLoggedIn && session.user.role === "ADMIN"
 
-  const isAuthPage = nextUrl.pathname.startsWith("/login") || nextUrl.pathname.startsWith("/register")
-  const is2FAPage = nextUrl.pathname.startsWith("/verify-2fa")
+  const isAuthPage =
+    nextUrl.pathname.startsWith("/login") || nextUrl.pathname.startsWith("/register")
   const isSellerPage = nextUrl.pathname.startsWith("/dashboard")
   const isAdminPage = nextUrl.pathname.startsWith("/admin")
   const isAdminLoginPage = nextUrl.pathname === "/admin-login"
   const isApiRoute = nextUrl.pathname.startsWith("/api")
   const isMaintenancePage = nextUrl.pathname.startsWith("/maintenance")
-  const isPublicApiRoute = nextUrl.pathname.startsWith("/api/auth") || 
-                           nextUrl.pathname.startsWith("/api/products") && req.method === "GET" ||
-                           nextUrl.pathname.startsWith("/api/maintenance")
+
+  // API-роуты защищают себя сами — middleware их не трогает
+  if (isApiRoute) {
+    return NextResponse.next()
+  }
 
   // Always allow admin login page
   if (isAdminLoginPage) {
     // If already logged in as admin, redirect to admin panel
-    if (isLoggedIn && session.user.role === "ADMIN") {
+    if (isAdmin) {
       return NextResponse.redirect(new URL("/admin", nextUrl))
     }
     return NextResponse.next()
   }
 
   // Check maintenance mode (exclude admin routes and admin login)
-  if (!isMaintenancePage && !isAdminPage && !isApiRoute) {
-    try {
-      // Fetch maintenance status from API
-      const maintenanceCheckUrl = new URL('/api/maintenance/status', req.url)
-      const response = await fetch(maintenanceCheckUrl.toString())
-      const { maintenanceMode } = await response.json()
-      
-      // If maintenance mode is enabled and user is not logged in as admin, redirect to maintenance page
-      if (maintenanceMode) {
-        const isAdmin = isLoggedIn && session.user.role === "ADMIN"
-        if (!isAdmin) {
-          return NextResponse.redirect(new URL("/maintenance", nextUrl))
-        }
+  if (!isMaintenancePage && !isAdminPage) {
+    if (await isMaintenanceMode(req.url)) {
+      if (!isAdmin) {
+        return NextResponse.redirect(new URL("/maintenance", nextUrl))
       }
-    } catch (error) {
-      console.error("Error checking maintenance mode:", error)
     }
   }
 
   // If maintenance mode is disabled, don't allow access to maintenance page
-  if (isMaintenancePage && session?.user?.role === "ADMIN") {
+  if (isMaintenancePage && isAdmin) {
     return NextResponse.redirect(new URL("/", nextUrl))
-  }
-
-  // Allow public API routes
-  if (isApiRoute && isPublicApiRoute) {
-    return NextResponse.next()
-  }
-
-  // Allow 2FA verification page
-  if (is2FAPage) {
-    return NextResponse.next()
   }
 
   // Redirect logged-in users away from auth pages
@@ -66,11 +84,11 @@ export default auth(async (req) => {
   }
 
   // Protect admin panel (but not admin login)
-  if (isAdminPage && !isAdminLoginPage) {
+  if (isAdminPage) {
     if (!isLoggedIn) {
       return NextResponse.redirect(new URL("/admin-login", nextUrl))
     }
-    if (session.user.role !== "ADMIN") {
+    if (!isAdmin) {
       return NextResponse.redirect(new URL("/", nextUrl))
     }
   }

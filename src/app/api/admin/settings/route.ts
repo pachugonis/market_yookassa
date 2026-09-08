@@ -66,13 +66,26 @@ export async function GET() {
       })
     }
 
-    return NextResponse.json({ success: true, data: settings })
+    return NextResponse.json({ success: true, data: redactSecrets(settings) })
   } catch (error) {
     console.error("Error fetching settings:", error)
     return NextResponse.json(
       { success: false, error: "Ошибка получения настроек" },
       { status: 500 }
     )
+  }
+}
+
+/**
+ * Пароль SMTP наружу не отдаём даже администратору: он не нужен
+ * интерфейсу и не должен попадать в историю браузера, логи и devtools.
+ * Клиент присылает его только когда действительно меняет.
+ */
+function redactSecrets<T extends { smtpPassword: string | null }>(settings: T) {
+  return {
+    ...settings,
+    smtpPassword: undefined,
+    smtpPasswordSet: Boolean(settings.smtpPassword),
   }
 }
 
@@ -90,6 +103,12 @@ export async function PUT(request: NextRequest) {
     const body = await request.json()
     const validatedData = settingsSchema.parse(body)
 
+    // Пустая строка означает «не менять», а не «стереть пароль»:
+    // форма получает его замаскированным и присылает пустым.
+    if (validatedData.smtpPassword === "") {
+      delete validatedData.smtpPassword
+    }
+
     let settings = await prisma.platformSettings.findFirst()
 
     if (!settings) {
@@ -103,7 +122,7 @@ export async function PUT(request: NextRequest) {
       })
     }
 
-    return NextResponse.json({ success: true, data: settings })
+    return NextResponse.json({ success: true, data: redactSecrets(settings) })
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(

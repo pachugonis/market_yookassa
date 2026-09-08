@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { signIn } from "next-auth/react"
+import { signIn, signOut } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -10,10 +10,20 @@ import { Label } from "@/components/ui/label"
 import { Shield, Loader2 } from "lucide-react"
 import { motion } from "framer-motion"
 
+const ERROR_MESSAGES: Record<string, string> = {
+  invalid_credentials: "Неверный email или пароль",
+  email_not_verified: "Пожалуйста, подтвердите ваш email перед входом",
+  rate_limited: "Слишком много попыток входа. Попробуйте через несколько минут.",
+  "2fa_invalid": "Неверный код подтверждения",
+}
+
 export default function AdminLoginPage() {
   const router = useRouter()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [twoFactorToken, setTwoFactorToken] = useState("")
+  const [useBackupCode, setUseBackupCode] = useState(false)
+  const [step, setStep] = useState<"credentials" | "2fa">("credentials")
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
 
@@ -26,24 +36,39 @@ export default function AdminLoginPage() {
       const result = await signIn("credentials", {
         email,
         password,
+        twoFactorToken: step === "2fa" ? twoFactorToken : "",
+        isBackupCode: step === "2fa" && useBackupCode ? "true" : "false",
         redirect: false,
       })
 
-      if (result?.error) {
-        setError("Неверный email или пароль")
-      } else {
-        // Verify that the user is actually an admin
-        const response = await fetch("/api/auth/session")
-        const session = await response.json()
-        
-        if (session?.user?.role === "ADMIN") {
-          router.push("/admin")
-          router.refresh()
-        } else {
-          setError("Доступ запрещён. Только для администраторов.")
-          // Sign out non-admin users
-          await fetch("/api/auth/signout", { method: "POST" })
+      if (result?.code === "2fa_required") {
+        setStep("2fa")
+        setTwoFactorToken("")
+        return
+      }
+
+      if (!result?.ok || result.error) {
+        setError(ERROR_MESSAGES[result?.code ?? ""] ?? "Неверный email или пароль")
+        if (result?.code === "invalid_credentials") {
+          setStep("credentials")
+          setTwoFactorToken("")
         }
+        return
+      }
+
+      // Verify that the user is actually an admin
+      const response = await fetch("/api/auth/session")
+      const session = await response.json()
+
+      if (session?.user?.role === "ADMIN") {
+        router.push("/admin")
+        router.refresh()
+      } else {
+        setError("Доступ запрещён. Только для администраторов.")
+        // Завершаем сессию штатным способом (с CSRF-токеном)
+        await signOut({ redirect: false })
+        setStep("credentials")
+        setTwoFactorToken("")
       }
     } catch {
       setError("Произошла ошибка при входе")
@@ -88,33 +113,56 @@ export default function AdminLoginPage() {
                 </motion.div>
               )}
 
-              <div className="space-y-2">
-                <Label htmlFor="email">Email администратора</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="admin@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  disabled={isLoading}
-                  className="h-11"
-                />
-              </div>
+              {step === "credentials" ? (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email администратора</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="admin@example.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                      disabled={isLoading}
+                      className="h-11"
+                    />
+                  </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="password">Пароль</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  disabled={isLoading}
-                  className="h-11"
-                />
-              </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="password">Пароль</Label>
+                    <Input
+                      id="password"
+                      type="password"
+                      placeholder="••••••••"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      disabled={isLoading}
+                      className="h-11"
+                    />
+                  </div>
+                </>
+              ) : (
+                <div className="space-y-2">
+                  <Label htmlFor="twoFactorToken">
+                    {useBackupCode ? "Резервный код" : "Код подтверждения"}
+                  </Label>
+                  <Input
+                    id="twoFactorToken"
+                    type="text"
+                    inputMode={useBackupCode ? "text" : "numeric"}
+                    autoComplete="one-time-code"
+                    placeholder={useBackupCode ? "XXXXXXXX" : "000000"}
+                    value={twoFactorToken}
+                    onChange={(e) => setTwoFactorToken(e.target.value)}
+                    required
+                    autoFocus
+                    disabled={isLoading}
+                    className="h-11 tracking-widest"
+                  />
+                </div>
+              )}
 
               <Button
                 type="submit"
@@ -124,16 +172,34 @@ export default function AdminLoginPage() {
                 {isLoading ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Вход...
+                    {step === "2fa" ? "Проверка..." : "Вход..."}
                   </>
                 ) : (
                   <>
                     <Shield className="h-4 w-4 mr-2" />
-                    Войти в панель
+                    {step === "2fa" ? "Подтвердить" : "Войти в панель"}
                   </>
                 )}
               </Button>
             </form>
+
+            {step === "2fa" && (
+              <div className="mt-4 text-center text-sm">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setUseBackupCode(!useBackupCode)
+                    setTwoFactorToken("")
+                    setError("")
+                  }}
+                  className="text-primary font-medium hover:underline"
+                >
+                  {useBackupCode
+                    ? "Использовать код из приложения"
+                    : "Использовать резервный код"}
+                </button>
+              </div>
+            )}
 
             <div className="mt-6 text-center text-sm text-muted-foreground">
               <p>⚠️ Только для администраторов системы</p>
