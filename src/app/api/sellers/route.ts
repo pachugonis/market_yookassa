@@ -1,52 +1,9 @@
 import { NextResponse } from "next/server"
-import { prisma } from "@/lib/prisma"
+import { getCatalogSellers } from "@/lib/catalog"
 
 export async function GET() {
   try {
-    const sellers = await prisma.user.findMany({
-      where: {
-        role: {
-          in: ["SELLER", "ADMIN"]
-        },
-        products: {
-          some: {
-            status: "ACTIVE"
-          }
-        }
-      },
-      // Эндпоинт публичный — email продавцов наружу не отдаём
-      select: {
-        id: true,
-        name: true,
-        avatar: true,
-        createdAt: true,
-        _count: {
-          select: {
-            products: {
-              where: {
-                status: "ACTIVE"
-              }
-            }
-          }
-        },
-        products: {
-          where: {
-            status: "ACTIVE"
-          },
-          select: {
-            id: true,
-            reviews: {
-              select: {
-                rating: true
-              }
-            }
-          }
-        }
-      },
-      orderBy: {
-        createdAt: "desc"
-      }
-    })
+    const sellers = await getCatalogSellers()
 
     return NextResponse.json(sellers)
   } catch (error) {

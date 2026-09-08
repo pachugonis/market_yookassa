@@ -1,15 +1,17 @@
+import { cache } from "react"
+import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 import { prisma } from "@/lib/prisma"
+import { absoluteUrl, SITE_NAME, truncateForMeta } from "@/lib/seo"
 import { CategoryProducts } from "./category-products"
 
 interface Props {
   params: Promise<{ slug: string }>
 }
 
-export default async function CategoryPage({ params }: Props) {
-  const { slug } = await params
-
-  const category = await prisma.category.findUnique({
+// Один запрос на проход рендера: его делят generateMetadata и сама страница.
+const getCategory = cache(async (slug: string) => {
+  return prisma.category.findUnique({
     where: { slug },
     include: {
       subcategories: {
@@ -22,6 +24,41 @@ export default async function CategoryPage({ params }: Props) {
       }
     }
   })
+})
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { slug } = await params
+  const category = await getCategory(slug)
+
+  if (!category) {
+    return { title: "Категория не найдена" }
+  }
+
+  const url = absoluteUrl(`/category/${category.slug}`)
+  const description = truncateForMeta(
+    category.description ||
+      `${category.name} — купить и скачать цифровые товары на ${SITE_NAME}. Безопасная оплата и мгновенная доставка после покупки.`
+  )
+
+  return {
+    title: `${category.name} — купить и скачать`,
+    description,
+    alternates: { canonical: url },
+    openGraph: {
+      type: "website",
+      url,
+      siteName: SITE_NAME,
+      locale: "ru_RU",
+      title: `${category.name} — ${SITE_NAME}`,
+      description,
+    },
+  }
+}
+
+export default async function CategoryPage({ params }: Props) {
+  const { slug } = await params
+
+  const category = await getCategory(slug)
 
   if (!category) {
     notFound()
@@ -60,5 +97,23 @@ export default async function CategoryPage({ params }: Props) {
     }
   })
 
-  return <CategoryProducts category={category} products={productsWithRating} subcategories={category.subcategories || []} />
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Главная", item: absoluteUrl("/") },
+      { "@type": "ListItem", position: 2, name: "Каталог", item: absoluteUrl("/products") },
+      { "@type": "ListItem", position: 3, name: category.name },
+    ],
+  }
+
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+      />
+      <CategoryProducts category={category} products={productsWithRating} subcategories={category.subcategories || []} />
+    </>
+  )
 }

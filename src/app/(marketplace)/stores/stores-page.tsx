@@ -1,6 +1,5 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import Link from "next/link"
 import { motion } from "framer-motion"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -25,28 +24,7 @@ interface Seller {
   }>
 }
 
-export function StoresPage() {
-  const [sellers, setSellers] = useState<Seller[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-
-  useEffect(() => {
-    const fetchSellers = async () => {
-      try {
-        const response = await fetch("/api/sellers")
-        if (response.ok) {
-          const data = await response.json()
-          setSellers(data)
-        }
-      } catch (error) {
-        console.error("Failed to fetch sellers:", error)
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    fetchSellers()
-  }, [])
-
+export function StoresPage({ sellers }: { sellers: Seller[] }) {
   const calculateAverageRating = (products: Seller["products"]) => {
     const allReviews = products.flatMap(p => p.reviews)
     if (allReviews.length === 0) return 0
@@ -75,27 +53,8 @@ export function StoresPage() {
         </p>
       </motion.div>
 
-      {/* Loading State */}
-      {isLoading && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[1, 2, 3, 4, 5, 6].map((i) => (
-            <Card key={i} className="animate-pulse">
-              <CardHeader>
-                <div className="flex items-center gap-4">
-                  <div className="w-16 h-16 rounded-full bg-muted" />
-                  <div className="flex-1 space-y-2">
-                    <div className="h-4 bg-muted rounded w-3/4" />
-                    <div className="h-3 bg-muted rounded w-1/2" />
-                  </div>
-                </div>
-              </CardHeader>
-            </Card>
-          ))}
-        </div>
-      )}
-
       {/* Sellers Grid */}
-      {!isLoading && sellers.length > 0 && (
+      {sellers.length > 0 && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -178,7 +137,7 @@ export function StoresPage() {
       )}
 
       {/* Empty State */}
-      {!isLoading && sellers.length === 0 && (
+      {sellers.length === 0 && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
