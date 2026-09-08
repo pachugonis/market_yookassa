@@ -14,6 +14,7 @@ function PaymentSuccessContent() {
   const router = useRouter()
   const purchaseId = searchParams.get("purchaseId")
   const [status, setStatus] = useState<"loading" | "success" | "failed">("loading")
+  const [held, setHeld] = useState(false)
   const [product, setProduct] = useState<{ title: string; coverImage: string | null } | null>(null)
 
   useEffect(() => {
@@ -29,9 +30,12 @@ function PaymentSuccessContent() {
 
         if (data.success) {
           setProduct(data.data.product)
-          if (data.data.status === "COMPLETED") {
+          // HELD — нормальный успешный исход двухэтапной оплаты:
+          // деньги заморожены, товар выдан, ждём подтверждения приёма.
+          if (data.data.status === "HELD" || data.data.status === "COMPLETED") {
+            setHeld(data.data.status === "HELD")
             setStatus("success")
-          } else if (data.data.status === "FAILED") {
+          } else if (data.data.status === "FAILED" || data.data.status === "REFUNDED") {
             setStatus("failed")
           } else {
             // Still pending, check again in 2 seconds
@@ -79,15 +83,23 @@ function PaymentSuccessContent() {
                   >
                     <CheckCircle className="h-8 w-8 text-green-600" />
                   </motion.div>
-                  <h1 className="text-2xl font-bold mb-2">Оплата прошла успешно!</h1>
+                  <h1 className="text-2xl font-bold mb-2">
+                    {held ? "Средства зарезервированы" : "Оплата прошла успешно!"}
+                  </h1>
                   <p className="text-muted-foreground mb-6">
                     {product?.title && `Товар "${product.title}" добавлен в вашу библиотеку.`}
+                    {held && (
+                      <>
+                        {" "}Деньги удерживаются на вашей карте: они уйдут продавцу
+                        только после того, как вы подтвердите получение товара.
+                      </>
+                    )}
                   </p>
                   <div className="space-y-3">
                     <Link href="/library">
                       <Button className="w-full" size="lg">
                         <Download className="h-5 w-5 mr-2" />
-                        Перейти к загрузке
+                        {held ? "Скачать и подтвердить" : "Перейти к загрузке"}
                       </Button>
                     </Link>
                     <Link href="/products">

@@ -27,6 +27,7 @@ export async function GET() {
       totalProducts,
       totalSales,
       recentSales,
+      heldSales,
     ] = await Promise.all([
       // Available balance - only purchases older than 24 hours AND no active disputes
       prisma.purchase.aggregate({
@@ -64,6 +65,16 @@ export async function GET() {
         orderBy: { createdAt: "desc" },
         take: 5,
       }),
+      // Деньги, замороженные на картах покупателей: сделка оплачена,
+      // но приём товара ещё не подтверждён.
+      prisma.purchase.aggregate({
+        where: {
+          product: { sellerId: session.user.id },
+          status: "HELD",
+        },
+        _sum: { sellerEarnings: true },
+        _count: true,
+      }),
     ])
 
     return NextResponse.json({
@@ -74,6 +85,8 @@ export async function GET() {
         totalSales: totalSales._count,
         totalEarnings: totalSales._sum.sellerEarnings || 0,
         recentSales,
+        heldEarnings: heldSales._sum.sellerEarnings || 0,
+        heldCount: heldSales._count,
       },
     })
   } catch (error) {

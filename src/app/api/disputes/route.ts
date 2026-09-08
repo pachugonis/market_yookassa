@@ -101,10 +101,11 @@ export async function POST(request: Request) {
       )
     }
 
-    // Check if purchase is completed
-    if (purchase.status !== "COMPLETED") {
+    // Спор имеет смысл, пока сделка живая: деньги либо ещё в холде,
+    // либо уже списаны, но срок обращения не вышел.
+    if (purchase.status !== "COMPLETED" && purchase.status !== "HELD") {
       return NextResponse.json(
-        { success: false, error: "Спор можно открыть только для завершенных покупок" },
+        { success: false, error: "Спор можно открыть только по оплаченной покупке" },
         { status: 400 }
       )
     }
@@ -117,13 +118,21 @@ export async function POST(request: Request) {
       )
     }
 
-    // Check if 24 hours have passed
-    const hoursSincePurchase = (Date.now() - purchase.createdAt.getTime()) / (1000 * 60 * 60)
-    if (hoursSincePurchase > 24) {
-      return NextResponse.json(
-        { success: false, error: "Спор можно открыть только в течение 24 часов после покупки" },
-        { status: 400 }
-      )
+    // Пока деньги в холде, спор открыт для покупателя всегда: сделка
+    // ещё не завершена. После подтверждения — 24 часа на обращение.
+    if (purchase.status === "COMPLETED") {
+      const since = purchase.confirmedAt ?? purchase.createdAt
+      const hoursSinceConfirm = (Date.now() - since.getTime()) / (1000 * 60 * 60)
+
+      if (hoursSinceConfirm > 24) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Спор можно открыть только в течение 24 часов после подтверждения сделки",
+          },
+          { status: 400 }
+        )
+      }
     }
 
     // Check if review exists (if review exists, deal is closed)

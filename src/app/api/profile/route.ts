@@ -23,6 +23,7 @@ export async function GET() {
         avatar: true,
         verified: true,
         balance: true,
+        yookassaAccountId: true,
         twoFactorEnabled: true,
         createdAt: true,
         _count: {
@@ -63,10 +64,14 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { name, avatar } = body
+    const { name, avatar, yookassaAccountId } = body
 
     // Prepare update data
-    const updateData: { name?: string; avatar?: string } = {}
+    const updateData: {
+      name?: string
+      avatar?: string
+      yookassaAccountId?: string | null
+    } = {}
 
     // Validate and add name if provided
     if (name !== undefined) {
@@ -98,6 +103,41 @@ export async function PATCH(request: NextRequest) {
       updateData.avatar = avatar
     }
 
+    // Счёт продавца в «ЮKassa для платформ»: на него уходит выручка
+    // при сплитовании. Пустая строка отключает сплит — тогда деньги
+    // приходят площадке и распределяются через внутренний баланс.
+    if (yookassaAccountId !== undefined) {
+      if (session.user.role !== "SELLER" && session.user.role !== "ADMIN") {
+        return NextResponse.json(
+          { success: false, error: "Счёт для выплат доступен только продавцам" },
+          { status: 403 }
+        )
+      }
+
+      if (typeof yookassaAccountId !== "string") {
+        return NextResponse.json(
+          { success: false, error: "Неверный формат идентификатора счёта" },
+          { status: 400 }
+        )
+      }
+
+      const account = yookassaAccountId.trim()
+
+      if (account.length === 0) {
+        updateData.yookassaAccountId = null
+      } else if (!/^\d{3,40}$/.test(account)) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Идентификатор счёта ЮKassa состоит только из цифр",
+          },
+          { status: 400 }
+        )
+      } else {
+        updateData.yookassaAccountId = account
+      }
+    }
+
     // Check if there's anything to update
     if (Object.keys(updateData).length === 0) {
       return NextResponse.json(
@@ -117,6 +157,7 @@ export async function PATCH(request: NextRequest) {
         avatar: true,
         verified: true,
         balance: true,
+        yookassaAccountId: true,
         twoFactorEnabled: true,
         createdAt: true,
         _count: {

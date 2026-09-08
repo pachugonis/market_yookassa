@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react"
 import { motion } from "framer-motion"
-import { Wallet, TrendingUp, Percent, Loader2, CreditCard } from "lucide-react"
+import { Wallet, TrendingUp, Percent, Loader2, CreditCard, Split } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { formatPrice } from "@/lib/utils"
 
 interface Stats {
@@ -12,6 +13,9 @@ interface Stats {
   totalEarnings: number
   totalSales: number
   commissionRate?: number
+  /** Выручка по сделкам, где деньги ещё заморожены у покупателя */
+  heldEarnings?: number
+  heldCount?: number
 }
 
 export default function EarningsPage() {
@@ -19,11 +23,53 @@ export default function EarningsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [commissionRate, setCommissionRate] = useState(10)
   const [minPayoutAmount, setMinPayoutAmount] = useState(100000)
+  const [splitAccountId, setSplitAccountId] = useState("")
+  const [savedAccountId, setSavedAccountId] = useState<string | null>(null)
+  const [savingAccount, setSavingAccount] = useState(false)
+  const [accountError, setAccountError] = useState<string | null>(null)
 
   useEffect(() => {
     fetchStats()
     fetchCommissionRate()
+    fetchPayoutAccount()
   }, [])
+
+  const fetchPayoutAccount = async () => {
+    try {
+      const res = await fetch("/api/profile")
+      const data = await res.json()
+      if (data.success) {
+        setSavedAccountId(data.data.yookassaAccountId ?? null)
+        setSplitAccountId(data.data.yookassaAccountId ?? "")
+      }
+    } catch (error) {
+      console.error("Error fetching payout account:", error)
+    }
+  }
+
+  const savePayoutAccount = async () => {
+    setSavingAccount(true)
+    setAccountError(null)
+    try {
+      const res = await fetch("/api/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ yookassaAccountId: splitAccountId.trim() }),
+      })
+      const data = await res.json()
+
+      if (data.success) {
+        setSavedAccountId(data.data.yookassaAccountId ?? null)
+      } else {
+        setAccountError(data.error || "Не удалось сохранить счёт")
+      }
+    } catch (error) {
+      console.error("Error saving payout account:", error)
+      setAccountError("Не удалось сохранить счёт")
+    } finally {
+      setSavingAccount(false)
+    }
+  }
 
   const fetchStats = async () => {
     try {
@@ -87,6 +133,12 @@ export default function EarningsPage() {
                 <span className="font-medium">Доступный баланс</span>
               </div>
               <p className="text-4xl font-bold">{formatPrice(stats?.balance || 0)}</p>
+              {(stats?.heldCount || 0) > 0 && (
+                <p className="text-sm text-white/80 mt-2">
+                  Ещё {formatPrice(stats?.heldEarnings || 0)} ждут подтверждения
+                  покупателями ({stats?.heldCount})
+                </p>
+              )}
             </CardContent>
           </Card>
         </motion.div>
@@ -128,6 +180,65 @@ export default function EarningsPage() {
         </motion.div>
       </div>
 
+      {/* Сплитование: счёт продавца в «ЮKassa для платформ» */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.25 }}
+      >
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Split className="h-5 w-5" />
+              Счёт в ЮKassa для платформ
+            </CardTitle>
+            <CardDescription>
+              Укажите идентификатор вашего магазина в ЮKassa — выручка будет
+              приходить на него напрямую при каждой сделке, а площадка удержит
+              только комиссию.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Input
+                value={splitAccountId}
+                onChange={(e) => setSplitAccountId(e.target.value)}
+                placeholder="Например, 1000001"
+                inputMode="numeric"
+              />
+              <Button onClick={savePayoutAccount} disabled={savingAccount}>
+                {savingAccount ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  "Сохранить"
+                )}
+              </Button>
+            </div>
+
+            {accountError && (
+              <p className="text-sm text-destructive">{accountError}</p>
+            )}
+
+            <div className="p-4 bg-secondary/50 rounded-xl text-sm text-muted-foreground">
+              {savedAccountId ? (
+                <>
+                  Сплитование включено: после подтверждения сделки покупателем{" "}
+                  {100 - commissionRate}% суммы уходят на ваш счёт в ЮKassa, а{" "}
+                  {commissionRate}% удерживает площадка. Внутренний баланс и
+                  заявки на вывод при этом не используются.
+                </>
+              ) : (
+                <>
+                  Счёт не подключён: деньги приходят на счёт площадки и
+                  зачисляются на ваш внутренний баланс — вывести их можно
+                  заявкой ниже. Оставьте поле пустым, чтобы отключить сплит.
+                </>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+
       {/* Payout Section */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -153,7 +264,8 @@ export default function EarningsPage() {
                 Минимальная сумма для вывода: {(minPayoutAmount / 100).toLocaleString('ru-RU')} ₽
               </p>
               <p className="text-xs text-muted-foreground mt-2">
-                Средства становятся доступны через 24 часа после покупки
+                Средства становятся доступны после того, как покупатель
+                подтвердит получение товара
               </p>
             </div>
 
@@ -201,7 +313,7 @@ export default function EarningsPage() {
                 <div>
                   <p className="font-medium">Ваш доход</p>
                   <p className="text-sm text-muted-foreground">
-                    Зачисляется на ваш баланс сразу после оплаты
+                    Перечисляется после подтверждения сделки покупателем
                   </p>
                 </div>
               </div>

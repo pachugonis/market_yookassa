@@ -15,7 +15,22 @@ export async function GET() {
 
     const purchases = await prisma.purchase.findMany({
       where: { buyerId: session.user.id },
-      include: {
+      select: {
+        id: true,
+        productId: true,
+        amount: true,
+        status: true,
+        downloadToken: true,
+        downloadCount: true,
+        createdAt: true,
+        // Эскроу: покупателю нужно видеть, что деньги ещё заморожены
+        // и сколько у него времени на подтверждение приёма.
+        heldAt: true,
+        holdExpiresAt: true,
+        autoConfirmAt: true,
+        confirmedAt: true,
+        capturedAmount: true,
+        refundedAmount: true,
         product: {
           select: {
             id: true,

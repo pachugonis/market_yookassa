@@ -112,10 +112,19 @@ NEXTAUTH_SECRET="generate-random-32-char-string-here"
 YOOKASSA_SHOP_ID="your_shop_id"
 YOOKASSA_SECRET_KEY="your_secret_key"
 
+# Escrow: days before a held deal is confirmed automatically (default 3)
+ESCROW_AUTO_CONFIRM_DAYS="3"
+
+# Secret for the background job POST /api/cron/settle-holds
+CRON_SECRET="generate-random-32-char-string-here"
+
 # App
 NEXT_PUBLIC_BASE_URL="https://yourdomain.com"
 UPLOAD_DIR="uploads"
 ```
+
+Deal flow (two-stage payment + split) is described in [ESCROW.md](./ESCROW.md);
+it requires a scheduled call to `/api/cron/settle-holds`.
 
 **Generate secure NEXTAUTH_SECRET:**
 

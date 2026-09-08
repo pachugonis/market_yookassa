@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
 import { getPayment } from "@/lib/yookassa"
-import { v4 as uuidv4 } from "uuid"
+import { syncPurchaseWithPayment } from "@/lib/purchase-fulfillment"
 
 export async function GET(request: NextRequest) {
   try {
@@ -45,147 +45,53 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // If still pending and has YooKassa payment ID, check payment status
+    // Покупатель мог вернуться со страницы оплаты раньше вебхука.
+    // Спрашиваем ЮKassa напрямую и переводим сделку тем же атомарным
+    // путём — двойной выдачи не произойдёт, даже если вебхук отработает
+    // одновременно.
     if (purchase.status === "PENDING" && purchase.yookassaPaymentId) {
       try {
         const payment = await getPayment(purchase.yookassaPaymentId)
 
-        if (payment.status === "succeeded") {
-          // Payment succeeded but webhook hasn't processed yet
-          const downloadToken = uuidv4()
-          const downloadExpiresAt = new Date()
-          downloadExpiresAt.setDate(downloadExpiresAt.getDate() + 30)
+        if (
+          payment.metadata?.purchaseId === purchase.id &&
+          Number(payment.amount.value) <= purchase.amount
+        ) {
+          const outcome = await syncPurchaseWithPayment(purchase.id, payment)
 
-          // Get product details to check for license keys
-          const product = await prisma.product.findUnique({
-            where: { id: purchase.productId },
-          })
-
-          if (!product) {
+          if (outcome.result === "no_license_keys") {
             return NextResponse.json(
-              { success: false, error: "Товар не найден" },
-              { status: 404 }
+              { success: false, error: "Нет доступных лицензионных ключей" },
+              { status: 400 }
             )
           }
-
-          // Check if product uses license keys
-          let licenseKey = null
-          if (product.hasLicenseKeys) {
-            // Find an available license key
-            licenseKey = await prisma.licenseKey.findFirst({
-              where: {
-                productId: purchase.productId,
-                isSold: false,
-              },
-            })
-
-            if (!licenseKey) {
-              console.error("No available license keys for product:", purchase.productId)
-              // Mark purchase as failed if no keys available
-              await prisma.purchase.update({
-                where: { id: purchase.id },
-                data: { status: "FAILED" },
-              })
-              return NextResponse.json(
-                { success: false, error: "Нет доступных лицензионных ключей" },
-                { status: 400 }
-              )
-            }
-          }
-
-          // Build transaction operations
-          const updateOperations: any[] = [
-            prisma.purchase.update({
-              where: { id: purchase.id },
-              data: {
-                status: "COMPLETED",
-                downloadToken,
-                downloadExpiresAt,
-                ...(licenseKey ? { licenseKeyId: licenseKey.id } : {}),
-              },
-            }),
-            prisma.product.update({
-              where: { id: purchase.productId },
-              data: {
-                downloadCount: { increment: 1 },
-              },
-            }),
-            prisma.user.update({
-              where: { id: product.sellerId },
-              data: {
-                balance: { increment: purchase.sellerEarnings },
-              },
-            }),
-          ]
-
-          // Mark license key as sold if applicable
-          if (licenseKey) {
-            updateOperations.push(
-              prisma.licenseKey.update({
-                where: { id: licenseKey.id },
-                data: {
-                  isSold: true,
-                  soldAt: new Date(),
-                },
-              })
-            )
-
-            // Check if this was the last available key
-            const remainingKeys = await prisma.licenseKey.count({
-              where: {
-                productId: purchase.productId,
-                isSold: false,
-                id: { not: licenseKey.id }, // Exclude the key we're about to mark as sold
-              },
-            })
-
-            // If no keys left, deactivate the product
-            if (remainingKeys === 0) {
-              updateOperations.push(
-                prisma.product.update({
-                  where: { id: purchase.productId },
-                  data: { status: "INACTIVE" },
-                })
-              )
-              console.log(`Product ${purchase.productId} deactivated - all license keys sold`)
-            }
-          }
-
-          await prisma.$transaction(updateOperations)
-
-          return NextResponse.json({
-            success: true,
-            data: {
-              status: "COMPLETED",
-              product: purchase.product,
-            },
-          })
-        }
-
-        if (payment.status === "canceled") {
-          await prisma.purchase.update({
-            where: { id: purchase.id },
-            data: { status: "FAILED" },
-          })
-
-          return NextResponse.json({
-            success: true,
-            data: {
-              status: "FAILED",
-              product: purchase.product,
-            },
-          })
         }
       } catch (error) {
         console.error("Error checking payment status:", error)
       }
     }
 
+    const fresh = await prisma.purchase.findUnique({
+      where: { id: purchase.id },
+      select: {
+        status: true,
+        amount: true,
+        heldAt: true,
+        holdExpiresAt: true,
+        autoConfirmAt: true,
+        confirmedAt: true,
+      },
+    })
+
     return NextResponse.json({
       success: true,
       data: {
-        status: purchase.status,
+        status: fresh?.status ?? purchase.status,
         product: purchase.product,
+        heldAt: fresh?.heldAt ?? null,
+        holdExpiresAt: fresh?.holdExpiresAt ?? null,
+        autoConfirmAt: fresh?.autoConfirmAt ?? null,
+        confirmedAt: fresh?.confirmedAt ?? null,
       },
     })
   } catch (error) {

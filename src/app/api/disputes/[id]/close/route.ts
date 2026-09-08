@@ -64,28 +64,19 @@ export async function POST(
       )
     }
 
-    // Close the dispute and add funds to seller's balance
-    const [updatedDispute] = await prisma.$transaction([
-      prisma.dispute.update({
-        where: { id: disputeId },
-        data: {
-          status: "CLOSED",
-          resolvedAt: new Date(),
-        },
-      }),
-      // Add seller earnings to seller's balance
-      prisma.user.update({
-        where: { id: dispute.purchase.product.sellerId },
-        data: {
-          balance: {
-            increment: dispute.purchase.sellerEarnings,
-          },
-        },
-      }),
-    ])
+    // Деньги здесь не двигаем. Если сделка ещё в холде, покупатель
+    // подтвердит её сам либо это сделает автоподтверждение (см.
+    // /api/cron/settle-holds); если уже подтверждена — выручка давно
+    // у продавца, и закрытие спора просто снимает удержание.
+    const updatedDispute = await prisma.dispute.update({
+      where: { id: disputeId, status: "OPEN" },
+      data: {
+        status: "CLOSED",
+        resolvedAt: new Date(),
+      },
+    })
 
     console.log("[POST /api/disputes/[id]/close] Dispute closed by buyer")
-    console.log("[POST /api/disputes/[id]/close] Added to seller balance:", dispute.purchase.sellerEarnings)
 
     return NextResponse.json({
       success: true,

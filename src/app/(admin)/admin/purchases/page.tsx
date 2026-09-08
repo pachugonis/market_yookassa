@@ -27,6 +27,7 @@ async function getPurchases() {
 function getStatusBadge(status: PurchaseStatus) {
   const variants = {
     COMPLETED: "default",
+    HELD: "secondary",
     PENDING: "secondary",
     FAILED: "destructive",
     REFUNDED: "outline",
@@ -34,6 +35,7 @@ function getStatusBadge(status: PurchaseStatus) {
 
   const labels = {
     COMPLETED: "Завершена",
+    HELD: "Средства удержаны",
     PENDING: "Ожидает",
     FAILED: "Ошибка",
     REFUNDED: "Возврат",
@@ -52,7 +54,9 @@ export default async function PurchasesPage() {
   const stats = {
     total: purchases.length,
     completed: purchases.filter((p: any) => p.status === "COMPLETED").length,
-    pending: purchases.filter((p: any) => p.status === "PENDING").length,
+    pending: purchases.filter(
+      (p: any) => p.status === "PENDING" || p.status === "HELD"
+    ).length,
     totalRevenue: purchases
       .filter((p: any) => p.status === "COMPLETED")
       .reduce((sum: number, p: any) => sum + p.amount, 0),

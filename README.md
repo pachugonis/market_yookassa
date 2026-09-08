@@ -94,7 +94,16 @@ NEXTAUTH_URL="http://localhost:3000"
 # YooKassa (опционально для платежей)
 YOOKASSA_SHOP_ID="your-shop-id"
 YOOKASSA_SECRET_KEY="your-secret-key"
+
+# Эскроу: через сколько дней сделка подтверждается автоматически,
+# если покупатель молчит (по умолчанию 3)
+ESCROW_AUTO_CONFIRM_DAYS="3"
+
+# Секрет для фоновой задачи /api/cron/settle-holds
+CRON_SECRET="openssl rand -base64 32"
 ```
+
+Схема сделки (холдирование + сплитование) описана в [ESCROW.md](./ESCROW.md).
 
 ### 4. Настройка базы данных
 

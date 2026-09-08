@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
 import { readFile } from "fs/promises"
-import path from "path"
+import { timingSafeEqual } from "crypto"
+import { resolveUploadPath, sanitizeFileName } from "@/lib/storage"
 
 export async function GET(
   request: NextRequest,
@@ -50,16 +51,18 @@ export async function GET(
       )
     }
 
-    // Verify purchase status
-    if (purchase.status !== "COMPLETED") {
+    // Шаг 2 сделки: товар передаётся, как только средства заморожены.
+    // Покупатель должен получить файл ДО того, как подтвердит приём, —
+    // иначе подтверждать ему нечего.
+    if (purchase.status !== "COMPLETED" && purchase.status !== "HELD") {
       return NextResponse.json(
         { success: false, error: "Платеж не завершен" },
         { status: 400 }
       )
     }
 
-    // Verify token
-    if (purchase.downloadToken !== token) {
+    // Verify token (сравнение постоянного времени)
+    if (!purchase.downloadToken || !token || !safeEqual(purchase.downloadToken, token)) {
       return NextResponse.json(
         { success: false, error: "Неверный токен загрузки" },
         { status: 403 }
@@ -74,12 +77,17 @@ export async function GET(
       )
     }
 
-    // Get file path
-    const filePath = path.join(
-      process.cwd(),
-      "uploads",
-      purchase.product.fileUrl
-    )
+    // fileUrl хранится в БД, но задавался продавцом — перед чтением
+    // с диска убеждаемся, что путь не выходит за пределы uploads/.
+    const filePath = resolveUploadPath(purchase.product.fileUrl)
+
+    if (!filePath) {
+      console.error("Rejected unsafe fileUrl:", purchase.product.fileUrl)
+      return NextResponse.json(
+        { success: false, error: "Файл не найден" },
+        { status: 404 }
+      )
+    }
 
     try {
       const fileBuffer = await readFile(filePath)
@@ -102,10 +110,11 @@ export async function GET(
       ])
 
       // Return file
+      const safeName = sanitizeFileName(purchase.product.fileName)
       const response = new NextResponse(fileBuffer)
       response.headers.set(
         "Content-Disposition",
-        `attachment; filename="${encodeURIComponent(purchase.product.fileName)}"`
+        `attachment; filename*=UTF-8''${encodeURIComponent(safeName)}`
       )
       response.headers.set("Content-Type", "application/octet-stream")
       response.headers.set("Content-Length", fileBuffer.length.toString())
@@ -126,4 +135,12 @@ export async function GET(
       { status: 500 }
     )
   }
+}
+
+/** Сравнение строк за постоянное время — не даёт подбирать токен побайтово. */
+function safeEqual(a: string, b: string): boolean {
+  const bufferA = Buffer.from(a, "utf8")
+  const bufferB = Buffer.from(b, "utf8")
+  if (bufferA.length !== bufferB.length) return false
+  return timingSafeEqual(bufferA, bufferB)
 }

@@ -5,7 +5,7 @@ import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
 import { motion } from "framer-motion"
-import { Download, Package, Calendar, FileDown, Loader2, Key, Copy, Check, MessageSquare, AlertCircle } from "lucide-react"
+import { Download, Package, Calendar, FileDown, Loader2, Key, Copy, Check, MessageSquare, AlertCircle, ShieldCheck } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -18,6 +18,10 @@ interface Purchase {
   downloadToken: string | null
   downloadCount: number
   createdAt: string
+  heldAt: string | null
+  holdExpiresAt: string | null
+  autoConfirmAt: string | null
+  confirmedAt: string | null
   product: {
     id: string
     title: string
@@ -45,6 +49,7 @@ export default function LibraryPage() {
   const [downloadingId, setDownloadingId] = useState<string | null>(null)
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
   const [openingDispute, setOpeningDispute] = useState<string | null>(null)
+  const [confirmingId, setConfirmingId] = useState<string | null>(null)
   const [disputeReason, setDisputeReason] = useState("")
   const [showDisputeDialog, setShowDisputeDialog] = useState<string | null>(null)
 
@@ -135,12 +140,63 @@ export default function LibraryPage() {
   }
 
   const canOpenDispute = (purchase: Purchase) => {
-    if (purchase.status !== "COMPLETED") return false
     if (purchase.dispute) return false
     if (purchase.hasReview) return false
-    
-    const hoursSincePurchase = (Date.now() - new Date(purchase.createdAt).getTime()) / (1000 * 60 * 60)
-    return hoursSincePurchase <= 24
+
+    // Пока деньги в холде, спор доступен всегда: сделка не завершена
+    if (purchase.status === "HELD") return true
+    if (purchase.status !== "COMPLETED") return false
+
+    const since = purchase.confirmedAt ?? purchase.createdAt
+    const hoursSinceConfirm = (Date.now() - new Date(since).getTime()) / (1000 * 60 * 60)
+    return hoursSinceConfirm <= 24
+  }
+
+  /**
+   * Шаг 3 сделки: пока покупатель не нажмёт эту кнопку, деньги
+   * заморожены на его карте и продавцу не переданы.
+   */
+  const handleConfirmReceipt = async (purchaseId: string) => {
+    setConfirmingId(purchaseId)
+    try {
+      const res = await fetch(`/api/purchases/${purchaseId}/confirm`, {
+        method: "POST",
+      })
+      const data = await res.json()
+
+      if (data.success) {
+        alert(data.message || "Сделка подтверждена")
+        fetchPurchases()
+      } else {
+        alert(data.error || "Не удалось подтвердить сделку")
+      }
+    } catch (error) {
+      console.error("Error confirming purchase:", error)
+      alert("Не удалось подтвердить сделку")
+    } finally {
+      setConfirmingId(null)
+    }
+  }
+
+  const statusLabel = (status: string) => {
+    switch (status) {
+      case "COMPLETED":
+        return "Сделка завершена"
+      case "HELD":
+        return "Средства зарезервированы"
+      case "PENDING":
+        return "Ожидание оплаты"
+      case "REFUNDED":
+        return "Возврат"
+      default:
+        return "Ошибка"
+    }
+  }
+
+  const statusVariant = (status: string) => {
+    if (status === "COMPLETED") return "success" as const
+    if (status === "HELD" || status === "PENDING") return "secondary" as const
+    return "destructive" as const
   }
 
   const handleOpenDispute = async (purchaseId: string) => {
@@ -263,20 +319,57 @@ export default function LibraryPage() {
                             <span>{formatPrice(purchase.amount)}</span>
                           </div>
                         </div>
-                        <Badge
-                          variant={
-                            purchase.status === "COMPLETED" ? "success" : 
-                            purchase.status === "PENDING" ? "secondary" : "destructive"
-                          }
-                        >
-                          {purchase.status === "COMPLETED" ? "Оплачено" :
-                           purchase.status === "PENDING" ? "Ожидание" : "Ошибка"}
+                        <Badge variant={statusVariant(purchase.status)}>
+                          {statusLabel(purchase.status)}
                         </Badge>
                       </div>
 
-                      {/* Download Button */}
-                      {purchase.status === "COMPLETED" && purchase.downloadToken && (
+                      {/* Товар доступен уже на этапе холда: подтверждать
+                          покупателю нужно то, что он получил */}
+                      {(purchase.status === "COMPLETED" || purchase.status === "HELD") &&
+                        purchase.downloadToken && (
                         <div className="mt-4 space-y-3">
+                          {/* Эскроу: деньги заморожены до подтверждения */}
+                          {purchase.status === "HELD" && !purchase.dispute && (
+                            <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                              <div className="flex items-start gap-2">
+                                <ShieldCheck className="h-5 w-5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+                                <div className="text-sm">
+                                  <p className="font-medium text-blue-900 dark:text-blue-100">
+                                    Деньги зарезервированы на вашей карте
+                                  </p>
+                                  <p className="text-blue-700 dark:text-blue-300 mt-0.5">
+                                    Проверьте товар и подтвердите получение — только после
+                                    этого оплата уйдёт продавцу.
+                                    {purchase.autoConfirmAt && (
+                                      <>
+                                        {" "}Если ничего не сделать, сделка подтвердится
+                                        автоматически {formatDate(new Date(purchase.autoConfirmAt))}.
+                                      </>
+                                    )}
+                                  </p>
+                                  <Button
+                                    className="mt-3"
+                                    onClick={() => handleConfirmReceipt(purchase.id)}
+                                    disabled={confirmingId === purchase.id}
+                                  >
+                                    {confirmingId === purchase.id ? (
+                                      <>
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                        Подтверждаем...
+                                      </>
+                                    ) : (
+                                      <>
+                                        <ShieldCheck className="h-4 w-4" />
+                                        Подтвердить получение
+                                      </>
+                                    )}
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
                           {/* Dispute Warning */}
                           {purchase.dispute && purchase.dispute.status === "OPEN" && (
                             <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg flex items-start gap-2">

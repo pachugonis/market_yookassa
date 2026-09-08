@@ -35,6 +35,9 @@ interface Dispute {
     id: string
     amount: number
     sellerEarnings: number
+    status: string
+    capturedAmount: number | null
+    refundedAmount: number
     product: {
       id: string
       title: string
@@ -376,6 +379,11 @@ export default function SellerDisputeChatPage() {
                   <option value="REFUND_BUYER">Полный возврат</option>
                   <option value="PARTIAL_REFUND">Частичный возврат</option>
                 </select>
+                <p className="text-xs text-muted-foreground">
+                  {dispute.purchase.status === "HELD"
+                    ? "Деньги ещё заморожены на карте покупателя: отказ в споре переведёт оплату вам, возврат — снимет удержание."
+                    : "Оплата уже получена: возврат будет оформлен через ЮKassa и списан с вашей выручки."}
+                </p>
               </div>
 
               {resolutionType === "PARTIAL_REFUND" && (

@@ -20,8 +20,16 @@ enum ProductStatus {
   INACTIVE
 }
 
+/// Жизненный цикл сделки при двухэтапной оплате (холдировании):
+/// PENDING — платёж создан, покупатель ещё не авторизовал списание;
+/// HELD    — средства заморожены на карте, товар передан покупателю,
+///           ждём подтверждения приёма;
+/// COMPLETED — платёж подтверждён (capture), деньги распределены;
+/// FAILED  — платёж не состоялся;
+/// REFUNDED — холд снят или деньги возвращены покупателю.
 enum PurchaseStatus {
   PENDING
+  HELD
   COMPLETED
   FAILED
   REFUNDED
@@ -83,6 +91,11 @@ model User {
   verificationToken   String?   @unique
   verificationTokenExpires DateTime?
   balance             Int       @default(0)
+  /// Идентификатор магазина продавца в «ЮKassa для платформ».
+  /// Если задан — выручка уходит на его счёт сплитованием, минуя
+  /// внутренний баланс; если нет — работает старая схема с балансом
+  /// и заявками на выплату.
+  yookassaAccountId   String?
   twoFactorEnabled    Boolean   @default(false)
   twoFactorSecret     String?
   twoFactorBackupCodes String[]  @default([])
@@ -164,6 +177,29 @@ model Purchase {
   createdAt         DateTime       @default(now())
   updatedAt         DateTime       @updatedAt
 
+  // --- Эскроу: холдирование и сплитование ---
+  /// Момент авторизации (средства заморожены).
+  heldAt            DateTime?
+  /// Дедлайн ЮKassa: после него холд снимается сам и деньги
+  /// возвращаются покупателю. Приходит в payment.expires_at.
+  holdExpiresAt     DateTime?
+  /// Когда система подтвердит сделку сама, если покупатель молчит.
+  autoConfirmAt     DateTime?
+  /// Момент подтверждения приёма товара.
+  confirmedAt       DateTime?
+  /// Кто подтвердил: BUYER | AUTO | DISPUTE.
+  confirmedBy       String?
+  /// Замок на время обращения к API ЮKassa: не даёт двум запросам
+  /// одновременно подтвердить один платёж.
+  captureStartedAt  DateTime?
+  /// Фактически списанная сумма (при частичном возврате меньше amount).
+  capturedAmount    Int?
+  /// Сколько уже вернулось покупателю.
+  refundedAmount    Int            @default(0)
+  /// Счёт продавца в ЮKassa на момент сделки. Заполнен — значит
+  /// платёж сплитован и внутренний баланс продавца не участвует.
+  splitAccountId    String?
+
   buyerId           String
   buyer             User           @relation(fields: [buyerId], references: [id], onDelete: Cascade)
 
@@ -180,6 +216,11 @@ model Purchase {
   @@index([productId])
   @@index([status])
   @@index([downloadToken])
+  @@index([yookassaPaymentId])
+  // Фоновая задача выбирает холды, которым пора подтвердиться
+  // или вот-вот истечь.
+  @@index([status, autoConfirmAt])
+  @@index([status, holdExpiresAt])
 }
 
 model Payout {

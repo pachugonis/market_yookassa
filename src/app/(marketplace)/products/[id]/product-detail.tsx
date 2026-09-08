@@ -120,8 +120,12 @@ export function ProductDetail({ product, avgRating, availableStock }: ProductDet
       const res = await fetch("/api/purchases")
       const data = await res.json()
       if (data.success) {
+        // Сделка в холде — товар уже у покупателя, повторно покупать
+        // его не нужно
         const purchased = data.data.some(
-          (p: any) => p.productId === product.id && p.status === "COMPLETED"
+          (p: any) =>
+            p.productId === product.id &&
+            (p.status === "COMPLETED" || p.status === "HELD")
         )
         setHasPurchased(purchased)
         

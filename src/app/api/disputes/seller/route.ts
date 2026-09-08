@@ -38,6 +38,11 @@ export async function GET() {
             id: true,
             amount: true,
             sellerEarnings: true,
+            // От статуса зависит, что сделает решение спора с деньгами:
+            // снимет холд или оформит возврат уже списанного платежа.
+            status: true,
+            capturedAmount: true,
+            refundedAmount: true,
             product: {
               select: {
                 id: true,

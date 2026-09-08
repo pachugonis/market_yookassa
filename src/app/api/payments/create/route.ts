@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
-import { createPayment, calculateCommission } from "@/lib/yookassa"
+import { createPayment, calculateCommission, buildTransfers } from "@/lib/yookassa"
 
 export async function POST(request: NextRequest) {
   try {
@@ -25,7 +25,9 @@ export async function POST(request: NextRequest) {
 
     const product = await prisma.product.findUnique({
       where: { id: productId, status: "ACTIVE" },
-      include: { seller: { select: { id: true, name: true } } },
+      include: {
+        seller: { select: { id: true, name: true, yookassaAccountId: true } },
+      },
     })
 
     if (!product) {
@@ -42,12 +44,12 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check if user already purchased
+    // Товар уже куплен, либо по нему висит незавершённая сделка
     const existingPurchase = await prisma.purchase.findFirst({
       where: {
         buyerId: session.user.id,
         productId,
-        status: "COMPLETED",
+        status: { in: ["COMPLETED", "HELD"] },
       },
     })
 
@@ -58,7 +60,19 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { commission, sellerEarnings } = calculateCommission(product.price)
+    const settings = await prisma.platformSettings.findFirst({
+      select: { commissionRate: true },
+    })
+
+    const { commission, sellerEarnings } = calculateCommission(
+      product.price,
+      settings?.commissionRate
+    )
+
+    // Сплитование возможно, только если продавец подключил свой счёт
+    // в «ЮKassa для платформ». Иначе деньги приходят площадке и
+    // распределяются через внутренний баланс.
+    const splitAccountId = product.seller.yookassaAccountId || null
 
     // Create pending purchase
     const purchase = await prisma.purchase.create({
@@ -69,16 +83,27 @@ export async function POST(request: NextRequest) {
         commission,
         sellerEarnings,
         status: "PENDING",
+        splitAccountId,
       },
     })
 
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"
 
-    // Create YooKassa payment
+    // Шаг 1 сделки: деньги только замораживаются на карте покупателя
+    // (capture: false). Списание произойдёт после подтверждения приёма.
     const payment = await createPayment({
       amount: product.price,
       description: `Покупка: ${product.title}`,
       returnUrl: `${baseUrl}/payment/success?purchaseId=${purchase.id}`,
+      capture: false,
+      idempotenceKey: `payment-${purchase.id}`,
+      transfers: splitAccountId
+        ? buildTransfers({
+            accountId: splitAccountId,
+            amount: product.price,
+            commission,
+          })
+        : undefined,
       metadata: {
         purchaseId: purchase.id,
         productId: product.id,
