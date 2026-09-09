@@ -6,6 +6,7 @@ import { Wallet, TrendingUp, Percent, Loader2, CreditCard, Split } from "lucide-
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { BindPayoutCard } from "@/components/seller/bind-payout-card"
 import { formatPrice } from "@/lib/utils"
 
 interface Stats {
@@ -27,16 +28,30 @@ export default function EarningsPage() {
   const [savedAccountId, setSavedAccountId] = useState<string | null>(null)
   const [savingAccount, setSavingAccount] = useState(false)
   const [accountError, setAccountError] = useState<string | null>(null)
-  const [payoutToken, setPayoutToken] = useState("")
-  const [savedPayoutToken, setSavedPayoutToken] = useState<string | null>(null)
-  const [savingToken, setSavingToken] = useState(false)
-  const [tokenError, setTokenError] = useState<string | null>(null)
+  const [payoutCard, setPayoutCard] = useState<{
+    cardMask: string | null
+    boundAt: string | null
+  }>({ cardMask: null, boundAt: null })
+  const [cardBindingAvailable, setCardBindingAvailable] = useState(false)
 
   useEffect(() => {
     fetchStats()
     fetchCommissionRate()
     fetchPayoutAccount()
+    fetchCardBinding()
   }, [])
+
+  const fetchCardBinding = async () => {
+    try {
+      const res = await fetch("/api/payments/providers")
+      const data = await res.json()
+      if (data.success) {
+        setCardBindingAvailable(Boolean(data.data.cardBinding))
+      }
+    } catch (error) {
+      console.error("Error fetching payment providers:", error)
+    }
+  }
 
   const fetchPayoutAccount = async () => {
     try {
@@ -45,8 +60,10 @@ export default function EarningsPage() {
       if (data.success) {
         setSavedAccountId(data.data.yookassaAccountId ?? null)
         setSplitAccountId(data.data.yookassaAccountId ?? "")
-        setSavedPayoutToken(data.data.cloudpaymentsPayoutToken ?? null)
-        setPayoutToken(data.data.cloudpaymentsPayoutToken ?? "")
+        setPayoutCard({
+          cardMask: data.data.cloudpaymentsPayoutCard ?? null,
+          boundAt: data.data.cloudpaymentsPayoutBoundAt ?? null,
+        })
       }
     } catch (error) {
       console.error("Error fetching payout account:", error)
@@ -74,30 +91,6 @@ export default function EarningsPage() {
       setAccountError("Не удалось сохранить счёт")
     } finally {
       setSavingAccount(false)
-    }
-  }
-
-  const savePayoutToken = async () => {
-    setSavingToken(true)
-    setTokenError(null)
-    try {
-      const res = await fetch("/api/profile", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cloudpaymentsPayoutToken: payoutToken.trim() }),
-      })
-      const data = await res.json()
-
-      if (data.success) {
-        setSavedPayoutToken(data.data.cloudpaymentsPayoutToken ?? null)
-      } else {
-        setTokenError(data.error || "Не удалось сохранить токен карты")
-      }
-    } catch (error) {
-      console.error("Error saving payout token:", error)
-      setTokenError("Не удалось сохранить токен карты")
-    } finally {
-      setSavingToken(false)
     }
   }
 
@@ -274,49 +267,16 @@ export default function EarningsPage() {
               )}
             </div>
 
-            <div className="pt-2 border-t space-y-4">
-              <div>
-                <p className="font-medium">Карта для выплат CloudPayments</p>
-                <p className="text-sm text-muted-foreground">
-                  Токен карты из «Безопасной сделки» CloudPayments: на неё
-                  уходит ваша доля, когда покупатель подтверждает сделку.
-                </p>
-              </div>
-
-              <div className="flex flex-col sm:flex-row gap-2">
-                <Input
-                  value={payoutToken}
-                  onChange={(e) => setPayoutToken(e.target.value)}
-                  placeholder="Например, 0a0afb77-8f41-4de2-9524-1057f9695303"
+            {cardBindingAvailable && (
+              <div className="pt-2 border-t">
+                <BindPayoutCard
+                  cardMask={payoutCard.cardMask}
+                  boundAt={payoutCard.boundAt}
+                  commissionRate={commissionRate}
+                  onChange={setPayoutCard}
                 />
-                <Button onClick={savePayoutToken} disabled={savingToken}>
-                  {savingToken ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    "Сохранить"
-                  )}
-                </Button>
               </div>
-
-              {tokenError && (
-                <p className="text-sm text-destructive">{tokenError}</p>
-              )}
-
-              <div className="p-4 bg-secondary/50 rounded-xl text-sm text-muted-foreground">
-                {savedPayoutToken ? (
-                  <>
-                    Выплаты включены: при подтверждении сделки{" "}
-                    {100 - commissionRate}% суммы уходят на вашу карту, а{" "}
-                    {commissionRate}% остаются площадке как комиссия.
-                  </>
-                ) : (
-                  <>
-                    Карта не подключена: оплаты через CloudPayments будут
-                    зачисляться на внутренний баланс, а вывод — по заявке ниже.
-                  </>
-                )}
-              </div>
-            </div>
+            )}
           </CardContent>
         </Card>
       </motion.div>

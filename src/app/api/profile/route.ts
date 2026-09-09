@@ -24,7 +24,9 @@ export async function GET() {
         verified: true,
         balance: true,
         yookassaAccountId: true,
-        cloudpaymentsPayoutToken: true,
+        // Токен карты наружу не отдаём — только то, что нужно показать.
+        cloudpaymentsPayoutCard: true,
+        cloudpaymentsPayoutBoundAt: true,
         twoFactorEnabled: true,
         createdAt: true,
         _count: {
@@ -65,14 +67,13 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { name, avatar, yookassaAccountId, cloudpaymentsPayoutToken } = body
+    const { name, avatar, yookassaAccountId } = body
 
     // Prepare update data
     const updateData: {
       name?: string
       avatar?: string
       yookassaAccountId?: string | null
-      cloudpaymentsPayoutToken?: string | null
     } = {}
 
     // Validate and add name if provided
@@ -140,40 +141,6 @@ export async function PATCH(request: NextRequest) {
       }
     }
 
-    // Токен карты продавца в CloudPayments: на неё уходит выплата
-    // по «Безопасной сделке».
-    if (cloudpaymentsPayoutToken !== undefined) {
-      if (session.user.role !== "SELLER" && session.user.role !== "ADMIN") {
-        return NextResponse.json(
-          { success: false, error: "Счёт для выплат доступен только продавцам" },
-          { status: 403 }
-        )
-      }
-
-      if (typeof cloudpaymentsPayoutToken !== "string") {
-        return NextResponse.json(
-          { success: false, error: "Неверный формат токена карты" },
-          { status: 400 }
-        )
-      }
-
-      const token = cloudpaymentsPayoutToken.trim()
-
-      if (token.length === 0) {
-        updateData.cloudpaymentsPayoutToken = null
-      } else if (!/^[A-Za-z0-9_-]{8,128}$/.test(token)) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: "Токен карты CloudPayments состоит из букв, цифр и дефисов",
-          },
-          { status: 400 }
-        )
-      } else {
-        updateData.cloudpaymentsPayoutToken = token
-      }
-    }
-
     // Check if there's anything to update
     if (Object.keys(updateData).length === 0) {
       return NextResponse.json(
@@ -194,7 +161,8 @@ export async function PATCH(request: NextRequest) {
         verified: true,
         balance: true,
         yookassaAccountId: true,
-        cloudpaymentsPayoutToken: true,
+        cloudpaymentsPayoutCard: true,
+        cloudpaymentsPayoutBoundAt: true,
         twoFactorEnabled: true,
         createdAt: true,
         _count: {

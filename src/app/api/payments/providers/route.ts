@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { configuredGateways, defaultProvider } from "@/lib/payments"
+import { isCardBindingAvailable } from "@/lib/payments/card-binding"
 
 /**
  * Способы оплаты, доступные на площадке. Список зависит от того, ключи
@@ -17,6 +18,9 @@ export async function GET() {
         title: gateway.title,
       })),
       default: defaultProvider(),
+      // Привязка карты для выплат имеет смысл только при подключённом
+      // терминале выплат CloudPayments.
+      cardBinding: isCardBindingAvailable(),
     },
   })
 }

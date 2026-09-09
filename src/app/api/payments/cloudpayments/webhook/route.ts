@@ -7,6 +7,10 @@ import {
   verifyNotificationSignature,
 } from "@/lib/cloudpayments"
 import { getGateway } from "@/lib/payments"
+import {
+  completeCardBinding,
+  findPendingBinding,
+} from "@/lib/payments/card-binding"
 import { syncPurchaseWithPayment } from "@/lib/purchase-fulfillment"
 import { getClientIp } from "@/lib/rate-limit"
 
@@ -101,7 +105,9 @@ async function handleCheck(data: Record<string, string>): Promise<number> {
   })
 
   if (!purchase || purchase.paymentProvider !== "CLOUDPAYMENTS") {
-    return CHECK_INVALID_INVOICE
+    // Тем же номером заказа приходит проверочная авторизация при
+    // привязке карты продавца — её тоже надо пропустить.
+    return checkCardBinding(purchaseId, data.Amount)
   }
 
   // Оплачивать можно только заказ, который ещё ждёт оплаты.
@@ -113,6 +119,28 @@ async function handleCheck(data: Record<string, string>): Promise<number> {
     console.warn(
       `CloudPayments check: сумма ${data.Amount} не совпадает с покупкой ${purchaseId} (${purchase.amount})`
     )
+    return CHECK_INVALID_AMOUNT
+  }
+
+  return CHECK_OK
+}
+
+/** Проверка суммы для привязки карты — тот же контроль, что и для покупки. */
+async function checkCardBinding(
+  bindingId: string,
+  rawAmount: string | undefined
+): Promise<number> {
+  const binding = await findPendingBinding(bindingId)
+
+  if (!binding || binding.provider !== "CLOUDPAYMENTS") {
+    return CHECK_INVALID_INVOICE
+  }
+
+  if (binding.status !== "PENDING") return CHECK_NOT_ACCEPTED
+
+  const amount = Number(rawAmount)
+
+  if (!Number.isFinite(amount) || Math.round(amount) !== binding.amount) {
     return CHECK_INVALID_AMOUNT
   }
 
@@ -144,6 +172,16 @@ async function handlePaymentEvent(data: Record<string, string>) {
   })
 
   if (!purchase) {
+    // Это может быть не покупка, а проверочная авторизация карты
+    // продавца: у неё в номере заказа лежит идентификатор привязки.
+    const binding = await findPendingBinding(purchaseId)
+
+    if (binding) {
+      const outcome = await completeCardBinding(binding.id, transactionId)
+      console.log(`Card binding ${binding.id}:`, outcome.result)
+      return
+    }
+
     console.error("Purchase not found:", purchaseId)
     return
   }

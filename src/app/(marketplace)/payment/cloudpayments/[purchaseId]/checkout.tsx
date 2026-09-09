@@ -7,6 +7,10 @@ import Script from "next/script"
 import { Loader2, ShieldCheck, XCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import {
+  CLOUDPAYMENTS_WIDGET_SRC,
+  type CloudPaymentsIntent,
+} from "@/lib/cloudpayments-widget"
 
 /**
  * Запуск платёжного виджета CloudPayments.
@@ -16,37 +20,6 @@ import { Card, CardContent } from "@/components/ui/card"
  * ссылке провайдера. Все параметры приходят с сервера: здесь они только
  * передаются виджету.
  */
-
-export interface CloudPaymentsIntent {
-  publicTerminalId: string
-  amount: number
-  currency: string
-  culture: string
-  paymentSchema: "Dual" | "Single"
-  description: string
-  externalId: string
-  successRedirectUrl: string
-  failRedirectUrl: string
-  userInfo?: { email?: string }
-  metadata?: Record<string, string>
-  escrow?: { startAccumulation: boolean; escrowType: "OneToN" | "NToOne" }
-}
-
-interface WidgetResult {
-  type?: "payment" | "cancel" | "error" | "installment"
-  status?: "success" | "fail" | "cancel" | "appointment" | "reject"
-  message?: string
-}
-
-interface CloudPaymentsWidget {
-  start(intent: CloudPaymentsIntent): Promise<WidgetResult>
-}
-
-declare global {
-  interface Window {
-    cp?: { CloudPayments: new () => CloudPaymentsWidget }
-  }
-}
 
 type Stage = "loading" | "running" | "done" | "cancelled" | "failed"
 
@@ -116,7 +89,7 @@ export function CloudPaymentsCheckout({
   return (
     <div className="container mx-auto px-4 py-16">
       <Script
-        src="https://widget.cloudpayments.ru/bundles/cloudpayments.js"
+        src={CLOUDPAYMENTS_WIDGET_SRC}
         onReady={startOnce}
         onError={() => {
           setStage("failed")

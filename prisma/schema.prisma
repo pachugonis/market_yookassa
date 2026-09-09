@@ -43,6 +43,13 @@ enum PaymentProvider {
   CLOUDPAYMENTS
 }
 
+/// Состояние привязки карты продавца для выплат.
+enum CardBindingStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
 enum PayoutStatus {
   PENDING
   PROCESSING
@@ -106,8 +113,14 @@ model User {
   yookassaAccountId   String?
   /// Токен карты продавца в CloudPayments — аналог yookassaAccountId
   /// для «Безопасной сделки»: на эту карту уходит выплата при
-  /// подтверждении сделки.
+  /// подтверждении сделки. Появляется после привязки карты и наружу
+  /// не отдаётся.
   cloudpaymentsPayoutToken String?
+  /// Маска привязанной карты («4242») — чтобы продавец видел, какая
+  /// карта подключена, не зная токена.
+  cloudpaymentsPayoutCard String?
+  /// Когда карта была привязана.
+  cloudpaymentsPayoutBoundAt DateTime?
   twoFactorEnabled    Boolean   @default(false)
   twoFactorSecret     String?
   twoFactorBackupCodes String[]  @default([])
@@ -117,6 +130,7 @@ model User {
   products      Product[]
   purchases     Purchase[]
   payouts       Payout[]
+  cardBindings  PayoutCardBinding[]
   reviews       Review[]
   disputes      Dispute[]
   disputeMessages DisputeMessage[]
@@ -248,6 +262,31 @@ model Purchase {
   // или вот-вот истечь.
   @@index([status, autoConfirmAt])
   @@index([status, holdExpiresAt])
+}
+
+/// Привязка карты продавца для выплат.
+///
+/// Токен карты выдаётся только по факту оплаты картой, поэтому карта
+/// проверяется авторизацией на символическую сумму, которая тут же
+/// снимается. Запись нужна, чтобы связать транзакцию с продавцом:
+/// её идентификатор уходит в номер заказа, и подобрать чужой нельзя.
+model PayoutCardBinding {
+  id            String            @id @default(cuid())
+  provider      PaymentProvider   @default(CLOUDPAYMENTS)
+  status        CardBindingStatus @default(PENDING)
+  amount        Int
+  /// Транзакция проверочной авторизации.
+  transactionId String?
+  /// Маска карты, которую вернул провайдер.
+  cardMask      String?
+  createdAt     DateTime          @default(now())
+  completedAt   DateTime?
+
+  userId        String
+  user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
 }
 
 model Payout {

@@ -89,6 +89,9 @@ export interface CloudPaymentsTransaction {
   CreatedDateIso?: string | null
   EscrowAccumulationId?: string | null
   Token?: string | null
+  CardFirstSix?: string | null
+  CardLastFour?: string | null
+  CardType?: string | null
   TestMode?: boolean
   Type?: number | string
   Refunded?: boolean

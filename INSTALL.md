@@ -119,6 +119,10 @@ CLOUDPAYMENTS_API_SECRET="your_api_secret"
 CLOUDPAYMENTS_PAYOUT_PUBLIC_ID="pk_xxxxxxxxxxxxxxxxxxxxxxxxx"
 CLOUDPAYMENTS_PAYOUT_API_SECRET="your_payout_api_secret"
 
+# Verification hold used to bind a seller's payout card (RUB, default 1);
+# it is authorized and released right away
+CLOUDPAYMENTS_CARD_BINDING_AMOUNT="1"
+
 # Which provider to offer by default: YOOKASSA or CLOUDPAYMENTS
 PAYMENT_PROVIDER_DEFAULT="YOOKASSA"
 
@@ -643,7 +647,9 @@ the buyer picks one on the product page.
    `https://yourdomain.com/api/payments/cloudpayments/webhook?type=<name>`
 4. Restart the application
 
-See [ESCROW.md](./ESCROW.md) for the deal flow.
+Sellers bind their payout card themselves in the dashboard («Доходы» →
+«Карта для выплат»): the card is verified by a small hold that is
+released immediately. See [ESCROW.md](./ESCROW.md) for the deal flow.
 
 **Standard Installation:**
 

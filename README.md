@@ -102,6 +102,10 @@ CLOUDPAYMENTS_API_SECRET="your-api-secret"
 CLOUDPAYMENTS_PAYOUT_PUBLIC_ID="pk_xxxxxxxxxxxxxxxxxxxxxxxxx"
 CLOUDPAYMENTS_PAYOUT_API_SECRET="your-payout-api-secret"
 
+# Сумма проверочной авторизации при привязке карты продавца (в рублях,
+# по умолчанию 1) — замораживается и сразу возвращается
+CLOUDPAYMENTS_CARD_BINDING_AMOUNT="1"
+
 # Какой сервис предлагать по умолчанию: YOOKASSA или CLOUDPAYMENTS
 PAYMENT_PROVIDER_DEFAULT="YOOKASSA"
 
