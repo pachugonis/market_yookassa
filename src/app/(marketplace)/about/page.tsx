@@ -13,7 +13,7 @@ const features = [
   {
     icon: Shield,
     title: "Безопасная сделка",
-    text: "Оплата проходит через ЮKassa. Деньги холдируются и уходят продавцу только после того, как покупатель получил товар — до этого момента их можно вернуть.",
+    text: "Оплата проходит через ЮKassa или CloudPayments. Деньги холдируются и уходят продавцу только после того, как покупатель получил товар — до этого момента их можно вернуть.",
   },
   {
     icon: Zap,
@@ -55,7 +55,7 @@ export default function AboutPage() {
       <h2 className="text-2xl font-bold mb-3">Как купить</h2>
       <ol className="list-decimal pl-5 space-y-2 text-muted-foreground mb-10">
         <li>Выберите товар в <Link href="/products" className="text-primary hover:underline">каталоге</Link>.</li>
-        <li>Оплатите его картой через ЮKassa.</li>
+        <li>Оплатите его картой через ЮKassa или CloudPayments.</li>
         <li>Скачайте файл в разделе «Мои покупки» — он остаётся доступен и позже.</li>
       </ol>
 

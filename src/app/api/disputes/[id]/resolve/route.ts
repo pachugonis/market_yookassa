@@ -147,7 +147,7 @@ export async function POST(
       purchaseId: purchase.id,
       purchaseStatus: purchase.status,
       purchaseAmount: purchase.amount,
-      hasYooKassaPayment: Boolean(purchase.yookassaPaymentId),
+      hasProviderPayment: Boolean(purchase.providerPaymentId),
       sellerId: purchase.product.sellerId,
       buyerId: purchase.buyerId,
       sellerEarnings: purchase.sellerEarnings,
@@ -201,7 +201,7 @@ async function applyResolution({
   purchaseId,
   purchaseStatus,
   purchaseAmount,
-  hasYooKassaPayment,
+  hasProviderPayment,
   sellerId,
   buyerId,
   sellerEarnings,
@@ -211,7 +211,7 @@ async function applyResolution({
   purchaseId: string
   purchaseStatus: string
   purchaseAmount: number
-  hasYooKassaPayment: boolean
+  hasProviderPayment: boolean
   sellerId: string
   buyerId: string
   sellerEarnings: number
@@ -220,7 +220,7 @@ async function applyResolution({
 }): Promise<SettlementResult> {
   // Покупки, оплаченные до перехода на эскроу (или вручную), считаем
   // по внутренним балансам, как раньше.
-  if (!hasYooKassaPayment) {
+  if (!hasProviderPayment) {
     return legacyBalanceSettlement({
       purchaseId,
       purchaseAmount,

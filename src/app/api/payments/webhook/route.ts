@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { getPayment, isTrustedYooKassaIp } from "@/lib/yookassa"
+import { isTrustedYooKassaIp } from "@/lib/yookassa"
+import { getGateway } from "@/lib/payments"
 import { syncPurchaseWithPayment } from "@/lib/purchase-fulfillment"
 import { getClientIp } from "@/lib/rate-limit"
 
@@ -23,8 +24,12 @@ interface YooKassaWebhookEvent {
   }
 }
 
+const gateway = getGateway("YOOKASSA")
+
 /**
- * Уведомления ЮKassa.
+ * Уведомления ЮKassa. Уведомления CloudPayments принимает
+ * `/api/payments/cloudpayments/webhook` — у каждого провайдера свой
+ * формат и своя проверка подлинности.
  *
  * Тело запроса — это НЕ доказательство оплаты: его может прислать кто
  * угодно. Поэтому проверяем два независимых условия:
@@ -89,7 +94,13 @@ export async function POST(request: NextRequest) {
 async function handlePaymentEvent(paymentId: string, purchaseId: string) {
   const purchase = await prisma.purchase.findUnique({
     where: { id: purchaseId },
-    select: { id: true, amount: true, status: true, yookassaPaymentId: true },
+    select: {
+      id: true,
+      amount: true,
+      status: true,
+      paymentProvider: true,
+      providerPaymentId: true,
+    },
   })
 
   if (!purchase) {
@@ -97,25 +108,32 @@ async function handlePaymentEvent(paymentId: string, purchaseId: string) {
     return
   }
 
-  // Источник истины — ответ API ЮKassa, а не тело уведомления
-  const payment = await getPayment(paymentId)
+  // Сделка могла быть создана в другом сервисе — тогда это уведомление
+  // относится не к ней.
+  if (purchase.paymentProvider !== "YOOKASSA") {
+    console.warn(`Purchase ${purchaseId} was paid through another provider`)
+    return
+  }
 
-  if (payment.metadata?.purchaseId !== purchaseId) {
+  // Источник истины — ответ API ЮKassa, а не тело уведомления
+  const payment = await gateway.getPayment(paymentId)
+
+  if (payment.purchaseId !== purchaseId) {
     console.warn(`Payment ${paymentId} does not reference purchase ${purchaseId}`)
     return
   }
 
   // Платёж должен относиться именно к этой покупке
-  if (purchase.yookassaPaymentId && purchase.yookassaPaymentId !== paymentId) {
+  if (purchase.providerPaymentId && purchase.providerPaymentId !== paymentId) {
     console.warn(`Purchase ${purchaseId} is bound to another payment`)
     return
   }
 
   // Заморожено/списано должно быть не больше выставленного счёта.
   // Меньше — законный случай: частичное списание при возврате по спору.
-  if (payment.status !== "canceled" && Number(payment.amount.value) > purchase.amount) {
+  if (payment.status !== "canceled" && payment.amount > purchase.amount) {
     console.warn(
-      `Amount mismatch for ${purchaseId}: got ${payment.amount.value}, expected ${purchase.amount}`
+      `Amount mismatch for ${purchaseId}: got ${payment.amount}, expected ${purchase.amount}`
     )
     return
   }
@@ -137,8 +155,8 @@ async function handleRefund(event: YooKassaWebhookEvent) {
 
   if (!paymentId || !refundedValue) return
 
-  const payment = await getPayment(paymentId)
-  const purchaseId = payment.metadata?.purchaseId
+  const payment = await gateway.getPayment(paymentId)
+  const purchaseId = payment.purchaseId
 
   if (!purchaseId) return
 
@@ -151,7 +169,7 @@ async function handleRefund(event: YooKassaWebhookEvent) {
 
   // Сумму берём из платежа: там она уже агрегирована по всем возвратам.
   const totalRefunded = Math.round(
-    Number(payment.refunded_amount?.value ?? refundedValue)
+    payment.refundedAmount || Number(refundedValue)
   )
 
   if (!Number.isFinite(totalRefunded) || totalRefunded <= 0) return

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { timingSafeEqual } from "crypto"
 import { prisma } from "@/lib/prisma"
-import { getPayment } from "@/lib/yookassa"
+import { getGateway } from "@/lib/payments"
 import {
   releaseHold,
   settlePurchase,
@@ -17,7 +17,7 @@ import {
  * Три задачи, каждая из которых иначе оставила бы деньги подвешенными:
  *   1) подтвердить сделки, которые покупатель не подтвердил сам;
  *   2) снять холд по спорам, не решённым до конца срока удержания;
- *   3) закрыть покупки, чей холд ЮKassa уже сняла сама.
+ *   3) закрыть покупки, чей холд провайдер уже снял сам.
  */
 
 export const dynamic = "force-dynamic"
@@ -28,7 +28,7 @@ const BATCH_SIZE = 50
 /** Ближе этого срока к концу холда подтверждать уже рискованно. */
 const HOLD_DEADLINE_MS = 6 * 60 * 60 * 1000
 
-/** Неоплаченные заказы старше этого срока сверяем с ЮKassa и закрываем. */
+/** Неоплаченные заказы старше этого срока сверяем с провайдером и закрываем. */
 const ABANDONED_PENDING_MS = 24 * 60 * 60 * 1000
 
 export async function POST(request: NextRequest) {
@@ -95,18 +95,20 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // 3. Холд уже должен был истечь — сверяем состояние с ЮKassa.
+  // 3. Холд уже должен был истечь — сверяем состояние с провайдером.
   const staleHolds = await prisma.purchase.findMany({
     where: { status: "HELD", holdExpiresAt: { lt: now } },
-    select: { id: true, yookassaPaymentId: true },
+    select: { id: true, paymentProvider: true, providerPaymentId: true },
     take: BATCH_SIZE,
   })
 
   for (const purchase of staleHolds) {
-    if (!purchase.yookassaPaymentId) continue
+    if (!purchase.providerPaymentId) continue
 
     try {
-      const payment = await getPayment(purchase.yookassaPaymentId)
+      const payment = await getGateway(purchase.paymentProvider).getPayment(
+        purchase.providerPaymentId
+      )
       const outcome = await syncPurchaseWithPayment(purchase.id, payment)
 
       if (outcome.result === "released") stats.expired += 1
@@ -123,26 +125,33 @@ export async function POST(request: NextRequest) {
       status: "PENDING",
       createdAt: { lt: new Date(now.getTime() - ABANDONED_PENDING_MS) },
     },
-    select: { id: true, yookassaPaymentId: true },
+    select: { id: true, paymentProvider: true, providerPaymentId: true },
     take: BATCH_SIZE,
   })
 
   for (const purchase of abandoned) {
-    if (!purchase.yookassaPaymentId) {
-      await prisma.purchase.updateMany({
-        where: { id: purchase.id, status: "PENDING" },
-        data: { status: "FAILED" },
-      })
-      stats.abandoned += 1
-      continue
-    }
-
     try {
-      const payment = await getPayment(purchase.yookassaPaymentId)
+      const gateway = getGateway(purchase.paymentProvider)
+
+      // Транзакция могла и не появиться: у CloudPayments она создаётся
+      // только когда покупатель начал оплату в виджете.
+      const payment = purchase.providerPaymentId
+        ? await gateway.getPayment(purchase.providerPaymentId)
+        : await gateway.findPaymentByPurchase(purchase.id)
+
+      if (!payment) {
+        await prisma.purchase.updateMany({
+          where: { id: purchase.id, status: "PENDING" },
+          data: { status: "FAILED" },
+        })
+        stats.abandoned += 1
+        continue
+      }
+
       const outcome = await syncPurchaseWithPayment(purchase.id, payment)
 
       // Заодно спасаем заказы, по которым потерялось уведомление:
-      // платёж мог уже перейти в waiting_for_capture.
+      // платёж мог уже перейти в состояние заморозки.
       if (outcome.result === "failed") stats.abandoned += 1
     } catch (error) {
       stats.failed += 1

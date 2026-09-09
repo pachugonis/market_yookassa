@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
-import { createPayment, calculateCommission, buildTransfers } from "@/lib/yookassa"
+import { calculateCommission } from "@/lib/yookassa"
+import { getGateway, resolveProvider, splitAccountFor } from "@/lib/payments"
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,7 +15,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { productId } = await request.json()
+    const { productId, provider: requestedProvider } = await request.json()
 
     if (!productId) {
       return NextResponse.json(
@@ -23,10 +24,28 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Выбор покупателя учитывается, только если такой сервис настроен.
+    const provider = resolveProvider(requestedProvider)
+
+    if (!provider) {
+      console.error("Ни один платёжный сервис не настроен")
+      return NextResponse.json(
+        { success: false, error: "Оплата временно недоступна" },
+        { status: 503 }
+      )
+    }
+
     const product = await prisma.product.findUnique({
       where: { id: productId, status: "ACTIVE" },
       include: {
-        seller: { select: { id: true, name: true, yookassaAccountId: true } },
+        seller: {
+          select: {
+            id: true,
+            name: true,
+            yookassaAccountId: true,
+            cloudpaymentsPayoutToken: true,
+          },
+        },
       },
     })
 
@@ -69,10 +88,10 @@ export async function POST(request: NextRequest) {
       settings?.commissionRate
     )
 
-    // Сплитование возможно, только если продавец подключил свой счёт
-    // в «ЮKassa для платформ». Иначе деньги приходят площадке и
+    // Сплитование возможно, только если продавец подключил счёт именно
+    // у этого провайдера. Иначе деньги приходят площадке и
     // распределяются через внутренний баланс.
-    const splitAccountId = product.seller.yookassaAccountId || null
+    const splitAccountId = splitAccountFor(provider, product.seller)
 
     // Create pending purchase
     const purchase = await prisma.purchase.create({
@@ -83,46 +102,42 @@ export async function POST(request: NextRequest) {
         commission,
         sellerEarnings,
         status: "PENDING",
+        paymentProvider: provider,
         splitAccountId,
       },
     })
 
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"
 
-    // Шаг 1 сделки: деньги только замораживаются на карте покупателя
-    // (capture: false). Списание произойдёт после подтверждения приёма.
-    const payment = await createPayment({
+    // Шаг 1 сделки: деньги только замораживаются на карте покупателя.
+    // Списание произойдёт после подтверждения приёма.
+    const hold = await getGateway(provider).createHold({
+      purchaseId: purchase.id,
+      productId: product.id,
+      buyerId: session.user.id,
       amount: product.price,
+      commission,
       description: `Покупка: ${product.title}`,
       returnUrl: `${baseUrl}/payment/success?purchaseId=${purchase.id}`,
-      capture: false,
-      idempotenceKey: `payment-${purchase.id}`,
-      transfers: splitAccountId
-        ? buildTransfers({
-            accountId: splitAccountId,
-            amount: product.price,
-            commission,
-          })
-        : undefined,
-      metadata: {
-        purchaseId: purchase.id,
-        productId: product.id,
-        buyerId: session.user.id,
-      },
+      splitAccountId,
     })
 
-    // Update purchase with payment ID
-    await prisma.purchase.update({
-      where: { id: purchase.id },
-      data: { yookassaPaymentId: payment.id },
-    })
+    // Идентификатор платежа известен не у всех провайдеров сразу:
+    // у CloudPayments транзакция появляется только после оплаты.
+    if (hold.paymentId) {
+      await prisma.purchase.update({
+        where: { id: purchase.id },
+        data: { providerPaymentId: hold.paymentId },
+      })
+    }
 
     return NextResponse.json({
       success: true,
       data: {
         purchaseId: purchase.id,
-        paymentId: payment.id,
-        confirmationUrl: payment.confirmation?.confirmation_url,
+        provider,
+        paymentId: hold.paymentId,
+        confirmationUrl: hold.confirmationUrl,
       },
     })
   } catch (error) {

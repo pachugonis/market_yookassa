@@ -35,6 +35,14 @@ enum PurchaseStatus {
   REFUNDED
 }
 
+/// Платёжный сервис, через который проходит сделка. Провайдер
+/// фиксируется в момент создания покупки: подтверждать и возвращать
+/// платёж нужно там же, где он был создан.
+enum PaymentProvider {
+  YOOKASSA
+  CLOUDPAYMENTS
+}
+
 enum PayoutStatus {
   PENDING
   PROCESSING
@@ -96,6 +104,10 @@ model User {
   /// внутренний баланс; если нет — работает старая схема с балансом
   /// и заявками на выплату.
   yookassaAccountId   String?
+  /// Токен карты продавца в CloudPayments — аналог yookassaAccountId
+  /// для «Безопасной сделки»: на эту карту уходит выплата при
+  /// подтверждении сделки.
+  cloudpaymentsPayoutToken String?
   twoFactorEnabled    Boolean   @default(false)
   twoFactorSecret     String?
   twoFactorBackupCodes String[]  @default([])
@@ -169,7 +181,12 @@ model Purchase {
   amount            Int
   commission        Int
   sellerEarnings    Int
-  yookassaPaymentId String?
+  /// Через какой сервис проведена оплата.
+  paymentProvider   PaymentProvider @default(YOOKASSA)
+  /// Идентификатор платежа у провайдера: payment.id в ЮKassa либо
+  /// TransactionId в CloudPayments. Имя колонки осталось прежним,
+  /// чтобы не терять данные уже проведённых сделок.
+  providerPaymentId String?        @map("yookassaPaymentId")
   status            PurchaseStatus @default(PENDING)
   downloadToken     String?        @unique
   downloadCount     Int            @default(0)
@@ -180,8 +197,8 @@ model Purchase {
   // --- Эскроу: холдирование и сплитование ---
   /// Момент авторизации (средства заморожены).
   heldAt            DateTime?
-  /// Дедлайн ЮKassa: после него холд снимается сам и деньги
-  /// возвращаются покупателю. Приходит в payment.expires_at.
+  /// Дедлайн провайдера: после него холд снимается сам и деньги
+  /// возвращаются покупателю.
   holdExpiresAt     DateTime?
   /// Когда система подтвердит сделку сама, если покупатель молчит.
   autoConfirmAt     DateTime?
@@ -189,16 +206,26 @@ model Purchase {
   confirmedAt       DateTime?
   /// Кто подтвердил: BUYER | AUTO | DISPUTE.
   confirmedBy       String?
-  /// Замок на время обращения к API ЮKassa: не даёт двум запросам
+  /// Замок на время обращения к API провайдера: не даёт двум запросам
   /// одновременно подтвердить один платёж.
   captureStartedAt  DateTime?
   /// Фактически списанная сумма (при частичном возврате меньше amount).
   capturedAmount    Int?
   /// Сколько уже вернулось покупателю.
   refundedAmount    Int            @default(0)
-  /// Счёт продавца в ЮKassa на момент сделки. Заполнен — значит
-  /// платёж сплитован и внутренний баланс продавца не участвует.
+  /// Транзакции возвратов, уже учтённые в refundedAmount. Нужны там,
+  /// где провайдер не отдаёт суммарный возврат по платежу: повторная
+  /// доставка уведомления не должна увеличить сумму дважды.
+  refundTransactionIds String[]    @default([])
+  /// Счёт продавца у провайдера на момент сделки. Заполнен — значит
+  /// платёж сплитуется и внутренний баланс продавца не участвует.
   splitAccountId    String?
+  /// Накопление «Безопасной сделки» CloudPayments: из него делается
+  /// выплата продавцу при подтверждении.
+  escrowAccumulationId String?
+  /// Транзакция выплаты продавцу. Заполнена — его доля уже ушла
+  /// на счёт, начислять её на внутренний баланс нельзя.
+  splitPayoutId     String?
 
   buyerId           String
   buyer             User           @relation(fields: [buyerId], references: [id], onDelete: Cascade)
@@ -216,7 +243,7 @@ model Purchase {
   @@index([productId])
   @@index([status])
   @@index([downloadToken])
-  @@index([yookassaPaymentId])
+  @@index([providerPaymentId])
   // Фоновая задача выбирает холды, которым пора подтвердиться
   // или вот-вот истечь.
   @@index([status, autoConfirmAt])

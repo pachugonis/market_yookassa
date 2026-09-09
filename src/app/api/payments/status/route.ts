@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
-import { getPayment } from "@/lib/yookassa"
+import { getGateway } from "@/lib/payments"
 import { syncPurchaseWithPayment } from "@/lib/purchase-fulfillment"
 
 export async function GET(request: NextRequest) {
@@ -46,16 +46,23 @@ export async function GET(request: NextRequest) {
     }
 
     // Покупатель мог вернуться со страницы оплаты раньше вебхука.
-    // Спрашиваем ЮKassa напрямую и переводим сделку тем же атомарным
+    // Спрашиваем провайдера напрямую и переводим сделку тем же атомарным
     // путём — двойной выдачи не произойдёт, даже если вебхук отработает
     // одновременно.
-    if (purchase.status === "PENDING" && purchase.yookassaPaymentId) {
+    if (purchase.status === "PENDING") {
       try {
-        const payment = await getPayment(purchase.yookassaPaymentId)
+        const gateway = getGateway(purchase.paymentProvider)
+
+        // У CloudPayments номер транзакции появляется только после
+        // оплаты, поэтому платёж ищется по номеру заказа.
+        const payment = purchase.providerPaymentId
+          ? await gateway.getPayment(purchase.providerPaymentId)
+          : await gateway.findPaymentByPurchase(purchase.id)
 
         if (
-          payment.metadata?.purchaseId === purchase.id &&
-          Number(payment.amount.value) <= purchase.amount
+          payment &&
+          payment.purchaseId === purchase.id &&
+          payment.amount <= purchase.amount
         ) {
           const outcome = await syncPurchaseWithPayment(purchase.id, payment)
 

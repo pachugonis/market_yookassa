@@ -91,9 +91,19 @@ DATABASE_URL="postgresql://user:password@localhost:5432/market_yookassa"
 NEXTAUTH_SECRET="your-secret-key-here"
 NEXTAUTH_URL="http://localhost:3000"
 
-# YooKassa (опционально для платежей)
+# YooKassa (нужен хотя бы один платёжный сервис)
 YOOKASSA_SHOP_ID="your-shop-id"
 YOOKASSA_SECRET_KEY="your-secret-key"
+
+# CloudPayments: терминал оплат
+CLOUDPAYMENTS_PUBLIC_ID="pk_xxxxxxxxxxxxxxxxxxxxxxxxx"
+CLOUDPAYMENTS_API_SECRET="your-api-secret"
+# Терминал выплат — нужен для сплитования («Безопасная сделка»)
+CLOUDPAYMENTS_PAYOUT_PUBLIC_ID="pk_xxxxxxxxxxxxxxxxxxxxxxxxx"
+CLOUDPAYMENTS_PAYOUT_API_SECRET="your-payout-api-secret"
+
+# Какой сервис предлагать по умолчанию: YOOKASSA или CLOUDPAYMENTS
+PAYMENT_PROVIDER_DEFAULT="YOOKASSA"
 
 # Эскроу: через сколько дней сделка подтверждается автоматически,
 # если покупатель молчит (по умолчанию 3)

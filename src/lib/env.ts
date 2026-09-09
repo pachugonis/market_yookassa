@@ -7,6 +7,8 @@
  * поэтому плейсхолдеры и короткие значения в продакшене недопустимы.
  */
 
+import { configuredProviderIds } from "@/lib/payments/config"
+
 const PLACEHOLDER_SECRETS = new Set([
   "your-super-secret-key-change-in-production",
   "changeme",
@@ -41,8 +43,12 @@ export function assertSecureEnv() {
     problems.push("DATABASE_URL не задан")
   }
 
-  if (!process.env.YOOKASSA_SHOP_ID || !process.env.YOOKASSA_SECRET_KEY) {
-    problems.push("YOOKASSA_SHOP_ID / YOOKASSA_SECRET_KEY не заданы")
+  // Провайдеров может быть несколько, но хотя бы один должен быть
+  // настроен — иначе оплатить на площадке нечем.
+  if (configuredProviderIds().length === 0) {
+    problems.push(
+      "не настроен ни один платёжный сервис: задайте YOOKASSA_SHOP_ID / YOOKASSA_SECRET_KEY либо CLOUDPAYMENTS_PUBLIC_ID / CLOUDPAYMENTS_API_SECRET"
+    )
   }
 
   // Без секрета эндпоинт автоподтверждения отключён, и холды повиснут

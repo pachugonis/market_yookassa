@@ -74,6 +74,10 @@ export function ProductDetail({ product, avgRating, availableStock }: ProductDet
   const [rating, setRating] = useState(5)
   const [comment, setComment] = useState("")
   const [isSubmittingReview, setIsSubmittingReview] = useState(false)
+  // Способы оплаты зависят от того, ключи каких сервисов заданы
+  // в окружении, поэтому список приходит с сервера.
+  const [providers, setProviders] = useState<{ id: string; title: string }[]>([])
+  const [provider, setProvider] = useState<string | null>(null)
 
   // Prepare images for carousel
   const displayImages = (() => {
@@ -144,6 +148,24 @@ export function ProductDetail({ product, avgRating, availableStock }: ProductDet
     }
   }
 
+  useEffect(() => {
+    const fetchProviders = async () => {
+      try {
+        const res = await fetch("/api/payments/providers")
+        const data = await res.json()
+
+        if (data.success) {
+          setProviders(data.data.providers)
+          setProvider(data.data.default)
+        }
+      } catch (error) {
+        console.error("Error fetching payment providers:", error)
+      }
+    }
+
+    fetchProviders()
+  }, [])
+
   const handlePurchase = async () => {
     if (!session) {
       router.push("/login")
@@ -155,7 +177,7 @@ export function ProductDetail({ product, avgRating, availableStock }: ProductDet
       const res = await fetch("/api/payments/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ productId: product.id }),
+        body: JSON.stringify({ productId: product.id, provider }),
       })
 
       const data = await res.json()
@@ -508,6 +530,24 @@ export function ProductDetail({ product, avgRating, availableStock }: ProductDet
                 </div>
 
                 <div className="space-y-3">
+                  {providers.length > 1 && (
+                    <div className="space-y-2">
+                      <p className="text-sm text-muted-foreground">Способ оплаты</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        {providers.map((option) => (
+                          <Button
+                            key={option.id}
+                            type="button"
+                            variant={provider === option.id ? "default" : "outline"}
+                            onClick={() => setProvider(option.id)}
+                          >
+                            {option.title}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   <Button 
                     className="w-full" 
                     size="lg"

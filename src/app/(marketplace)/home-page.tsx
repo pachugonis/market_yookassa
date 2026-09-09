@@ -17,7 +17,7 @@ import { MagicBento } from "@/components/ui/magic-bento"
 const bentoItems = [
   {
     title: "Безопасные платежи",
-    description: "Оплата через YooKassa с защитой покупателя",
+    description: "Оплата через YooKassa и CloudPayments с защитой покупателя",
     icon: <Shield className="h-10 w-10 text-primary" />,
     className: "md:col-span-1",
     gradient: "bg-gradient-to-br from-blue-500/20 to-cyan-500/10"
@@ -87,7 +87,7 @@ export function HomePage() {
             </h1>
             
             <p className="text-lg md:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-              Программы, игры, музыка, графика и многое другое. Мгновенная доставка и безопасные платежи через YooKassa.
+              Программы, игры, музыка, графика и многое другое. Мгновенная доставка и безопасные платежи через YooKassa и CloudPayments.
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center">

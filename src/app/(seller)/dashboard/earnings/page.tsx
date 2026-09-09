@@ -27,6 +27,10 @@ export default function EarningsPage() {
   const [savedAccountId, setSavedAccountId] = useState<string | null>(null)
   const [savingAccount, setSavingAccount] = useState(false)
   const [accountError, setAccountError] = useState<string | null>(null)
+  const [payoutToken, setPayoutToken] = useState("")
+  const [savedPayoutToken, setSavedPayoutToken] = useState<string | null>(null)
+  const [savingToken, setSavingToken] = useState(false)
+  const [tokenError, setTokenError] = useState<string | null>(null)
 
   useEffect(() => {
     fetchStats()
@@ -41,6 +45,8 @@ export default function EarningsPage() {
       if (data.success) {
         setSavedAccountId(data.data.yookassaAccountId ?? null)
         setSplitAccountId(data.data.yookassaAccountId ?? "")
+        setSavedPayoutToken(data.data.cloudpaymentsPayoutToken ?? null)
+        setPayoutToken(data.data.cloudpaymentsPayoutToken ?? "")
       }
     } catch (error) {
       console.error("Error fetching payout account:", error)
@@ -68,6 +74,30 @@ export default function EarningsPage() {
       setAccountError("Не удалось сохранить счёт")
     } finally {
       setSavingAccount(false)
+    }
+  }
+
+  const savePayoutToken = async () => {
+    setSavingToken(true)
+    setTokenError(null)
+    try {
+      const res = await fetch("/api/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cloudpaymentsPayoutToken: payoutToken.trim() }),
+      })
+      const data = await res.json()
+
+      if (data.success) {
+        setSavedPayoutToken(data.data.cloudpaymentsPayoutToken ?? null)
+      } else {
+        setTokenError(data.error || "Не удалось сохранить токен карты")
+      }
+    } catch (error) {
+      console.error("Error saving payout token:", error)
+      setTokenError("Не удалось сохранить токен карты")
+    } finally {
+      setSavingToken(false)
     }
   }
 
@@ -180,7 +210,7 @@ export default function EarningsPage() {
         </motion.div>
       </div>
 
-      {/* Сплитование: счёт продавца в «ЮKassa для платформ» */}
+      {/* Сплитование: реквизиты продавца у платёжных сервисов */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -190,15 +220,23 @@ export default function EarningsPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Split className="h-5 w-5" />
-              Счёт в ЮKassa для платформ
+              Реквизиты для сплитования
             </CardTitle>
             <CardDescription>
-              Укажите идентификатор вашего магазина в ЮKassa — выручка будет
-              приходить на него напрямую при каждой сделке, а площадка удержит
-              только комиссию.
+              Укажите реквизиты у того сервиса, через который покупатели
+              оплачивают ваши товары: выручка будет приходить вам напрямую
+              при каждой сделке, а площадка удержит только комиссию.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            <div>
+              <p className="font-medium">Счёт в «ЮKassa для платформ»</p>
+              <p className="text-sm text-muted-foreground">
+                Идентификатор вашего магазина в ЮKassa — на него уходит
+                выручка при оплате через ЮKassa.
+              </p>
+            </div>
+
             <div className="flex flex-col sm:flex-row gap-2">
               <Input
                 value={splitAccountId}
@@ -234,6 +272,50 @@ export default function EarningsPage() {
                   заявкой ниже. Оставьте поле пустым, чтобы отключить сплит.
                 </>
               )}
+            </div>
+
+            <div className="pt-2 border-t space-y-4">
+              <div>
+                <p className="font-medium">Карта для выплат CloudPayments</p>
+                <p className="text-sm text-muted-foreground">
+                  Токен карты из «Безопасной сделки» CloudPayments: на неё
+                  уходит ваша доля, когда покупатель подтверждает сделку.
+                </p>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Input
+                  value={payoutToken}
+                  onChange={(e) => setPayoutToken(e.target.value)}
+                  placeholder="Например, 0a0afb77-8f41-4de2-9524-1057f9695303"
+                />
+                <Button onClick={savePayoutToken} disabled={savingToken}>
+                  {savingToken ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    "Сохранить"
+                  )}
+                </Button>
+              </div>
+
+              {tokenError && (
+                <p className="text-sm text-destructive">{tokenError}</p>
+              )}
+
+              <div className="p-4 bg-secondary/50 rounded-xl text-sm text-muted-foreground">
+                {savedPayoutToken ? (
+                  <>
+                    Выплаты включены: при подтверждении сделки{" "}
+                    {100 - commissionRate}% суммы уходят на вашу карту, а{" "}
+                    {commissionRate}% остаются площадке как комиссия.
+                  </>
+                ) : (
+                  <>
+                    Карта не подключена: оплаты через CloudPayments будут
+                    зачисляться на внутренний баланс, а вывод — по заявке ниже.
+                  </>
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>

@@ -112,6 +112,16 @@ NEXTAUTH_SECRET="generate-random-32-char-string-here"
 YOOKASSA_SHOP_ID="your_shop_id"
 YOOKASSA_SECRET_KEY="your_secret_key"
 
+# CloudPayments (get from https://cloudpayments.ru) — payment terminal
+CLOUDPAYMENTS_PUBLIC_ID="pk_xxxxxxxxxxxxxxxxxxxxxxxxx"
+CLOUDPAYMENTS_API_SECRET="your_api_secret"
+# Payout terminal, required for split payments ("Безопасная сделка")
+CLOUDPAYMENTS_PAYOUT_PUBLIC_ID="pk_xxxxxxxxxxxxxxxxxxxxxxxxx"
+CLOUDPAYMENTS_PAYOUT_API_SECRET="your_payout_api_secret"
+
+# Which provider to offer by default: YOOKASSA or CLOUDPAYMENTS
+PAYMENT_PROVIDER_DEFAULT="YOOKASSA"
+
 # Escrow: days before a held deal is confirmed automatically (default 3)
 ESCROW_AUTO_CONFIRM_DAYS="3"
 
@@ -395,6 +405,10 @@ services:
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
       YOOKASSA_SHOP_ID: ${YOOKASSA_SHOP_ID}
       YOOKASSA_SECRET_KEY: ${YOOKASSA_SECRET_KEY}
+      CLOUDPAYMENTS_PUBLIC_ID: ${CLOUDPAYMENTS_PUBLIC_ID}
+      CLOUDPAYMENTS_API_SECRET: ${CLOUDPAYMENTS_API_SECRET}
+      CLOUDPAYMENTS_PAYOUT_PUBLIC_ID: ${CLOUDPAYMENTS_PAYOUT_PUBLIC_ID}
+      CLOUDPAYMENTS_PAYOUT_API_SECRET: ${CLOUDPAYMENTS_PAYOUT_API_SECRET}
       NEXT_PUBLIC_BASE_URL: ${NEXT_PUBLIC_BASE_URL}
       UPLOAD_DIR: uploads
     volumes:
@@ -484,6 +498,12 @@ NEXTAUTH_SECRET=generate-random-32-char-string-here
 # YooKassa
 YOOKASSA_SHOP_ID=your_shop_id
 YOOKASSA_SECRET_KEY=your_secret_key
+
+# CloudPayments
+CLOUDPAYMENTS_PUBLIC_ID=pk_xxxxxxxxxxxxxxxxxxxxxxxxx
+CLOUDPAYMENTS_API_SECRET=your_api_secret
+CLOUDPAYMENTS_PAYOUT_PUBLIC_ID=pk_xxxxxxxxxxxxxxxxxxxxxxxxx
+CLOUDPAYMENTS_PAYOUT_API_SECRET=your_payout_api_secret
 
 # App
 NEXT_PUBLIC_BASE_URL=https://yourdomain.com
@@ -600,12 +620,30 @@ UPDATE "User" SET role = 'ADMIN' WHERE email = 'admin@example.com';
 \q
 ```
 
-### 2. Configure YooKassa
+### 2. Configure a payment provider
+
+At least one provider must be configured. Both can run side by side —
+the buyer picks one on the product page.
+
+**YooKassa**
 
 1. Register at https://yookassa.ru
 2. Create a shop and obtain credentials
 3. Update `.env` with your `YOOKASSA_SHOP_ID` and `YOOKASSA_SECRET_KEY`
+4. Point the webhook at `https://yourdomain.com/api/payments/webhook`
+5. Restart the application
+
+**CloudPayments**
+
+1. Register at https://cloudpayments.ru and ask your manager to enable
+   two-stage payments and «Безопасная сделка» (two terminals: payments
+   and payouts)
+2. Copy Public ID and API Secret of both terminals into `.env`
+3. Point every notification (check, pay, fail, confirm, cancel, refund) at
+   `https://yourdomain.com/api/payments/cloudpayments/webhook?type=<name>`
 4. Restart the application
+
+See [ESCROW.md](./ESCROW.md) for the deal flow.
 
 **Standard Installation:**
 

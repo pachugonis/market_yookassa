@@ -1,29 +1,25 @@
 import { v4 as uuidv4 } from "uuid"
-import { Prisma } from "@prisma/client"
+import { Prisma, type PaymentProvider } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
-import {
-  buildTransfers,
-  cancelPayment,
-  capturePayment,
-  createRefund,
-  getPayment,
-  YooKassaError,
-  type YooKassaPayment,
-} from "@/lib/yookassa"
+import { getGateway } from "@/lib/payments"
+import type { ProviderPayment } from "@/lib/payments/types"
 
 /**
- * Сделка живёт по эскроу-схеме ЮKassa: двухэтапная оплата + сплитование.
+ * Сделка живёт по эскроу-схеме: двухэтапная оплата + сплитование.
  *
- *   1. Покупатель оплачивает заказ  → capture: false, деньги заморожены
- *      на его карте (статус покупки HELD).
+ *   1. Покупатель оплачивает заказ  → холд, деньги заморожены на его
+ *      карте (статус покупки HELD).
  *   2. Товар передаётся покупателю  → выдаются файл и лицензионный ключ.
- *   3. Покупатель подтверждает приём → capture: true с transfers:
- *      выручка уходит на счёт продавца в ЮKassa, комиссия площадки
- *      удерживается через platform_fee_amount.
+ *   3. Покупатель подтверждает приём → списание со сплитованием:
+ *      выручка уходит на счёт продавца, комиссия остаётся площадке.
  *
- * Здесь собраны все переходы между этими состояниями. Каждый из них
- * может прийти одновременно из вебхука, из опроса статуса и из действия
- * пользователя, поэтому переход выполняется атомарно и ровно один раз.
+ * Как именно провайдер это делает, знает только его шлюз
+ * (`src/lib/payments`): ЮKassa разводит деньги внутри capture через
+ * transfers, CloudPayments — отдельной выплатой из накопления
+ * «Безопасной сделки». Здесь собраны переходы между состояниями.
+ * Каждый из них может прийти одновременно из вебхука, из опроса статуса
+ * и из действия пользователя, поэтому переход выполняется атомарно
+ * и ровно один раз.
  */
 
 export type FulfillmentOutcome =
@@ -67,8 +63,8 @@ const AUTO_CONFIRM_DAYS = readPositiveNumber(
 )
 
 /**
- * Запас до конца холда. Подтверждать нужно раньше, чем ЮKassa снимет
- * заморозку сама: после expires_at деньги уже не списать.
+ * Запас до конца холда. Подтверждать нужно раньше, чем провайдер снимет
+ * заморозку сам: после expires_at деньги уже не списать.
  */
 const HOLD_SAFETY_MARGIN_MS = 6 * 60 * 60 * 1000
 
@@ -99,14 +95,17 @@ export function calculateAutoConfirmAt(
 }
 
 /**
- * Шаг 1→2: средства заморожены (payment.waiting_for_capture).
- * Покупка переходит в HELD, покупатель получает товар. Деньги продавцу
- * здесь НЕ начисляются — только после подтверждения приёма.
+ * Шаг 1→2: средства заморожены. Покупка переходит в HELD, покупатель
+ * получает товар. Деньги продавцу здесь НЕ начисляются — только после
+ * подтверждения приёма.
  */
 export async function holdPurchase(
   purchaseId: string,
-  yookassaPaymentId: string,
-  { holdExpiresAt }: { holdExpiresAt?: Date | null } = {}
+  providerPaymentId: string,
+  {
+    holdExpiresAt,
+    accumulationId,
+  }: { holdExpiresAt?: Date | null; accumulationId?: string | null } = {}
 ): Promise<FulfillmentOutcome> {
   const purchase = await prisma.purchase.findUnique({
     where: { id: purchaseId },
@@ -134,12 +133,13 @@ export async function holdPurchase(
         where: { id: purchase.id, status: "PENDING" },
         data: {
           status: "HELD",
-          yookassaPaymentId,
+          providerPaymentId,
           downloadToken,
           downloadExpiresAt,
           heldAt,
           holdExpiresAt: expiresAt,
           autoConfirmAt: calculateAutoConfirmAt(heldAt, expiresAt),
+          ...(accumulationId ? { escrowAccumulationId: accumulationId } : {}),
         },
       })
 
@@ -189,7 +189,7 @@ export async function holdPurchase(
         data: { status: "FAILED" },
       })
       // Холд снимаем, иначе деньги останутся замороженными до expires_at.
-      await safeCancel(yookassaPaymentId, purchase.id)
+      await safeCancel(purchase.paymentProvider, providerPaymentId, purchase.id)
       return { result: "no_license_keys" }
     }
     throw error
@@ -200,8 +200,8 @@ export async function holdPurchase(
  * Шаг 3: подтверждение приёма товара — списываем замороженные средства
  * и распределяем их через сплитование.
  *
- * `amount` меньше суммы холда означает частичный возврат: ЮKassa спишет
- * только его, а разницу вернёт покупателю.
+ * `amount` меньше суммы холда означает частичный возврат: провайдер
+ * спишет только его, а разницу вернёт покупателю.
  */
 export async function settlePurchase(
   purchaseId: string,
@@ -218,7 +218,7 @@ export async function settlePurchase(
   if (!purchase) return { result: "not_found" }
   if (purchase.status === "COMPLETED") return { result: "already_settled" }
   if (purchase.status !== "HELD") return { result: "not_held" }
-  if (!purchase.yookassaPaymentId) return { result: "not_held" }
+  if (!purchase.providerPaymentId) return { result: "not_held" }
 
   const captureAmount = amount ?? purchase.amount
 
@@ -250,28 +250,35 @@ export async function settlePurchase(
   const commission = Math.round(
     (purchase.commission * captureAmount) / purchase.amount
   )
-  const transfers = purchase.splitAccountId
-    ? buildTransfers({
-        accountId: purchase.splitAccountId,
-        amount: captureAmount,
-        commission,
-      })
-    : undefined
 
-  let payment
+  const gateway = getGateway(purchase.paymentProvider)
+  const paymentId = purchase.providerPaymentId
+
+  let captured
   try {
-    payment = await capturePayment(purchase.yookassaPaymentId, {
+    captured = await gateway.capture({
+      purchaseId: purchase.id,
+      paymentId,
       amount: captureAmount,
-      transfers,
-      idempotenceKey: `capture-${purchase.id}-${captureAmount}`,
+      commission,
+      splitAccountId: purchase.splitAccountId,
+      sellerId: purchase.product.sellerId,
+      accumulationId: purchase.escrowAccumulationId,
     })
   } catch (error) {
     // Платёж мог быть подтверждён или отменён другим путём — спрашиваем
-    // ЮKassa, что с ним на самом деле, прежде чем считать это сбоем.
-    const actual = await safeGetPayment(purchase.yookassaPaymentId)
+    // провайдера, что с ним на самом деле, прежде чем считать это сбоем.
+    const actual = await safeGetPayment(purchase.paymentProvider, paymentId)
 
     if (actual?.status === "succeeded") {
-      payment = actual
+      captured = {
+        status: "succeeded" as const,
+        // Списание прошло не нашим вызовом: доля продавца ушла к нему
+        // только если провайдер разводит деньги самим подтверждением.
+        splitSettled: gateway.splitHappensWithCapture
+          ? Boolean(purchase.splitAccountId)
+          : Boolean(purchase.splitPayoutId),
+      }
     } else {
       await releaseCaptureLock(purchase.id)
 
@@ -280,18 +287,15 @@ export async function settlePurchase(
         return { result: "hold_expired" }
       }
 
-      console.error(
-        `Capture failed for purchase ${purchase.id}:`,
-        error instanceof YooKassaError ? error.body : error
-      )
+      console.error(`Capture failed for purchase ${purchase.id}:`, error)
       return { result: "payment_error" }
     }
   }
 
-  if (payment.status !== "succeeded") {
+  if (captured.status !== "succeeded") {
     await releaseCaptureLock(purchase.id)
 
-    if (payment.status === "canceled") {
+    if (captured.status === "canceled") {
       await markHoldExpired(purchase.id)
       return { result: "hold_expired" }
     }
@@ -305,7 +309,8 @@ export async function settlePurchase(
     totalAmount: purchase.amount,
     capturedAmount: captureAmount,
     commission,
-    splitAccountId: purchase.splitAccountId,
+    splitSettled: captured.splitSettled,
+    splitPayoutId: captured.splitPayoutId ?? null,
     confirmedBy,
   })
 
@@ -315,7 +320,7 @@ export async function settlePurchase(
 /**
  * Перевод HELD → COMPLETED после успешного списания. Вынесен отдельно,
  * потому что о списании можно узнать двумя путями: из нашего же вызова
- * capture и из уведомления payment.succeeded.
+ * capture и из уведомления провайдера.
  */
 async function finalizeCapture({
   purchaseId,
@@ -323,7 +328,8 @@ async function finalizeCapture({
   totalAmount,
   capturedAmount,
   commission,
-  splitAccountId,
+  splitSettled,
+  splitPayoutId,
   confirmedBy,
 }: {
   purchaseId: string
@@ -331,7 +337,8 @@ async function finalizeCapture({
   totalAmount: number
   capturedAmount: number
   commission: number
-  splitAccountId: string | null
+  splitSettled: boolean
+  splitPayoutId: string | null
   confirmedBy: string
 }): Promise<boolean> {
   const sellerEarnings = capturedAmount - commission
@@ -348,6 +355,7 @@ async function finalizeCapture({
         confirmedAt: new Date(),
         confirmedBy,
         captureStartedAt: null,
+        ...(splitPayoutId ? { splitPayoutId } : {}),
       },
     })
 
@@ -355,9 +363,9 @@ async function finalizeCapture({
     // не начисляем.
     if (claimed.count === 0) return false
 
-    // Внутренний баланс пополняется только там, где сплитования нет:
-    // при сплите деньги уже ушли на счёт продавца в ЮKassa.
-    if (!splitAccountId && sellerEarnings > 0) {
+    // Внутренний баланс пополняется только там, где сплитования не было:
+    // при сплите деньги уже ушли на счёт продавца у провайдера.
+    if (!splitSettled && sellerEarnings > 0) {
       await tx.user.update({
         where: { id: sellerId },
         data: { balance: { increment: sellerEarnings } },
@@ -369,12 +377,12 @@ async function finalizeCapture({
 }
 
 /**
- * Приводит покупку в соответствие с тем, что о платеже думает ЮKassa.
+ * Приводит покупку в соответствие с тем, что о платеже думает провайдер.
  * Источник истины — всегда ответ API, а не тело уведомления.
  */
 export async function syncPurchaseWithPayment(
   purchaseId: string,
-  payment: YooKassaPayment
+  payment: ProviderPayment
 ): Promise<
   | { result: "held"; downloadToken: string }
   | { result: "settled"; capturedAmount: number }
@@ -394,7 +402,8 @@ export async function syncPurchaseWithPayment(
     if (purchase.status !== "PENDING") return { result: "unchanged" }
 
     const outcome = await holdPurchase(purchase.id, payment.id, {
-      holdExpiresAt: payment.expires_at ? new Date(payment.expires_at) : null,
+      holdExpiresAt: payment.expiresAt,
+      accumulationId: payment.accumulationId,
     })
 
     if (outcome.result === "held") {
@@ -412,6 +421,7 @@ export async function syncPurchaseWithPayment(
     if (purchase.status === "PENDING") {
       const outcome = await holdPurchase(purchase.id, payment.id, {
         holdExpiresAt: null,
+        accumulationId: payment.accumulationId,
       })
 
       if (outcome.result === "no_license_keys") {
@@ -424,14 +434,31 @@ export async function syncPurchaseWithPayment(
 
     const current = await prisma.purchase.findUnique({
       where: { id: purchase.id },
-      select: { status: true, amount: true, commission: true, splitAccountId: true },
+      select: {
+        status: true,
+        amount: true,
+        commission: true,
+        splitAccountId: true,
+        splitPayoutId: true,
+        captureStartedAt: true,
+      },
     })
 
     if (!current || current.status !== "HELD") return { result: "unchanged" }
 
+    // Подтверждение прямо сейчас выполняем мы сами: там же будет
+    // и выплата продавцу. Вмешиваться нельзя — иначе выручка уйдёт
+    // и на его счёт, и на внутренний баланс.
+    if (
+      current.captureStartedAt &&
+      current.captureStartedAt.getTime() > Date.now() - CAPTURE_LOCK_TIMEOUT_MS
+    ) {
+      return { result: "unchanged" }
+    }
+
     // Фактически списанная сумма может быть меньше захолдированной —
     // например, при частичном возврате по спору.
-    const capturedAmount = Math.round(Number(payment.amount.value))
+    const capturedAmount = Math.round(payment.amount)
     const safeCaptured =
       Number.isFinite(capturedAmount) && capturedAmount > 0
         ? Math.min(capturedAmount, current.amount)
@@ -441,13 +468,28 @@ export async function syncPurchaseWithPayment(
       (current.commission * safeCaptured) / current.amount
     )
 
+    const splitSettled = getGateway(purchase.paymentProvider)
+      .splitHappensWithCapture
+      ? Boolean(current.splitAccountId)
+      : Boolean(current.splitPayoutId)
+
+    if (current.splitAccountId && !splitSettled) {
+      // Списание прошло мимо площадки (например, из кабинета провайдера),
+      // и выплата продавцу не сделана. Начисляем выручку на баланс, иначе
+      // она зависнет: разбираться с накоплением придётся вручную.
+      console.warn(
+        `Покупка ${purchase.id}: списание без выплаты продавцу, выручка ушла на внутренний баланс`
+      )
+    }
+
     const finalized = await finalizeCapture({
       purchaseId: purchase.id,
       sellerId: purchase.product.sellerId,
       totalAmount: current.amount,
       capturedAmount: safeCaptured,
       commission,
-      splitAccountId: current.splitAccountId,
+      splitSettled,
+      splitPayoutId: null,
       confirmedBy: purchase.confirmedBy ?? "WEBHOOK",
     })
 
@@ -480,34 +522,39 @@ export async function releaseHold(
 ): Promise<ReleaseOutcome> {
   const purchase = await prisma.purchase.findUnique({
     where: { id: purchaseId },
-    select: { id: true, status: true, yookassaPaymentId: true, amount: true },
+    select: {
+      id: true,
+      status: true,
+      paymentProvider: true,
+      providerPaymentId: true,
+      amount: true,
+    },
   })
 
   if (!purchase) return { result: "not_found" }
   if (purchase.status === "REFUNDED" || purchase.status === "FAILED") {
     return { result: "already_released" }
   }
-  if (purchase.status !== "HELD" || !purchase.yookassaPaymentId) {
+  if (purchase.status !== "HELD" || !purchase.providerPaymentId) {
     return { result: "not_held" }
   }
 
+  const gateway = getGateway(purchase.paymentProvider)
+
   try {
-    const payment = await cancelPayment(
-      purchase.yookassaPaymentId,
-      `cancel-${purchase.id}`
-    )
+    const payment = await gateway.cancel(purchase.providerPaymentId, purchase.id)
 
     if (payment.status !== "canceled") {
       return { result: "payment_error" }
     }
   } catch (error) {
-    const actual = await safeGetPayment(purchase.yookassaPaymentId)
+    const actual = await safeGetPayment(
+      purchase.paymentProvider,
+      purchase.providerPaymentId
+    )
 
     if (actual?.status !== "canceled") {
-      console.error(
-        `Hold release failed for purchase ${purchase.id}:`,
-        error instanceof YooKassaError ? error.body : error
-      )
+      console.error(`Hold release failed for purchase ${purchase.id}:`, error)
       return { result: "payment_error" }
     }
   }
@@ -541,7 +588,7 @@ export async function refundCapturedPurchase(
   })
 
   if (!purchase) return { result: "not_found" }
-  if (purchase.status !== "COMPLETED" || !purchase.yookassaPaymentId) {
+  if (purchase.status !== "COMPLETED" || !purchase.providerPaymentId) {
     return { result: "not_completed" }
   }
 
@@ -556,33 +603,28 @@ export async function refundCapturedPurchase(
   const commissionShare = Math.round((purchase.commission * amount) / captured)
   const sellerDeduction = amount - commissionShare
 
-  const sources = purchase.splitAccountId
-    ? buildTransfers({
-        accountId: purchase.splitAccountId,
-        amount,
-        commission: commissionShare,
-      })
-    : undefined
+  const gateway = getGateway(purchase.paymentProvider)
+
+  // Часть провайдеров забирает долю продавца прямо с его счёта; у
+  // остальных возврат делает площадка, и долг продавца остаётся у нас.
+  const reclaimedFromSeller =
+    gateway.refundReclaimsSellerShare && Boolean(purchase.splitAccountId)
+
+  let refundId: string | null = null
 
   try {
-    const refund = await createRefund({
-      paymentId: purchase.yookassaPaymentId,
+    const refund = await gateway.refund({
+      purchaseId: purchase.id,
+      paymentId: purchase.providerPaymentId,
       amount,
-      sources,
-      description: `Возврат по покупке ${purchase.id}`,
-      // Уже возвращённая сумма входит в ключ: два одинаковых по величине
-      // частичных возврата не должны схлопнуться в один.
-      idempotenceKey: `refund-${purchase.id}-${purchase.refundedAmount}-${amount}`,
+      commission: commissionShare,
+      splitAccountId: purchase.splitAccountId,
+      alreadyRefunded: purchase.refundedAmount,
     })
 
-    if (refund.status === "canceled") {
-      return { result: "payment_error" }
-    }
+    refundId = refund.refundId
   } catch (error) {
-    console.error(
-      `Refund failed for purchase ${purchase.id}:`,
-      error instanceof YooKassaError ? error.body : error
-    )
+    console.error(`Refund failed for purchase ${purchase.id}:`, error)
     return { result: "payment_error" }
   }
 
@@ -594,13 +636,16 @@ export async function refundCapturedPurchase(
       data: {
         refundedAmount: totalRefunded,
         status: totalRefunded >= captured ? "REFUNDED" : "COMPLETED",
+        // Уведомление об этом же возврате придёт следом — по списку
+        // операций оно поймёт, что сумма уже учтена.
+        ...(refundId ? { refundTransactionIds: { push: refundId } } : {}),
       },
     })
 
-    // Без сплитования выручка лежала на внутреннем балансе продавца —
-    // возвращаем её оттуда. Недостача уходит в минус и гасится
-    // следующими продажами: иначе деньги возникли бы из воздуха.
-    if (!purchase.splitAccountId && sellerDeduction > 0) {
+    // Выручка, оставшаяся у нас, возвращается с внутреннего баланса.
+    // Недостача уходит в минус и гасится следующими продажами: иначе
+    // деньги возникли бы из воздуха.
+    if (!reclaimedFromSeller && sellerDeduction > 0) {
       await tx.user.update({
         where: { id: purchase.product.sellerId },
         data: { balance: { decrement: sellerDeduction } },
@@ -619,7 +664,7 @@ export async function failPurchase(purchaseId: string): Promise<void> {
   })
 }
 
-/** Холд снят на стороне ЮKassa — деньги вернулись покупателю. */
+/** Холд снят на стороне провайдера — деньги вернулись покупателю. */
 export async function markHoldExpired(purchaseId: string): Promise<void> {
   await prisma.purchase.updateMany({
     where: { id: purchaseId, status: "HELD" },
@@ -638,18 +683,22 @@ async function releaseCaptureLock(purchaseId: string): Promise<void> {
   })
 }
 
-async function safeGetPayment(paymentId: string) {
+async function safeGetPayment(provider: PaymentProvider, paymentId: string) {
   try {
-    return await getPayment(paymentId)
+    return await getGateway(provider).getPayment(paymentId)
   } catch (error) {
     console.error(`Failed to read payment ${paymentId}:`, error)
     return null
   }
 }
 
-async function safeCancel(paymentId: string, purchaseId: string) {
+async function safeCancel(
+  provider: PaymentProvider,
+  paymentId: string,
+  purchaseId: string
+) {
   try {
-    await cancelPayment(paymentId, `cancel-${purchaseId}`)
+    await getGateway(provider).cancel(paymentId, purchaseId)
   } catch (error) {
     console.error(`Failed to cancel hold for purchase ${purchaseId}:`, error)
   }

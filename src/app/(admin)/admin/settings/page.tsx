@@ -762,11 +762,18 @@ export default function SettingsPage() {
           <h2 className="text-xl font-semibold">Настройки платежей</h2>
         </div>
         <p className="text-sm text-muted-foreground mb-4">
-          Для настройки интеграции с YooKassa используйте переменные окружения в файле .env:
+          Платёжные сервисы настраиваются переменными окружения в файле .env.
+          Достаточно одного, но можно подключить оба — покупатель выберет способ
+          оплаты сам:
         </p>
         <div className="bg-card p-4 rounded-lg font-mono text-sm space-y-2">
           <div>YOOKASSA_SHOP_ID=your_shop_id</div>
           <div>YOOKASSA_SECRET_KEY=your_secret_key</div>
+          <div>CLOUDPAYMENTS_PUBLIC_ID=pk_xxxxxxxx</div>
+          <div>CLOUDPAYMENTS_API_SECRET=your_api_secret</div>
+          <div>CLOUDPAYMENTS_PAYOUT_PUBLIC_ID=pk_xxxxxxxx</div>
+          <div>CLOUDPAYMENTS_PAYOUT_API_SECRET=your_payout_api_secret</div>
+          <div>PAYMENT_PROVIDER_DEFAULT=YOOKASSA</div>
           <div>NEXT_PUBLIC_BASE_URL=http://localhost:3000</div>
         </div>
       </Card>
