@@ -16,6 +16,7 @@ function PaymentSuccessContent() {
   const [status, setStatus] = useState<"loading" | "success" | "failed">("loading")
   const [held, setHeld] = useState(false)
   const [product, setProduct] = useState<{ title: string; coverImage: string | null } | null>(null)
+  const [provider, setProvider] = useState<string | null>(null)
 
   useEffect(() => {
     if (!purchaseId) {
@@ -30,6 +31,7 @@ function PaymentSuccessContent() {
 
         if (data.success) {
           setProduct(data.data.product)
+          setProvider(data.data.paymentProvider ?? null)
           // HELD — нормальный успешный исход двухэтапной оплаты:
           // деньги заморожены, товар выдан, ждём подтверждения приёма.
           if (data.data.status === "HELD" || data.data.status === "COMPLETED") {
@@ -68,7 +70,9 @@ function PaymentSuccessContent() {
                   </div>
                   <h1 className="text-2xl font-bold mb-2">Обработка платежа</h1>
                   <p className="text-muted-foreground">
-                    Пожалуйста, подождите...
+                    {provider === "BTCPAY"
+                      ? "Ждём подтверждения сети — обычно около десяти минут. Страницу можно закрыть: товар появится в библиотеке сам."
+                      : "Пожалуйста, подождите..."}
                   </p>
                 </>
               )}
@@ -90,8 +94,10 @@ function PaymentSuccessContent() {
                     {product?.title && `Товар "${product.title}" добавлен в вашу библиотеку.`}
                     {held && (
                       <>
-                        {" "}Деньги удерживаются на вашей карте: они уйдут продавцу
-                        только после того, как вы подтвердите получение товара.
+                        {" "}
+                        {provider === "BTCPAY"
+                          ? "Оплата принята площадкой: продавец получит её только после того, как вы подтвердите получение товара."
+                          : "Деньги удерживаются на вашей карте: они уйдут продавцу только после того, как вы подтвердите получение товара."}
                       </>
                     )}
                   </p>

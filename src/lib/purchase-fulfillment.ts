@@ -2,7 +2,8 @@ import { v4 as uuidv4 } from "uuid"
 import { Prisma, type PaymentProvider } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
 import { getGateway } from "@/lib/payments"
-import type { ProviderPayment } from "@/lib/payments/types"
+import { recordManualRefund } from "@/lib/payments/btc-payouts"
+import type { ProviderPayment, SettlementAsset } from "@/lib/payments/types"
 
 /**
  * Сделка живёт по эскроу-схеме: двухэтапная оплата + сплитование.
@@ -16,7 +17,9 @@ import type { ProviderPayment } from "@/lib/payments/types"
  * Как именно провайдер это делает, знает только его шлюз
  * (`src/lib/payments`): ЮKassa разводит деньги внутри capture через
  * transfers, CloudPayments — отдельной выплатой из накопления
- * «Безопасной сделки». Здесь собраны переходы между состояниями.
+ * «Безопасной сделки», BTCPay не разводит вовсе — там весь платёж
+ * приходит площадке, а доля продавца копится на внутреннем балансе
+ * в сатоши. Здесь собраны переходы между состояниями.
  * Каждый из них может прийти одновременно из вебхука, из опроса статуса
  * и из действия пользователя, поэтому переход выполняется атомарно
  * и ровно один раз.
@@ -45,6 +48,8 @@ export type ReleaseOutcome =
   | { result: "not_held" }
   | { result: "not_found" }
   | { result: "payment_error" }
+  /** Сделка закрыта, но деньги вернуть должен человек — см. `recordManualRefund`. */
+  | { result: "manual_refund"; sats: number }
 
 export type RefundOutcome =
   | { result: "refunded"; amount: number }
@@ -52,6 +57,7 @@ export type RefundOutcome =
   | { result: "not_found" }
   | { result: "invalid_amount" }
   | { result: "payment_error" }
+  | { result: "manual_refund"; amount: number; sats: number }
 
 const DOWNLOAD_VALIDITY_DAYS = 30
 const LICENSE_KEY_RETRIES = 5
@@ -105,7 +111,15 @@ export async function holdPurchase(
   {
     holdExpiresAt,
     accumulationId,
-  }: { holdExpiresAt?: Date | null; accumulationId?: string | null } = {}
+    amountSats,
+    rateRub,
+  }: {
+    holdExpiresAt?: Date | null
+    accumulationId?: string | null
+    /** Полученные сатоши — для криптоплатежа это и есть сумма сделки. */
+    amountSats?: number | null
+    rateRub?: number | null
+  } = {}
 ): Promise<FulfillmentOutcome> {
   const purchase = await prisma.purchase.findUnique({
     where: { id: purchaseId },
@@ -140,6 +154,8 @@ export async function holdPurchase(
           holdExpiresAt: expiresAt,
           autoConfirmAt: calculateAutoConfirmAt(heldAt, expiresAt),
           ...(accumulationId ? { escrowAccumulationId: accumulationId } : {}),
+          ...(amountSats ? { cryptoAmountSats: amountSats } : {}),
+          ...(rateRub ? { cryptoRateRub: rateRub } : {}),
         },
       })
 
@@ -188,8 +204,23 @@ export async function holdPurchase(
         where: { id: purchase.id, status: "PENDING" },
         data: { status: "FAILED" },
       })
-      // Холд снимаем, иначе деньги останутся замороженными до expires_at.
-      await safeCancel(purchase.paymentProvider, providerPaymentId, purchase.id)
+
+      if (getGateway(purchase.paymentProvider).refundsAreManual) {
+        // Биткоин уже в кошельке площадки: снимать нечего, деньги
+        // придётся вернуть переводом. Записываем обязательство.
+        await prisma.$transaction((tx) =>
+          recordManualRefund(tx, {
+            purchaseId: purchase.id,
+            buyerId: purchase.buyerId,
+            sats: amountSats ?? 0,
+            note: "Товар не выдан: закончились лицензионные ключи",
+          })
+        )
+      } else {
+        // Холд снимаем, иначе деньги останутся замороженными до expires_at.
+        await safeCancel(purchase.paymentProvider, providerPaymentId, purchase.id)
+      }
+
       return { result: "no_license_keys" }
     }
     throw error
@@ -306,12 +337,15 @@ export async function settlePurchase(
   await finalizeCapture({
     purchaseId: purchase.id,
     sellerId: purchase.product.sellerId,
+    buyerId: purchase.buyerId,
     totalAmount: purchase.amount,
     capturedAmount: captureAmount,
     commission,
     splitSettled: captured.splitSettled,
     splitPayoutId: captured.splitPayoutId ?? null,
     confirmedBy,
+    settlementAsset: gateway.settlementAsset,
+    cryptoAmountSats: purchase.cryptoAmountSats,
   })
 
   return { result: "settled", capturedAmount: captureAmount }
@@ -325,23 +359,44 @@ export async function settlePurchase(
 async function finalizeCapture({
   purchaseId,
   sellerId,
+  buyerId,
   totalAmount,
   capturedAmount,
   commission,
   splitSettled,
   splitPayoutId,
   confirmedBy,
+  settlementAsset,
+  cryptoAmountSats,
 }: {
   purchaseId: string
   sellerId: string
+  buyerId: string
   totalAmount: number
   capturedAmount: number
   commission: number
   splitSettled: boolean
   splitPayoutId: string | null
   confirmedBy: string
+  settlementAsset: SettlementAsset
+  cryptoAmountSats: number | null
 }): Promise<boolean> {
   const sellerEarnings = capturedAmount - commission
+
+  // Криптовыручка делится в сатоши: рублёвые суммы задают только
+  // пропорцию, а курс после оплаты на расчёт уже не влияет.
+  const inSats = settlementAsset === "SATS" && Boolean(cryptoAmountSats)
+  const receivedSats = cryptoAmountSats ?? 0
+  const capturedSats = inSats
+    ? Math.round((receivedSats * capturedAmount) / totalAmount)
+    : 0
+  const commissionSats = inSats
+    ? Math.round((capturedSats * commission) / capturedAmount)
+    : 0
+  const sellerSats = Math.max(capturedSats - commissionSats, 0)
+  // Непринятая часть сделки — долг перед покупателем: провайдер её
+  // не вернёт, деньги уже в кошельке площадки.
+  const refundableSats = inSats ? Math.max(receivedSats - capturedSats, 0) : 0
 
   return prisma.$transaction(async (tx) => {
     const claimed = await tx.purchase.updateMany({
@@ -356,6 +411,15 @@ async function finalizeCapture({
         confirmedBy,
         captureStartedAt: null,
         ...(splitPayoutId ? { splitPayoutId } : {}),
+        ...(inSats
+          ? {
+              cryptoSellerSats: sellerSats,
+              cryptoCommissionSats: commissionSats,
+              ...(refundableSats > 0
+                ? { cryptoRefundedSats: refundableSats }
+                : {}),
+            }
+          : {}),
       },
     })
 
@@ -365,11 +429,29 @@ async function finalizeCapture({
 
     // Внутренний баланс пополняется только там, где сплитования не было:
     // при сплите деньги уже ушли на счёт продавца у провайдера.
-    if (!splitSettled && sellerEarnings > 0) {
-      await tx.user.update({
-        where: { id: sellerId },
-        data: { balance: { increment: sellerEarnings } },
-      })
+    if (!splitSettled) {
+      if (inSats) {
+        if (sellerSats > 0) {
+          await tx.user.update({
+            where: { id: sellerId },
+            data: { balanceSats: { increment: sellerSats } },
+          })
+        }
+
+        if (refundableSats > 0) {
+          await recordManualRefund(tx, {
+            purchaseId,
+            buyerId,
+            sats: refundableSats,
+            note: "Частичный возврат по спору",
+          })
+        }
+      } else if (sellerEarnings > 0) {
+        await tx.user.update({
+          where: { id: sellerId },
+          data: { balance: { increment: sellerEarnings } },
+        })
+      }
     }
 
     return true
@@ -404,6 +486,8 @@ export async function syncPurchaseWithPayment(
     const outcome = await holdPurchase(purchase.id, payment.id, {
       holdExpiresAt: payment.expiresAt,
       accumulationId: payment.accumulationId,
+      amountSats: payment.amountSats,
+      rateRub: payment.rateRub,
     })
 
     if (outcome.result === "held") {
@@ -422,6 +506,8 @@ export async function syncPurchaseWithPayment(
       const outcome = await holdPurchase(purchase.id, payment.id, {
         holdExpiresAt: null,
         accumulationId: payment.accumulationId,
+        amountSats: payment.amountSats,
+        rateRub: payment.rateRub,
       })
 
       if (outcome.result === "no_license_keys") {
@@ -441,6 +527,7 @@ export async function syncPurchaseWithPayment(
         splitAccountId: true,
         splitPayoutId: true,
         captureStartedAt: true,
+        cryptoAmountSats: true,
       },
     })
 
@@ -485,12 +572,15 @@ export async function syncPurchaseWithPayment(
     const finalized = await finalizeCapture({
       purchaseId: purchase.id,
       sellerId: purchase.product.sellerId,
+      buyerId: purchase.buyerId,
       totalAmount: current.amount,
       capturedAmount: safeCaptured,
       commission,
       splitSettled,
       splitPayoutId: null,
       confirmedBy: purchase.confirmedBy ?? "WEBHOOK",
+      settlementAsset: getGateway(purchase.paymentProvider).settlementAsset,
+      cryptoAmountSats: current.cryptoAmountSats,
     })
 
     return finalized
@@ -528,6 +618,8 @@ export async function releaseHold(
       paymentProvider: true,
       providerPaymentId: true,
       amount: true,
+      buyerId: true,
+      cryptoAmountSats: true,
     },
   })
 
@@ -540,6 +632,41 @@ export async function releaseHold(
   }
 
   const gateway = getGateway(purchase.paymentProvider)
+
+  // Криптоплатёж отменить нельзя: деньги уже в кошельке площадки, и
+  // вернуть их можно только переводом на адрес покупателя. Сделку
+  // закрываем, а обязательство вернуть записываем заявкой.
+  if (gateway.refundsAreManual) {
+    const sats = purchase.cryptoAmountSats ?? 0
+
+    const released = await prisma.$transaction(async (tx) => {
+      const claimed = await tx.purchase.updateMany({
+        where: { id: purchase.id, status: "HELD" },
+        data: {
+          status: "REFUNDED",
+          refundedAmount: purchase.amount,
+          capturedAmount: 0,
+          captureStartedAt: null,
+          cryptoRefundedSats: sats,
+        },
+      })
+
+      if (claimed.count === 0) return false
+
+      await recordManualRefund(tx, {
+        purchaseId: purchase.id,
+        buyerId: purchase.buyerId,
+        sats,
+        note: "Возврат по спору до подтверждения сделки",
+      })
+
+      return true
+    })
+
+    return released
+      ? { result: "manual_refund", sats }
+      : { result: "already_released" }
+  }
 
   try {
     const payment = await gateway.cancel(purchase.providerPaymentId, purchase.id)
@@ -604,6 +731,44 @@ export async function refundCapturedPurchase(
   const sellerDeduction = amount - commissionShare
 
   const gateway = getGateway(purchase.paymentProvider)
+
+  // Возврат биткоина — ручная операция. Долг перед покупателем
+  // записывается заявкой, а выручка снимается с баланса продавца
+  // в сатоши: она уже была ему начислена при подтверждении сделки.
+  if (gateway.refundsAreManual) {
+    const receivedSats = purchase.cryptoAmountSats ?? 0
+    const refundSats = Math.round((receivedSats * amount) / captured)
+    const commissionSats = Math.round((refundSats * commissionShare) / amount)
+    const sellerDeductionSats = Math.max(refundSats - commissionSats, 0)
+    const totalRefunded = purchase.refundedAmount + amount
+
+    await prisma.$transaction(async (tx) => {
+      await tx.purchase.update({
+        where: { id: purchase.id },
+        data: {
+          refundedAmount: totalRefunded,
+          cryptoRefundedSats: purchase.cryptoRefundedSats + refundSats,
+          status: totalRefunded >= captured ? "REFUNDED" : "COMPLETED",
+        },
+      })
+
+      if (sellerDeductionSats > 0) {
+        await tx.user.update({
+          where: { id: purchase.product.sellerId },
+          data: { balanceSats: { decrement: sellerDeductionSats } },
+        })
+      }
+
+      await recordManualRefund(tx, {
+        purchaseId: purchase.id,
+        buyerId: purchase.buyerId,
+        sats: refundSats,
+        note: "Возврат по спору после подтверждения сделки",
+      })
+    })
+
+    return { result: "manual_refund", amount, sats: refundSats }
+  }
 
   // Часть провайдеров забирает долю продавца прямо с его счёта; у
   // остальных возврат делает площадка, и долг продавца остаётся у нас.

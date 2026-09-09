@@ -13,7 +13,8 @@ import {
   Settings,
   BarChart3,
   Flag,
-  Store
+  Store,
+  Wallet
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
@@ -39,10 +40,15 @@ const menuItems = [
     href: "/admin/purchases", 
     icon: ShoppingCart 
   },
-  { 
-    title: "Магазины", 
-    href: "/admin/stores", 
-    icon: Store 
+  {
+    title: "Магазины",
+    href: "/admin/stores",
+    icon: Store
+  },
+  {
+    title: "Выплаты",
+    href: "/admin/payouts",
+    icon: Wallet
   },
   { 
     title: "Категории", 

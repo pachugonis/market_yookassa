@@ -257,6 +257,16 @@ async function applyResolution({
         return { ok: true, message: "Спор разрешён, деньги вернулись покупателю" }
       }
 
+      // Биткоин обратно сам не уйдёт: спор закрыт, а перевод остаётся
+      // задачей администратора в разделе выплат.
+      if (outcome.result === "manual_refund") {
+        return {
+          ok: true,
+          message:
+            "Спор разрешён. Возврат биткоина оформлен заявкой — отправьте его вручную из раздела «Выплаты»",
+        }
+      }
+
       return { ok: false, error: "Не удалось отменить удержание средств" }
     }
 
@@ -291,6 +301,14 @@ async function applyResolution({
 
     if (outcome.result === "refunded") {
       return { ok: true, message: "Спор разрешён, возврат отправлен покупателю" }
+    }
+
+    if (outcome.result === "manual_refund") {
+      return {
+        ok: true,
+        message:
+          "Спор разрешён. Возврат биткоина оформлен заявкой — отправьте его вручную из раздела «Выплаты»",
+      }
     }
 
     if (outcome.result === "invalid_amount") {

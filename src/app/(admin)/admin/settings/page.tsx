@@ -36,6 +36,12 @@ export default function SettingsPage() {
     maxProductPrice: 1000000,
     maxFileSize: 500,
     minPayoutAmount: 1000,
+    btcMinPayoutSats: 50000,
+    btcPayoutFeeMinSats: 500,
+    btcPayoutFeeMaxSats: 30000,
+    btcPayoutFeeBlockTarget: 6,
+    btcPayoutTxVsize: 200,
+    btcPayoutQuoteMinutes: 15,
   })
 
   // Load settings on mount
@@ -57,6 +63,12 @@ export default function SettingsPage() {
           commissionRate: data.data.commissionRate,
           minPayoutAmount: (data.data.minPayoutAmount || 100000) / 100,
           maxFileSize: data.data.maxFileSize || 500,
+          btcMinPayoutSats: data.data.btcMinPayoutSats ?? 50000,
+          btcPayoutFeeMinSats: data.data.btcPayoutFeeMinSats ?? 500,
+          btcPayoutFeeMaxSats: data.data.btcPayoutFeeMaxSats ?? 30000,
+          btcPayoutFeeBlockTarget: data.data.btcPayoutFeeBlockTarget ?? 6,
+          btcPayoutTxVsize: data.data.btcPayoutTxVsize ?? 200,
+          btcPayoutQuoteMinutes: data.data.btcPayoutQuoteMinutes ?? 15,
         }))
         setEmailSettings({
           smtpHost: data.data.smtpHost || "",
@@ -137,6 +149,12 @@ export default function SettingsPage() {
           commissionRate: platformSettings.commissionRate,
           minPayoutAmount: platformSettings.minPayoutAmount * 100,
           maxFileSize: platformSettings.maxFileSize,
+          btcMinPayoutSats: platformSettings.btcMinPayoutSats,
+          btcPayoutFeeMinSats: platformSettings.btcPayoutFeeMinSats,
+          btcPayoutFeeMaxSats: platformSettings.btcPayoutFeeMaxSats,
+          btcPayoutFeeBlockTarget: platformSettings.btcPayoutFeeBlockTarget,
+          btcPayoutTxVsize: platformSettings.btcPayoutTxVsize,
+          btcPayoutQuoteMinutes: platformSettings.btcPayoutQuoteMinutes,
         }),
       })
 
@@ -456,6 +474,86 @@ export default function SettingsPage() {
               className="max-w-xs"
             />
             <p className="text-xs text-muted-foreground">Минимальная сумма для вывода средств продавцами (например, 1000 = 1000₽)</p>
+          </div>
+
+          {/*
+            Вывод биткоина. Комиссия сети считается как «оценка сети ×
+            расчётный размер транзакции» и зажимается между границами:
+            всплеск в мемпуле не сделает вывод разорительным, а провал
+            ставки не оставит площадку в убытке.
+          */}
+          <div className="grid md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="btcMinPayoutSats">Минимальный вывод BTC (сатоши)</Label>
+              <Input
+                id="btcMinPayoutSats"
+                type="number"
+                min="546"
+                value={platformSettings.btcMinPayoutSats}
+                onChange={(e) => setPlatformSettings({ ...platformSettings, btcMinPayoutSats: Number(e.target.value) })}
+              />
+              <p className="text-xs text-muted-foreground">Сколько продавец должен получить на руки, чтобы вывод имел смысл</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="btcPayoutFeeBlockTarget">Целевое число блоков</Label>
+              <Input
+                id="btcPayoutFeeBlockTarget"
+                type="number"
+                min="1"
+                max="144"
+                value={platformSettings.btcPayoutFeeBlockTarget}
+                onChange={(e) => setPlatformSettings({ ...platformSettings, btcPayoutFeeBlockTarget: Number(e.target.value) })}
+              />
+              <p className="text-xs text-muted-foreground">За сколько блоков транзакция должна попасть в цепочку: меньше — быстрее и дороже</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="btcPayoutFeeMinSats">Комиссия за вывод, минимум (сатоши)</Label>
+              <Input
+                id="btcPayoutFeeMinSats"
+                type="number"
+                min="0"
+                value={platformSettings.btcPayoutFeeMinSats}
+                onChange={(e) => setPlatformSettings({ ...platformSettings, btcPayoutFeeMinSats: Number(e.target.value) })}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="btcPayoutFeeMaxSats">Комиссия за вывод, максимум (сатоши)</Label>
+              <Input
+                id="btcPayoutFeeMaxSats"
+                type="number"
+                min="0"
+                value={platformSettings.btcPayoutFeeMaxSats}
+                onChange={(e) => setPlatformSettings({ ...platformSettings, btcPayoutFeeMaxSats: Number(e.target.value) })}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="btcPayoutTxVsize">Расчётный размер транзакции (vB)</Label>
+              <Input
+                id="btcPayoutTxVsize"
+                type="number"
+                min="100"
+                max="2000"
+                value={platformSettings.btcPayoutTxVsize}
+                onChange={(e) => setPlatformSettings({ ...platformSettings, btcPayoutTxVsize: Number(e.target.value) })}
+              />
+              <p className="text-xs text-muted-foreground">Точный размер известен только при подписи; типовая транзакция — около 200 vB</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="btcPayoutQuoteMinutes">Срок действия котировки (мин)</Label>
+              <Input
+                id="btcPayoutQuoteMinutes"
+                type="number"
+                min="1"
+                max="120"
+                value={platformSettings.btcPayoutQuoteMinutes}
+                onChange={(e) => setPlatformSettings({ ...platformSettings, btcPayoutQuoteMinutes: Number(e.target.value) })}
+              />
+            </div>
           </div>
 
           <div className="flex justify-end">

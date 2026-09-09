@@ -106,7 +106,18 @@ CLOUDPAYMENTS_PAYOUT_API_SECRET="your-payout-api-secret"
 # по умолчанию 1) — замораживается и сразу возвращается
 CLOUDPAYMENTS_CARD_BINDING_AMOUNT="1"
 
-# Какой сервис предлагать по умолчанию: YOOKASSA или CLOUDPAYMENTS
+# BTCPay Server: оплата биткоином по рублёвой цене
+BTCPAY_URL="https://btcpay.example.com"
+BTCPAY_API_KEY="your-greenfield-api-key"
+BTCPAY_STORE_ID="your-store-id"
+# Секрет вебхука — без него уведомления BTCPay отклоняются
+BTCPAY_WEBHOOK_SECRET="your-webhook-secret"
+# Сколько живёт счёт на оплату, минут (по умолчанию 30)
+BTCPAY_INVOICE_EXPIRATION_MINUTES="30"
+# Сколько подтверждений сети ждать: MediumSpeed — одно (по умолчанию)
+BTCPAY_SPEED_POLICY="MediumSpeed"
+
+# Какой сервис предлагать по умолчанию: YOOKASSA, CLOUDPAYMENTS или BTCPAY
 PAYMENT_PROVIDER_DEFAULT="YOOKASSA"
 
 # Эскроу: через сколько дней сделка подтверждается автоматически,

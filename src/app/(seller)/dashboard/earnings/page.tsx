@@ -7,7 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { BindPayoutCard } from "@/components/seller/bind-payout-card"
-import { formatPrice } from "@/lib/utils"
+import { BtcPayout } from "@/components/seller/btc-payout"
+import { formatPrice, formatBtc } from "@/lib/utils"
 
 interface Stats {
   balance: number
@@ -17,6 +18,11 @@ interface Stats {
   /** Выручка по сделкам, где деньги ещё заморожены у покупателя */
   heldEarnings?: number
   heldCount?: number
+  /** Биткоин-выручка живёт отдельным балансом в сатоши */
+  balanceSats?: number
+  earnedSats?: number
+  heldSats?: number
+  heldSatsCount?: number
 }
 
 export default function EarningsPage() {
@@ -33,6 +39,7 @@ export default function EarningsPage() {
     boundAt: string | null
   }>({ cardMask: null, boundAt: null })
   const [cardBindingAvailable, setCardBindingAvailable] = useState(false)
+  const [btcAvailable, setBtcAvailable] = useState(false)
 
   useEffect(() => {
     fetchStats()
@@ -47,6 +54,11 @@ export default function EarningsPage() {
       const data = await res.json()
       if (data.success) {
         setCardBindingAvailable(Boolean(data.data.cardBinding))
+        setBtcAvailable(
+          data.data.providers.some(
+            (provider: { id: string }) => provider.id === "BTCPAY"
+          )
+        )
       }
     } catch (error) {
       console.error("Error fetching payment providers:", error)
@@ -280,6 +292,36 @@ export default function EarningsPage() {
           </CardContent>
         </Card>
       </motion.div>
+
+      {/* Биткоин: отдельный баланс и вывод на кошелёк продавца */}
+      {btcAvailable && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.28 }}
+        >
+          <Card>
+            <CardHeader>
+              <CardTitle>Вывод биткоина</CardTitle>
+              <CardDescription>
+                Оплата биткоином приходит в кошелёк площадки, а ваша доля
+                копится здесь в сатоши — она зафиксирована в момент сделки
+                и от курса больше не зависит.
+                {(stats?.heldSatsCount || 0) > 0 && (
+                  <>
+                    {" "}
+                    Ещё {formatBtc(stats?.heldSats || 0)} ждут подтверждения
+                    покупателями ({stats?.heldSatsCount}).
+                  </>
+                )}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <BtcPayout />
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
 
       {/* Payout Section */}
       <motion.div

@@ -115,6 +115,9 @@ export const cloudpaymentsGateway: PaymentGateway = {
     return isCloudPaymentsPayoutConfigured()
   },
 
+  settlementAsset: "RUB",
+  refundsAreManual: false,
+
   splitHappensWithCapture: false,
   refundReclaimsSellerShare: false,
 

@@ -1,3 +1,4 @@
+import { btcpayGateway } from "@/lib/payments/btcpay-gateway"
 import { cloudpaymentsGateway } from "@/lib/payments/cloudpayments-gateway"
 import { yookassaGateway } from "@/lib/payments/yookassa-gateway"
 import { PROVIDER_ORDER } from "@/lib/payments/config"
@@ -15,11 +16,13 @@ export type {
   ProviderPayment,
   ProviderPaymentStatus,
   SellerPayoutAccounts,
+  SettlementAsset,
 } from "@/lib/payments/types"
 
 const GATEWAYS: Record<PaymentProviderId, PaymentGateway> = {
   YOOKASSA: yookassaGateway,
   CLOUDPAYMENTS: cloudpaymentsGateway,
+  BTCPAY: btcpayGateway,
 }
 
 export function getGateway(provider: PaymentProviderId): PaymentGateway {
@@ -29,7 +32,9 @@ export function getGateway(provider: PaymentProviderId): PaymentGateway {
 export function isPaymentProviderId(
   value: unknown
 ): value is PaymentProviderId {
-  return value === "YOOKASSA" || value === "CLOUDPAYMENTS"
+  return (
+    value === "YOOKASSA" || value === "CLOUDPAYMENTS" || value === "BTCPAY"
+  )
 }
 
 /** Провайдеры, ключи которых заданы в окружении. */

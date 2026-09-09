@@ -30,16 +30,35 @@ export function isCloudPaymentsPayoutConfigured(): boolean {
   )
 }
 
+/**
+ * BTCPay Server: приём биткоина. Секрет вебхука в проверку не входит —
+ * без него оплата работает, просто состояние счёта приходится
+ * перечитывать самим.
+ */
+export function isBTCPayConfigured(): boolean {
+  return Boolean(
+    process.env.BTCPAY_URL &&
+      process.env.BTCPAY_API_KEY &&
+      process.env.BTCPAY_STORE_ID
+  )
+}
+
 /** Порядок определяет и выбор по умолчанию, и порядок в интерфейсе. */
 export const PROVIDER_ORDER: PaymentProviderId[] = [
   "YOOKASSA",
   "CLOUDPAYMENTS",
+  "BTCPAY",
 ]
 
 export function isProviderConfigured(provider: PaymentProviderId): boolean {
-  return provider === "YOOKASSA"
-    ? isYooKassaConfigured()
-    : isCloudPaymentsConfigured()
+  switch (provider) {
+    case "YOOKASSA":
+      return isYooKassaConfigured()
+    case "CLOUDPAYMENTS":
+      return isCloudPaymentsConfigured()
+    case "BTCPAY":
+      return isBTCPayConfigured()
+  }
 }
 
 export function configuredProviderIds(): PaymentProviderId[] {

@@ -50,6 +50,9 @@ export const yookassaGateway: PaymentGateway = {
     return true
   },
 
+  settlementAsset: "RUB",
+  refundsAreManual: false,
+
   splitHappensWithCapture: true,
   refundReclaimsSellerShare: true,
 

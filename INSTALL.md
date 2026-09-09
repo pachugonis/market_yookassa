@@ -123,7 +123,18 @@ CLOUDPAYMENTS_PAYOUT_API_SECRET="your_payout_api_secret"
 # it is authorized and released right away
 CLOUDPAYMENTS_CARD_BINDING_AMOUNT="1"
 
-# Which provider to offer by default: YOOKASSA or CLOUDPAYMENTS
+# BTCPay Server — bitcoin payments priced in roubles
+BTCPAY_URL="https://btcpay.example.com"
+BTCPAY_API_KEY="your_greenfield_api_key"
+BTCPAY_STORE_ID="your_store_id"
+# Webhook secret; without it BTCPay notifications are rejected
+BTCPAY_WEBHOOK_SECRET="your_webhook_secret"
+# Invoice lifetime in minutes (default 30)
+BTCPAY_INVOICE_EXPIRATION_MINUTES="30"
+# Confirmations to wait for: MediumSpeed means one (default)
+BTCPAY_SPEED_POLICY="MediumSpeed"
+
+# Which provider to offer by default: YOOKASSA, CLOUDPAYMENTS or BTCPAY
 PAYMENT_PROVIDER_DEFAULT="YOOKASSA"
 
 # Escrow: days before a held deal is confirmed automatically (default 3)
@@ -413,6 +424,10 @@ services:
       CLOUDPAYMENTS_API_SECRET: ${CLOUDPAYMENTS_API_SECRET}
       CLOUDPAYMENTS_PAYOUT_PUBLIC_ID: ${CLOUDPAYMENTS_PAYOUT_PUBLIC_ID}
       CLOUDPAYMENTS_PAYOUT_API_SECRET: ${CLOUDPAYMENTS_PAYOUT_API_SECRET}
+      BTCPAY_URL: ${BTCPAY_URL}
+      BTCPAY_API_KEY: ${BTCPAY_API_KEY}
+      BTCPAY_STORE_ID: ${BTCPAY_STORE_ID}
+      BTCPAY_WEBHOOK_SECRET: ${BTCPAY_WEBHOOK_SECRET}
       NEXT_PUBLIC_BASE_URL: ${NEXT_PUBLIC_BASE_URL}
       UPLOAD_DIR: uploads
     volumes:
@@ -508,6 +523,12 @@ CLOUDPAYMENTS_PUBLIC_ID=pk_xxxxxxxxxxxxxxxxxxxxxxxxx
 CLOUDPAYMENTS_API_SECRET=your_api_secret
 CLOUDPAYMENTS_PAYOUT_PUBLIC_ID=pk_xxxxxxxxxxxxxxxxxxxxxxxxx
 CLOUDPAYMENTS_PAYOUT_API_SECRET=your_payout_api_secret
+
+# BTCPay Server
+BTCPAY_URL=https://btcpay.example.com
+BTCPAY_API_KEY=your_greenfield_api_key
+BTCPAY_STORE_ID=your_store_id
+BTCPAY_WEBHOOK_SECRET=your_webhook_secret
 
 # App
 NEXT_PUBLIC_BASE_URL=https://yourdomain.com

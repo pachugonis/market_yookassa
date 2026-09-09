@@ -13,6 +13,23 @@ export function formatPrice(price: number): string {
   }).format(price)
 }
 
+/**
+ * Сатоши в биткоинах: 0.00123456 BTC. Считаем строкой, а не делением:
+ * восьмой знак после запятой у float уже неточен.
+ */
+export function formatBtc(sats: number): string {
+  const rounded = Math.round(sats)
+  const sign = rounded < 0 ? "-" : ""
+  const digits = Math.abs(rounded).toString().padStart(9, "0")
+
+  return `${sign}${digits.slice(0, -8)}.${digits.slice(-8)} BTC`
+}
+
+/** Сатоши с разделителями разрядов: 1 234 567 сат. */
+export function formatSats(sats: number): string {
+  return `${new Intl.NumberFormat("ru-RU").format(Math.round(sats))} сат`
+}
+
 export function formatDate(date: Date): string {
   return new Intl.DateTimeFormat('ru-RU', {
     day: 'numeric',

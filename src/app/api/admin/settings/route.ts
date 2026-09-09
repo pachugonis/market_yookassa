@@ -9,6 +9,13 @@ const settingsSchema = z.object({
   supportEmail: z.string().email().optional(),
   commissionRate: z.number().min(0).max(100).optional(),
   minPayoutAmount: z.number().min(0).optional(),
+  // Вывод биткоина: порог и рамки, в которых зажимается оценка сети.
+  btcMinPayoutSats: z.number().int().min(546).optional(),
+  btcPayoutFeeMinSats: z.number().int().min(0).optional(),
+  btcPayoutFeeMaxSats: z.number().int().min(0).optional(),
+  btcPayoutFeeBlockTarget: z.number().int().min(1).max(144).optional(),
+  btcPayoutTxVsize: z.number().int().min(100).max(2000).optional(),
+  btcPayoutQuoteMinutes: z.number().int().min(1).max(120).optional(),
   maxFileSize: z.number().min(1).max(5000).optional(),
   notifyNewUser: z.boolean().optional(),
   notifyNewProduct: z.boolean().optional(),

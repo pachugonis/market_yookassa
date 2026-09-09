@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
+import { isValidBitcoinAddress } from "@/lib/btcpay"
 
 export async function GET() {
   try {
@@ -23,6 +24,9 @@ export async function GET() {
         avatar: true,
         verified: true,
         balance: true,
+        balanceSats: true,
+        btcPayoutAddress: true,
+        btcPayoutAddressSetAt: true,
         yookassaAccountId: true,
         // Токен карты наружу не отдаём — только то, что нужно показать.
         cloudpaymentsPayoutCard: true,
@@ -67,13 +71,15 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { name, avatar, yookassaAccountId } = body
+    const { name, avatar, yookassaAccountId, btcPayoutAddress } = body
 
     // Prepare update data
     const updateData: {
       name?: string
       avatar?: string
       yookassaAccountId?: string | null
+      btcPayoutAddress?: string | null
+      btcPayoutAddressSetAt?: Date | null
     } = {}
 
     // Validate and add name if provided
@@ -141,6 +147,39 @@ export async function PATCH(request: NextRequest) {
       }
     }
 
+    // Кошелёк для вывода биткоина. Проверяем формат сами: заявка с
+    // опечаткой в адресе отправила бы деньги в никуда.
+    if (btcPayoutAddress !== undefined) {
+      if (session.user.role !== "SELLER" && session.user.role !== "ADMIN") {
+        return NextResponse.json(
+          { success: false, error: "Кошелёк для выплат доступен только продавцам" },
+          { status: 403 }
+        )
+      }
+
+      if (typeof btcPayoutAddress !== "string") {
+        return NextResponse.json(
+          { success: false, error: "Неверный формат адреса" },
+          { status: 400 }
+        )
+      }
+
+      const address = btcPayoutAddress.trim()
+
+      if (address.length === 0) {
+        updateData.btcPayoutAddress = null
+        updateData.btcPayoutAddressSetAt = null
+      } else if (!isValidBitcoinAddress(address)) {
+        return NextResponse.json(
+          { success: false, error: "Это не похоже на биткоин-адрес" },
+          { status: 400 }
+        )
+      } else {
+        updateData.btcPayoutAddress = address
+        updateData.btcPayoutAddressSetAt = new Date()
+      }
+    }
+
     // Check if there's anything to update
     if (Object.keys(updateData).length === 0) {
       return NextResponse.json(
@@ -160,6 +199,9 @@ export async function PATCH(request: NextRequest) {
         avatar: true,
         verified: true,
         balance: true,
+        balanceSats: true,
+        btcPayoutAddress: true,
+        btcPayoutAddressSetAt: true,
         yookassaAccountId: true,
         cloudpaymentsPayoutCard: true,
         cloudpaymentsPayoutBoundAt: true,

@@ -95,6 +95,9 @@ export async function GET(request: NextRequest) {
       data: {
         status: fresh?.status ?? purchase.status,
         product: purchase.product,
+        // Оплата биткоином ждёт подтверждения сети — покупателю нужно
+        // объяснить, почему страница не отвечает сразу.
+        paymentProvider: purchase.paymentProvider,
         heldAt: fresh?.heldAt ?? null,
         holdExpiresAt: fresh?.holdExpiresAt ?? null,
         autoConfirmAt: fresh?.autoConfirmAt ?? null,

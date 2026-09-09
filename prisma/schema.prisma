@@ -41,6 +41,7 @@ enum PurchaseStatus {
 enum PaymentProvider {
   YOOKASSA
   CLOUDPAYMENTS
+  BTCPAY
 }
 
 /// Состояние привязки карты продавца для выплат.
@@ -50,11 +51,31 @@ enum CardBindingStatus {
   FAILED
 }
 
+/// Жизненный цикл выплаты:
+/// PENDING    — заявка создана и ждёт одобрения администратора;
+/// PROCESSING — одобрена, транзакция готовится или уже в сети;
+/// COMPLETED  — деньги ушли получателю;
+/// FAILED     — заявка отклонена или сорвалась, средства возвращены
+///              на баланс.
 enum PayoutStatus {
   PENDING
   PROCESSING
   COMPLETED
   FAILED
+}
+
+/// В чём выплата: рубли с внутреннего баланса или биткоин.
+enum PayoutAsset {
+  RUB
+  BTC
+}
+
+/// Кому и за что уходят деньги. Возврат покупателю за биткоин-сделку
+/// проводится вручную и попадает в тот же журнал, что и выводы
+/// продавцов: это одна и та же исходящая операция с кошелька площадки.
+enum PayoutKind {
+  SELLER_WITHDRAWAL
+  BUYER_REFUND
 }
 
 enum DisputeStatus {
@@ -106,6 +127,15 @@ model User {
   verificationToken   String?   @unique
   verificationTokenExpires DateTime?
   balance             Int       @default(0)
+  /// Внутренний баланс в сатоши. Отдельно от рублёвого: биткоин-выручка
+  /// фиксируется в момент сделки и до вывода не пересчитывается по курсу.
+  /// Int хватает на 21,47 BTC — больше площадка одному продавцу не
+  /// накопит, а переполнение Postgres не пропустит молча.
+  balanceSats         Int       @default(0)
+  /// Куда выводить биткоин. Адрес проверяется при сохранении и
+  /// подставляется в заявку на вывод.
+  btcPayoutAddress    String?
+  btcPayoutAddressSetAt DateTime?
   /// Идентификатор магазина продавца в «ЮKassa для платформ».
   /// Если задан — выручка уходит на его счёт сплитованием, минуя
   /// внутренний баланс; если нет — работает старая схема с балансом
@@ -241,6 +271,19 @@ model Purchase {
   /// на счёт, начислять её на внутренний баланс нельзя.
   splitPayoutId     String?
 
+  // --- Оплата криптовалютой ---
+  /// Сколько сатоши фактически получено по счёту. Именно эта величина,
+  /// а не рублёвая цена, делится между продавцом и площадкой: курс
+  /// после сделки на расчёт уже не влияет.
+  cryptoAmountSats  Int?
+  /// Курс на момент оплаты, рублей за 1 BTC. Только для отчётности.
+  cryptoRateRub     Int?
+  /// Как поделены полученные сатоши при подтверждении сделки.
+  cryptoSellerSats     Int?
+  cryptoCommissionSats Int?
+  /// Сколько сатоши записано к возврату покупателю.
+  cryptoRefundedSats   Int  @default(0)
+
   buyerId           String
   buyer             User           @relation(fields: [buyerId], references: [id], onDelete: Cascade)
 
@@ -289,20 +332,51 @@ model PayoutCardBinding {
   @@index([status])
 }
 
+/// Исходящая операция с денег площадки: вывод продавца или возврат
+/// покупателю. Сумма списывается с внутреннего баланса в момент подачи
+/// заявки — иначе один и тот же остаток можно вывести дважды. Если
+/// заявка отклонена, списание возвращается.
 model Payout {
   id             String       @id @default(cuid())
-  amount         Int
+  asset          PayoutAsset  @default(RUB)
+  kind           PayoutKind   @default(SELLER_WITHDRAWAL)
+  /// Сумма в копейках — для рублёвых выплат.
+  amount         Int          @default(0)
   status         PayoutStatus @default(PENDING)
   method         String?
   accountDetails String?
   requestedAt    DateTime     @default(now())
   processedAt    DateTime?
 
-  sellerId       String
-  seller         User         @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  // --- Биткоин ---
+  /// Списано с баланса, включая удержанную комиссию за вывод.
+  amountSats     Int?
+  /// Комиссия сети, удержанная из суммы.
+  feeSats        Int?
+  /// Сколько уходит на адрес получателя.
+  netSats        Int?
+  /// Ставка, по которой считалась комиссия, сат/vB. Для разбора
+  /// расхождений между котировкой и фактической транзакцией.
+  feeRate        Float?
+  /// Адрес получателя. У ручного возврата покупателю он появляется
+  /// не сразу: адрес нужно ещё запросить.
+  destination    String?
+  /// Идентификатор выплаты в BTCPay — по нему приходят уведомления.
+  providerPayoutId String?    @unique
+  /// Транзакция в сети, когда она известна.
+  txId           String?
+  /// Причина отказа или комментарий администратора.
+  note           String?
+  /// Сделка, из-за которой возник возврат.
+  purchaseId     String?
 
-  @@index([sellerId])
+  /// Получатель: продавец при выводе, покупатель при возврате.
+  recipientId    String       @map("sellerId")
+  recipient      User         @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+
+  @@index([recipientId])
   @@index([status])
+  @@index([kind, status])
 }
 
 model Review {
@@ -369,6 +443,21 @@ model PlatformSettings {
   supportEmail            String   @default("support@digimarket.com")
   commissionRate          Int      @default(10)
   minPayoutAmount         Int      @default(100000)
+  /// Минимальная сумма вывода биткоина, в сатоши. Мелкие выводы
+  /// съедаются комиссией сети, поэтому порог нужен отдельный.
+  btcMinPayoutSats        Int      @default(50000)
+  /// Границы удерживаемой комиссии за вывод, в сатоши: оценка сети
+  /// зажимается между ними, чтобы всплеск в мемпуле не сделал вывод
+  /// разорительным, а провал — убыточным для площадки.
+  btcPayoutFeeMinSats     Int      @default(500)
+  btcPayoutFeeMaxSats     Int      @default(30000)
+  /// За сколько блоков транзакция должна попасть в цепочку.
+  btcPayoutFeeBlockTarget Int      @default(6)
+  /// Расчётный размер транзакции вывода, vB. Точный размер известен
+  /// только при подписи, поэтому берётся типовой (2 входа, 2 выхода).
+  btcPayoutTxVsize        Int      @default(200)
+  /// Сколько минут действует показанная продавцу котировка.
+  btcPayoutQuoteMinutes   Int      @default(15)
   maxFileSize             Int      @default(500)
   notifyNewUser           Boolean  @default(true)
   notifyNewProduct        Boolean  @default(true)

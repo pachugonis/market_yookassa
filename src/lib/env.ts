@@ -7,7 +7,10 @@
  * поэтому плейсхолдеры и короткие значения в продакшене недопустимы.
  */
 
-import { configuredProviderIds } from "@/lib/payments/config"
+import {
+  configuredProviderIds,
+  isBTCPayConfigured,
+} from "@/lib/payments/config"
 
 const PLACEHOLDER_SECRETS = new Set([
   "your-super-secret-key-change-in-production",
@@ -47,7 +50,16 @@ export function assertSecureEnv() {
   // настроен — иначе оплатить на площадке нечем.
   if (configuredProviderIds().length === 0) {
     problems.push(
-      "не настроен ни один платёжный сервис: задайте YOOKASSA_SHOP_ID / YOOKASSA_SECRET_KEY либо CLOUDPAYMENTS_PUBLIC_ID / CLOUDPAYMENTS_API_SECRET"
+      "не настроен ни один платёжный сервис: задайте YOOKASSA_SHOP_ID / YOOKASSA_SECRET_KEY, CLOUDPAYMENTS_PUBLIC_ID / CLOUDPAYMENTS_API_SECRET либо BTCPAY_URL / BTCPAY_API_KEY / BTCPAY_STORE_ID"
+    )
+  }
+
+  // Без секрета вебхука BTCPay мы не отличим его уведомление от чужого
+  // запроса и будем отклонять все — оплата зависнет в PENDING до
+  // опроса статуса.
+  if (isBTCPayConfigured() && !process.env.BTCPAY_WEBHOOK_SECRET) {
+    problems.push(
+      "BTCPAY_WEBHOOK_SECRET не задан: уведомления BTCPay проверить нечем"
     )
   }
 
