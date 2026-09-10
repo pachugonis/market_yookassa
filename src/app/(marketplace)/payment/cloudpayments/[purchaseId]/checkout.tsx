@@ -11,6 +11,7 @@ import {
   CLOUDPAYMENTS_WIDGET_SRC,
   type CloudPaymentsIntent,
 } from "@/lib/cloudpayments-widget"
+import { DISPUTE_WINDOW_HOURS } from "@/lib/dispute-window"
 
 /**
  * Запуск платёжного виджета CloudPayments.
@@ -29,12 +30,15 @@ export function CloudPaymentsCheckout({
   productId,
   amount,
   successUrl,
+  instantCapture,
 }: {
   intent: CloudPaymentsIntent
   productTitle: string
   productId: string
   amount: number
   successUrl: string
+  /** Списание идёт сразу после оплаты, без подтверждения приёма. */
+  instantCapture: boolean
 }) {
   const router = useRouter()
   const [stage, setStage] = useState<Stage>("loading")
@@ -132,9 +136,13 @@ export function CloudPaymentsCheckout({
                 </h1>
                 <p className="text-muted-foreground mb-6">
                   {error ??
-                    `«${productTitle}» — ${amount.toLocaleString("ru-RU")} ₽. Деньги
-                     будут заморожены на карте и уйдут продавцу только после того,
-                     как вы подтвердите получение товара.`}
+                    (instantCapture
+                      ? `«${productTitle}» — ${amount.toLocaleString("ru-RU")} ₽. Товар
+                         откроется сразу после оплаты, а на спор останется
+                         ${DISPUTE_WINDOW_HOURS} часа.`
+                      : `«${productTitle}» — ${amount.toLocaleString("ru-RU")} ₽. Деньги
+                         будут заморожены на карте и уйдут продавцу только после того,
+                         как вы подтвердите получение товара.`)}
                 </p>
                 <div className="space-y-3">
                   <Button className="w-full" size="lg" onClick={startPayment}>

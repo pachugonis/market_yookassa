@@ -100,6 +100,14 @@ export async function POST(request: NextRequest) {
       ? null
       : splitAccountFor(provider, product.seller)
 
+    // В режиме одного продавца деньги списываются сразу: продавец здесь
+    // и есть площадка, ждать от покупателя подтверждения приёма незачем.
+    // Защитой остаётся спор — его можно открыть в течение суток
+    // (`DISPUTE_WINDOW_HOURS`), а возврат делает та же площадка со
+    // своего счёта. Там, где продавцы приходят со стороны и сделка
+    // сплитуется, схема прежняя: холд до подтверждения приёма.
+    const instantCapture = Boolean(settings?.singleVendorMode)
+
     // Create pending purchase
     const purchase = await prisma.purchase.create({
       data: {
@@ -111,13 +119,15 @@ export async function POST(request: NextRequest) {
         status: "PENDING",
         paymentProvider: provider,
         splitAccountId,
+        instantCapture,
       },
     })
 
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"
 
     // Шаг 1 сделки: деньги только замораживаются на карте покупателя.
-    // Списание произойдёт после подтверждения приёма.
+    // Списание произойдёт после подтверждения приёма — а при
+    // `instantCapture` сразу же, как провайдер сообщит о заморозке.
     const hold = await getGateway(provider).createHold({
       purchaseId: purchase.id,
       productId: product.id,

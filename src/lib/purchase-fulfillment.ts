@@ -14,6 +14,12 @@ import type { ProviderPayment, SettlementAsset } from "@/lib/payments/types"
  *   3. Покупатель подтверждает приём → списание со сплитованием:
  *      выручка уходит на счёт продавца, комиссия остаётся площадке.
  *
+ * У сделок с `instantCapture` (режим одного продавца) шага 3 нет:
+ * списание идёт следом за шагом 2, тем же кодом и с теми же замками.
+ * Ждать подтверждения не от кого — продавец и площадка совпадают, а
+ * защитой покупателя остаётся спор в течение суток после списания
+ * (`src/lib/dispute-window.ts`).
+ *
  * Как именно провайдер это делает, знает только его шлюз
  * (`src/lib/payments`): ЮKassa разводит деньги внутри capture через
  * transfers, CloudPayments — отдельной выплатой из накопления
@@ -85,11 +91,18 @@ function readPositiveNumber(raw: string | undefined, fallback: number): number {
 /**
  * Момент автоподтверждения: либо через AUTO_CONFIRM_DAYS, либо раньше —
  * если холд истекает быстрее.
+ *
+ * При мгновенном списании ждать нечего: срок наступает сразу, и
+ * фоновая задача добьёт сделку, если списать по горячим следам не
+ * вышло (провайдер ответил ошибкой, упал процесс).
  */
 export function calculateAutoConfirmAt(
   heldAt: Date,
-  holdExpiresAt: Date | null
+  holdExpiresAt: Date | null,
+  instantCapture: boolean = false
 ): Date {
+  if (instantCapture) return heldAt
+
   const byPolicy = new Date(
     heldAt.getTime() + AUTO_CONFIRM_DAYS * 24 * 60 * 60 * 1000
   )
@@ -103,7 +116,8 @@ export function calculateAutoConfirmAt(
 /**
  * Шаг 1→2: средства заморожены. Покупка переходит в HELD, покупатель
  * получает товар. Деньги продавцу здесь НЕ начисляются — только после
- * подтверждения приёма.
+ * подтверждения приёма (а при `instantCapture` — сразу следом,
+ * отдельным шагом в `syncPurchaseWithPayment`).
  */
 export async function holdPurchase(
   purchaseId: string,
@@ -152,7 +166,11 @@ export async function holdPurchase(
           downloadExpiresAt,
           heldAt,
           holdExpiresAt: expiresAt,
-          autoConfirmAt: calculateAutoConfirmAt(heldAt, expiresAt),
+          autoConfirmAt: calculateAutoConfirmAt(
+            heldAt,
+            expiresAt,
+            purchase.instantCapture
+          ),
           ...(accumulationId ? { escrowAccumulationId: accumulationId } : {}),
           ...(amountSats ? { cryptoAmountSats: amountSats } : {}),
           ...(rateRub ? { cryptoRateRub: rateRub } : {}),
@@ -239,7 +257,7 @@ export async function settlePurchase(
   {
     amount,
     confirmedBy,
-  }: { amount?: number; confirmedBy: "BUYER" | "AUTO" | "DISPUTE" }
+  }: { amount?: number; confirmedBy: "BUYER" | "AUTO" | "DISPUTE" | "INSTANT" }
 ): Promise<SettleOutcome> {
   const purchase = await prisma.purchase.findUnique({
     where: { id: purchaseId },
@@ -349,6 +367,34 @@ export async function settlePurchase(
   })
 
   return { result: "settled", capturedAmount: captureAmount }
+}
+
+/**
+ * Списание сразу после заморозки — для сделок с `instantCapture`.
+ *
+ * Возвращает списанную сумму либо `null`, если списать не удалось.
+ * Ошибку наружу не выпускаем: товар покупателю уже выдан, уведомление
+ * провайдера должно быть принято, а неудавшееся списание подберёт
+ * фоновая задача — `autoConfirmAt` у такой покупки наступает сразу.
+ */
+async function settleWithoutConfirmation(
+  purchaseId: string
+): Promise<number | null> {
+  try {
+    const outcome = await settlePurchase(purchaseId, { confirmedBy: "INSTANT" })
+
+    if (outcome.result === "settled") return outcome.capturedAmount
+    if (outcome.result === "already_settled") return null
+
+    console.error(
+      `Instant capture failed for purchase ${purchaseId}:`,
+      outcome.result
+    )
+  } catch (error) {
+    console.error(`Instant capture failed for purchase ${purchaseId}:`, error)
+  }
+
+  return null
 }
 
 /**
@@ -491,6 +537,14 @@ export async function syncPurchaseWithPayment(
     })
 
     if (outcome.result === "held") {
+      // Мгновенное списание: подтверждать приём некому, и деньги уходят
+      // тем же путём, каким их увела бы кнопка покупателя.
+      if (purchase.instantCapture) {
+        const capturedAmount = await settleWithoutConfirmation(purchase.id)
+
+        if (capturedAmount !== null) return { result: "settled", capturedAmount }
+      }
+
       return { result: "held", downloadToken: outcome.downloadToken }
     }
     if (outcome.result === "no_license_keys") {

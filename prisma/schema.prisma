@@ -248,7 +248,8 @@ model Purchase {
   autoConfirmAt     DateTime?
   /// Момент подтверждения приёма товара.
   confirmedAt       DateTime?
-  /// Кто подтвердил: BUYER | AUTO | DISPUTE.
+  /// Кто подтвердил: BUYER | AUTO | DISPUTE | INSTANT (списание без
+  /// подтверждения, см. `instantCapture`).
   confirmedBy       String?
   /// Замок на время обращения к API провайдера: не даёт двум запросам
   /// одновременно подтвердить один платёж.
@@ -283,6 +284,12 @@ model Purchase {
   cryptoCommissionSats Int?
   /// Сколько сатоши записано к возврату покупателю.
   cryptoRefundedSats   Int  @default(0)
+
+  /// Списывать деньги сразу, не дожидаясь подтверждения приёма товара.
+  /// Включается режимом одного продавца и запоминается в самой сделке:
+  /// переключатель в админке не должен менять правила уже начатых
+  /// покупок — по той же причине, что и `splitAccountId`.
+  instantCapture    Boolean        @default(false)
 
   buyerId           String
   buyer             User           @relation(fields: [buyerId], references: [id], onDelete: Cascade)

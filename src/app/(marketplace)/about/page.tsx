@@ -2,6 +2,8 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { Shield, Zap, Wallet, Users } from "lucide-react"
 import { absoluteUrl, SITE_NAME } from "@/lib/seo"
+import { isSingleVendorMode } from "@/lib/platform-mode"
+import { DISPUTE_WINDOW_HOURS } from "@/lib/dispute-window"
 
 export const metadata: Metadata = {
   title: "О нас",
@@ -9,11 +11,18 @@ export const metadata: Metadata = {
   alternates: { canonical: absoluteUrl("/about") },
 }
 
-const features = [
+/**
+ * Обещание про деньги зависит от режима площадки, поэтому собирается
+ * на сервере: в режиме одного продавца холда нет, и рассказывать про
+ * него было бы неправдой.
+ */
+const featuresFor = (instantCapture: boolean) => [
   {
     icon: Shield,
     title: "Безопасная сделка",
-    text: "Оплата проходит через ЮKassa или CloudPayments. Деньги холдируются и уходят продавцу только после того, как покупатель получил товар — до этого момента их можно вернуть.",
+    text: instantCapture
+      ? `Оплата проходит через ЮKassa или CloudPayments. Если товар не соответствует описанию, в течение ${DISPUTE_WINDOW_HOURS} часов после покупки можно открыть спор и вернуть деньги.`
+      : "Оплата проходит через ЮKassa или CloudPayments. Деньги холдируются и уходят продавцу только после того, как покупатель получил товар — до этого момента их можно вернуть.",
   },
   {
     icon: Zap,
@@ -32,7 +41,9 @@ const features = [
   },
 ]
 
-export default function AboutPage() {
+export default async function AboutPage() {
+  const features = featuresFor(await isSingleVendorMode())
+
   return (
     <div className="container mx-auto px-4 py-12 max-w-4xl">
       <h1 className="text-3xl md:text-4xl font-bold mb-4">О площадке {SITE_NAME}</h1>

@@ -8,6 +8,7 @@ import { motion } from "framer-motion"
 import { CheckCircle, XCircle, Loader2, Download, ArrowRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { DISPUTE_WINDOW_HOURS } from "@/lib/dispute-window"
 
 function PaymentSuccessContent() {
   const searchParams = useSearchParams()
@@ -15,6 +16,7 @@ function PaymentSuccessContent() {
   const purchaseId = searchParams.get("purchaseId")
   const [status, setStatus] = useState<"loading" | "success" | "failed">("loading")
   const [held, setHeld] = useState(false)
+  const [instantCapture, setInstantCapture] = useState(false)
   const [product, setProduct] = useState<{ title: string; coverImage: string | null } | null>(null)
   const [provider, setProvider] = useState<string | null>(null)
 
@@ -32,6 +34,7 @@ function PaymentSuccessContent() {
         if (data.success) {
           setProduct(data.data.product)
           setProvider(data.data.paymentProvider ?? null)
+          setInstantCapture(Boolean(data.data.instantCapture))
           // HELD — нормальный успешный исход двухэтапной оплаты:
           // деньги заморожены, товар выдан, ждём подтверждения приёма.
           if (data.data.status === "HELD" || data.data.status === "COMPLETED") {
@@ -88,24 +91,37 @@ function PaymentSuccessContent() {
                     <CheckCircle className="h-8 w-8 text-green-600" />
                   </motion.div>
                   <h1 className="text-2xl font-bold mb-2">
-                    {held ? "Средства зарезервированы" : "Оплата прошла успешно!"}
+                    {held && !instantCapture
+                      ? "Средства зарезервированы"
+                      : "Оплата прошла успешно!"}
                   </h1>
                   <p className="text-muted-foreground mb-6">
                     {product?.title && `Товар "${product.title}" добавлен в вашу библиотеку.`}
-                    {held && (
+                    {instantCapture ? (
+                      // Подтверждать приём не нужно: деньги уже списаны,
+                      // и защитой остаётся срок на спор.
+                      <>
+                        {" "}
+                        Деньги списаны. Если товар не тот — в течение{" "}
+                        {DISPUTE_WINDOW_HOURS} часов можно открыть спор в разделе
+                        «Мои покупки».
+                      </>
+                    ) : held ? (
                       <>
                         {" "}
                         {provider === "BTCPAY"
                           ? "Оплата принята площадкой: продавец получит её только после того, как вы подтвердите получение товара."
                           : "Деньги удерживаются на вашей карте: они уйдут продавцу только после того, как вы подтвердите получение товара."}
                       </>
-                    )}
+                    ) : null}
                   </p>
                   <div className="space-y-3">
                     <Link href="/library">
                       <Button className="w-full" size="lg">
                         <Download className="h-5 w-5 mr-2" />
-                        {held ? "Скачать и подтвердить" : "Перейти к загрузке"}
+                        {held && !instantCapture
+                          ? "Скачать и подтвердить"
+                          : "Перейти к загрузке"}
                       </Button>
                     </Link>
                     <Link href="/products">

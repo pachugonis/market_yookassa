@@ -87,6 +87,7 @@ export async function GET(request: NextRequest) {
         holdExpiresAt: true,
         autoConfirmAt: true,
         confirmedAt: true,
+        instantCapture: true,
       },
     })
 
@@ -102,6 +103,9 @@ export async function GET(request: NextRequest) {
         holdExpiresAt: fresh?.holdExpiresAt ?? null,
         autoConfirmAt: fresh?.autoConfirmAt ?? null,
         confirmedAt: fresh?.confirmedAt ?? null,
+        // Списано сразу — значит, покупателю нужно рассказать не про
+        // подтверждение приёма, а про срок, пока можно открыть спор.
+        instantCapture: fresh?.instantCapture ?? purchase.instantCapture,
       },
     })
   } catch (error) {

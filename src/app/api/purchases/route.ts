@@ -29,6 +29,9 @@ export async function GET() {
         holdExpiresAt: true,
         autoConfirmAt: true,
         confirmedAt: true,
+        // Сделку с мгновенным списанием покупатель не подтверждает:
+        // библиотеке нужно знать, что показывать вместо кнопки.
+        instantCapture: true,
         capturedAmount: true,
         refundedAmount: true,
         product: {

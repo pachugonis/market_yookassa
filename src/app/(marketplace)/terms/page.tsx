@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import { prisma } from "@/lib/prisma"
 import { absoluteUrl, SITE_NAME } from "@/lib/seo"
+import { DISPUTE_WINDOW_HOURS } from "@/lib/dispute-window"
 
 export const metadata: Metadata = {
   title: "Условия использования",
@@ -10,11 +11,14 @@ export const metadata: Metadata = {
 
 export default async function TermsPage() {
   const settings = await prisma.platformSettings.findFirst({
-    select: { commissionRate: true, supportEmail: true },
+    select: { commissionRate: true, supportEmail: true, singleVendorMode: true },
   })
 
   const commission = settings?.commissionRate ?? 10
   const supportEmail = settings?.supportEmail ?? "support@example.com"
+  // Порядок расчётов у режимов разный, и условия должны описывать тот,
+  // по которому площадка действительно работает.
+  const instantCapture = settings?.singleVendorMode ?? false
 
   return (
     <div className="container mx-auto px-4 py-12 max-w-3xl">
@@ -47,8 +51,11 @@ export default async function TermsPage() {
           <h2 className="text-xl font-semibold text-foreground mb-3">3. Покупка товаров</h2>
           <p>
             Оплата проводится через платёжные сервисы ЮKassa и CloudPayments — способ покупатель
-            выбирает при оформлении заказа. Средства холдируются и перечисляются
-            продавцу после подтверждения сделки. После оплаты покупатель получает доступ к файлу
+            выбирает при оформлении заказа.{" "}
+            {instantCapture
+              ? `Средства списываются сразу после оплаты; в течение ${DISPUTE_WINDOW_HOURS} часов покупатель вправе открыть спор.`
+              : "Средства холдируются и перечисляются продавцу после подтверждения сделки."}{" "}
+            После оплаты покупатель получает доступ к файлу
             или лицензионному ключу в разделе «Мои покупки». Доступ к купленному товару сохраняется
             за покупателем бессрочно, пока действует Площадка.
           </p>

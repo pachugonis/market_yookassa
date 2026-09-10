@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
+import { DISPUTE_WINDOW_HOURS, isDisputeWindowOpen } from "@/lib/dispute-window"
 
 // GET - List buyer's disputes
 export async function GET() {
@@ -119,20 +120,16 @@ export async function POST(request: Request) {
     }
 
     // Пока деньги в холде, спор открыт для покупателя всегда: сделка
-    // ещё не завершена. После подтверждения — 24 часа на обращение.
-    if (purchase.status === "COMPLETED") {
-      const since = purchase.confirmedAt ?? purchase.createdAt
-      const hoursSinceConfirm = (Date.now() - since.getTime()) / (1000 * 60 * 60)
-
-      if (hoursSinceConfirm > 24) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: "Спор можно открыть только в течение 24 часов после подтверждения сделки",
-          },
-          { status: 400 }
-        )
-      }
+    // ещё не завершена. После списания — сутки на обращение. При
+    // мгновенном списании это окно и есть вся защита покупателя.
+    if (purchase.status === "COMPLETED" && !isDisputeWindowOpen(purchase)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Спор можно открыть только в течение ${DISPUTE_WINDOW_HOURS} часов после списания средств`,
+        },
+        { status: 400 }
+      )
     }
 
     // Check if review exists (if review exists, deal is closed)

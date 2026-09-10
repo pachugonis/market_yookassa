@@ -54,13 +54,15 @@ export default async function CloudPaymentsCheckoutPage({
       productId={purchase.product.id}
       amount={purchase.amount}
       successUrl={successUrl}
+      instantCapture={purchase.instantCapture}
       intent={{
         publicTerminalId: paymentPublicId(),
         amount: purchase.amount,
         currency: "RUB",
         culture: "ru-RU",
         // Двухстадийная схема: деньги замораживаются, списание —
-        // после подтверждения приёма товара.
+        // после подтверждения приёма товара. При мгновенном списании
+        // схема та же: подтверждение просто идёт сразу за заморозкой.
         paymentSchema: "Dual",
         description: `Покупка: ${purchase.product.title}`,
         // Приходит в уведомлениях как InvoiceId и связывает транзакцию

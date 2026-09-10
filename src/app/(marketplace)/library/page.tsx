@@ -9,7 +9,12 @@ import { Download, Package, Calendar, FileDown, Loader2, Key, Copy, Check, Messa
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { formatPrice, formatDate } from "@/lib/utils"
+import { formatPrice, formatDate, formatDateTime } from "@/lib/utils"
+import {
+  DISPUTE_WINDOW_HOURS,
+  disputeWindowEndsAt,
+  isDisputeWindowOpen,
+} from "@/lib/dispute-window"
 
 interface Purchase {
   id: string
@@ -22,6 +27,8 @@ interface Purchase {
   holdExpiresAt: string | null
   autoConfirmAt: string | null
   confirmedAt: string | null
+  /** Деньги списаны сразу: подтверждать приём покупателю не нужно. */
+  instantCapture: boolean
   product: {
     id: string
     title: string
@@ -147,9 +154,7 @@ export default function LibraryPage() {
     if (purchase.status === "HELD") return true
     if (purchase.status !== "COMPLETED") return false
 
-    const since = purchase.confirmedAt ?? purchase.createdAt
-    const hoursSinceConfirm = (Date.now() - new Date(since).getTime()) / (1000 * 60 * 60)
-    return hoursSinceConfirm <= 24
+    return isDisputeWindowOpen(purchase)
   }
 
   /**
@@ -334,37 +339,74 @@ export default function LibraryPage() {
                             <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
                               <div className="flex items-start gap-2">
                                 <ShieldCheck className="h-5 w-5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+                                {purchase.instantCapture ? (
+                                  // Списание идёт само: подтверждать приём
+                                  // покупателю здесь не нужно.
+                                  <div className="text-sm">
+                                    <p className="font-medium text-blue-900 dark:text-blue-100">
+                                      Оплата обрабатывается
+                                    </p>
+                                    <p className="text-blue-700 dark:text-blue-300 mt-0.5">
+                                      Товар уже ваш, деньги спишутся автоматически —
+                                      делать ничего не нужно.
+                                    </p>
+                                  </div>
+                                ) : (
+                                  <div className="text-sm">
+                                    <p className="font-medium text-blue-900 dark:text-blue-100">
+                                      Деньги зарезервированы на вашей карте
+                                    </p>
+                                    <p className="text-blue-700 dark:text-blue-300 mt-0.5">
+                                      Проверьте товар и подтвердите получение — только после
+                                      этого оплата уйдёт продавцу.
+                                      {purchase.autoConfirmAt && (
+                                        <>
+                                          {" "}Если ничего не сделать, сделка подтвердится
+                                          автоматически {formatDate(new Date(purchase.autoConfirmAt))}.
+                                        </>
+                                      )}
+                                    </p>
+                                    <Button
+                                      className="mt-3"
+                                      onClick={() => handleConfirmReceipt(purchase.id)}
+                                      disabled={confirmingId === purchase.id}
+                                    >
+                                      {confirmingId === purchase.id ? (
+                                        <>
+                                          <Loader2 className="h-4 w-4 animate-spin" />
+                                          Подтверждаем...
+                                        </>
+                                      ) : (
+                                        <>
+                                          <ShieldCheck className="h-4 w-4" />
+                                          Подтвердить получение
+                                        </>
+                                      )}
+                                    </Button>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Списано сразу: защита покупателя — срок на спор */}
+                          {purchase.status === "COMPLETED" &&
+                            purchase.instantCapture &&
+                            !purchase.dispute &&
+                            isDisputeWindowOpen(purchase) && (
+                            <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                              <div className="flex items-start gap-2">
+                                <ShieldCheck className="h-5 w-5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
                                 <div className="text-sm">
                                   <p className="font-medium text-blue-900 dark:text-blue-100">
-                                    Деньги зарезервированы на вашей карте
+                                    Оплата прошла, деньги списаны
                                   </p>
                                   <p className="text-blue-700 dark:text-blue-300 mt-0.5">
-                                    Проверьте товар и подтвердите получение — только после
-                                    этого оплата уйдёт продавцу.
-                                    {purchase.autoConfirmAt && (
-                                      <>
-                                        {" "}Если ничего не сделать, сделка подтвердится
-                                        автоматически {formatDate(new Date(purchase.autoConfirmAt))}.
-                                      </>
-                                    )}
+                                    Проверьте товар: если что-то не так, спор можно
+                                    открыть до{" "}
+                                    {formatDateTime(disputeWindowEndsAt(purchase))} —{" "}
+                                    {DISPUTE_WINDOW_HOURS} часа с момента покупки.
                                   </p>
-                                  <Button
-                                    className="mt-3"
-                                    onClick={() => handleConfirmReceipt(purchase.id)}
-                                    disabled={confirmingId === purchase.id}
-                                  >
-                                    {confirmingId === purchase.id ? (
-                                      <>
-                                        <Loader2 className="h-4 w-4 animate-spin" />
-                                        Подтверждаем...
-                                      </>
-                                    ) : (
-                                      <>
-                                        <ShieldCheck className="h-4 w-4" />
-                                        Подтвердить получение
-                                      </>
-                                    )}
-                                  </Button>
                                 </div>
                               </div>
                             </div>

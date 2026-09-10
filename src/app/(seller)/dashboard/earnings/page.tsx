@@ -170,8 +170,8 @@ export default function EarningsPage() {
               <p className="text-4xl font-bold">{formatPrice(stats?.balance || 0)}</p>
               {(stats?.heldCount || 0) > 0 && (
                 <p className="text-sm text-white/80 mt-2">
-                  Ещё {formatPrice(stats?.heldEarnings || 0)} ждут подтверждения
-                  покупателями ({stats?.heldCount})
+                  Ещё {formatPrice(stats?.heldEarnings || 0)} по незавершённым
+                  сделкам ({stats?.heldCount})
                 </p>
               )}
             </CardContent>
@@ -310,8 +310,8 @@ export default function EarningsPage() {
                 {(stats?.heldSatsCount || 0) > 0 && (
                   <>
                     {" "}
-                    Ещё {formatBtc(stats?.heldSats || 0)} ждут подтверждения
-                    покупателями ({stats?.heldSatsCount}).
+                    Ещё {formatBtc(stats?.heldSats || 0)} по незавершённым
+                    сделкам ({stats?.heldSatsCount}).
                   </>
                 )}
               </CardDescription>
@@ -348,8 +348,8 @@ export default function EarningsPage() {
                 Минимальная сумма для вывода: {(minPayoutAmount / 100).toLocaleString('ru-RU')} ₽
               </p>
               <p className="text-xs text-muted-foreground mt-2">
-                Средства становятся доступны после того, как покупатель
-                подтвердит получение товара
+                Средства становятся доступны через сутки после сделки, если
+                по ней не открыт спор
               </p>
             </div>
 
@@ -397,7 +397,7 @@ export default function EarningsPage() {
                 <div>
                   <p className="font-medium">Ваш доход</p>
                   <p className="text-sm text-muted-foreground">
-                    Перечисляется после подтверждения сделки покупателем
+                    Перечисляется после завершения сделки
                   </p>
                 </div>
               </div>

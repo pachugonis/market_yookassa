@@ -38,6 +38,16 @@ export function formatDate(date: Date): string {
   }).format(date)
 }
 
+/** Дата вместе со временем: 5 мая, 14:30. Нужна там, где срок — часы. */
+export function formatDateTime(date: Date): string {
+  return new Intl.DateTimeFormat('ru-RU', {
+    day: 'numeric',
+    month: 'long',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date)
+}
+
 export function generateDownloadToken(): string {
   return crypto.randomUUID()
 }
