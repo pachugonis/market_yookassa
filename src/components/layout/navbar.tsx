@@ -28,7 +28,11 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
-export function Navbar() {
+/**
+ * Витрину продавцов передаёт layout, а не запрос из браузера: иначе
+ * пункт «Магазины» на мгновение мигал бы при каждой загрузке страницы.
+ */
+export function Navbar({ storesPageEnabled = true }: { storesPageEnabled?: boolean }) {
   const { data: session } = useSession()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
@@ -88,10 +92,12 @@ export function Navbar() {
             <Link href="/products">
               <Button variant="ghost">Каталог</Button>
             </Link>
-            <Link href="/stores">
-              <Button variant="ghost">Магазины</Button>
-            </Link>
-            
+            {storesPageEnabled && (
+              <Link href="/stores">
+                <Button variant="ghost">Магазины</Button>
+              </Link>
+            )}
+
             {session ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -201,10 +207,12 @@ export function Navbar() {
               <Link href="/products" onClick={() => setIsMenuOpen(false)}>
                 <Button variant="ghost" className="w-full justify-start">Каталог</Button>
               </Link>
-              <Link href="/stores" onClick={() => setIsMenuOpen(false)}>
-                <Button variant="ghost" className="w-full justify-start">Магазины</Button>
-              </Link>
-              
+              {storesPageEnabled && (
+                <Link href="/stores" onClick={() => setIsMenuOpen(false)}>
+                  <Button variant="ghost" className="w-full justify-start">Магазины</Button>
+                </Link>
+              )}
+
               {session ? (
                 <>
                   {/* User info with avatar */}

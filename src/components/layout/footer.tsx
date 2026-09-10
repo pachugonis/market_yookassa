@@ -22,7 +22,7 @@ export function Footer() {
   return (
     <footer className="border-t bg-secondary/30">
       <div className="container mx-auto px-4 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {/* Logo & Description */}
           <div className="space-y-4">
             <Link href="/" className="flex items-center gap-2 font-bold text-xl text-primary">
@@ -43,16 +43,6 @@ export function Footer() {
               <li><Link href="/category/music" className="hover:text-primary transition-colors">Музыка</Link></li>
               <li><Link href="/category/graphics" className="hover:text-primary transition-colors">Графика</Link></li>
               <li><Link href="/category/ebooks" className="hover:text-primary transition-colors">Электронные книги</Link></li>
-            </ul>
-          </div>
-
-          {/* Продавцам */}
-          <div>
-            <h3 className="font-semibold mb-4">Продавцам</h3>
-            <ul className="space-y-2 text-sm text-muted-foreground">
-              <li><Link href="/register" className="hover:text-primary transition-colors">Стать продавцом</Link></li>
-              <li><Link href="/dashboard" className="hover:text-primary transition-colors">Панель управления</Link></li>
-              <li><span>Комиссия: 10%</span></li>
             </ul>
           </div>
 

@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next"
+import { isStoresPageEnabled } from "@/lib/platform-mode"
 import { prisma } from "@/lib/prisma"
 import { absoluteUrl } from "@/lib/seo"
 
@@ -11,7 +12,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const staticEntries: MetadataRoute.Sitemap = [
     { url: absoluteUrl("/"), changeFrequency: "daily", priority: 1 },
     { url: absoluteUrl("/products"), changeFrequency: "daily", priority: 0.9 },
-    { url: absoluteUrl("/stores"), changeFrequency: "weekly", priority: 0.7 },
+    // Витрина продавцов живёт не здесь: её адрес попадает в карту только
+    // при включённой в админке странице — см. ниже.
     { url: absoluteUrl("/about"), changeFrequency: "monthly", priority: 0.4 },
     { url: absoluteUrl("/terms"), changeFrequency: "yearly", priority: 0.3 },
     { url: absoluteUrl("/privacy"), changeFrequency: "yearly", priority: 0.3 },
@@ -19,7 +21,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ]
 
   try {
-    const [categories, products] = await Promise.all([
+    const [storesEnabled, categories, products] = await Promise.all([
+      isStoresPageEnabled(),
       prisma.category.findMany({ select: { slug: true } }),
       prisma.product.findMany({
         where: { status: "ACTIVE" },
@@ -32,6 +35,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
     return [
       ...staticEntries,
+      ...(storesEnabled
+        ? [
+            {
+              url: absoluteUrl("/stores"),
+              changeFrequency: "weekly" as const,
+              priority: 0.7,
+            },
+          ]
+        : []),
       ...categories.map((category) => ({
         url: absoluteUrl(`/category/${category.slug}`),
         changeFrequency: "daily" as const,

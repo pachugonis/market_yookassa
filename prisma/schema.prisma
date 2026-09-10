@@ -473,6 +473,11 @@ model PlatformSettings {
   /// приходят на счёт площадки — сплитование не применяется, даже если
   /// у продавца сохранились реквизиты у провайдера.
   singleVendorMode        Boolean  @default(false)
+  /// Витрина продавцов /stores: страница и пункт меню. Выключатель
+  /// отдельный от `singleVendorMode`, потому что случаи не совпадают:
+  /// список магазинов убирают и на площадке с несколькими продавцами,
+  /// когда покупателя ведут по каталогу, а не по витринам.
+  storesPageEnabled       Boolean  @default(true)
   maintenanceMode         Boolean  @default(false)
   maintenanceMessage      String   @default("Сайт временно недоступен. Ведутся технические работы.")
   smtpHost                String?

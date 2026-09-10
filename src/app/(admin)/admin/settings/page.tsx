@@ -93,6 +93,7 @@ export default function SettingsPage() {
           maxLoginAttempts: data.data.maxLoginAttempts ?? 5,
         })
         setSingleVendorMode(data.data.singleVendorMode ?? false)
+        setStoresPageEnabled(data.data.storesPageEnabled ?? true)
         setMaintenanceSettings({
           maintenanceMode: data.data.maintenanceMode ?? false,
           maintenanceMessage: data.data.maintenanceMessage ?? "Сайт временно недоступен. Ведутся технические работы.",
@@ -173,6 +174,51 @@ export default function SettingsPage() {
       }
     } catch {
       setSingleVendorMode(!enabled)
+      toast({
+        title: "Ошибка",
+        description: "Не удалось сохранить настройки",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // Витрина продавцов
+  const [storesPageEnabled, setStoresPageEnabled] = useState(true)
+
+  const handleSaveStoresPageEnabled = async (enabled: boolean) => {
+    setIsLoading(true)
+    // Как и у режима одного продавца: положение переключателя меняем
+    // сразу, при ошибке возвращаем обратно.
+    setStoresPageEnabled(enabled)
+
+    try {
+      const response = await fetch("/api/admin/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ storesPageEnabled: enabled }),
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        toast({
+          title: "Успех",
+          description: enabled
+            ? "Страница «Магазины» включена"
+            : "Страница «Магазины» выключена",
+        })
+      } else {
+        setStoresPageEnabled(!enabled)
+        toast({
+          title: "Ошибка",
+          description: data.error || "Не удалось сохранить настройки",
+          variant: "destructive",
+        })
+      }
+    } catch {
+      setStoresPageEnabled(!enabled)
       toast({
         title: "Ошибка",
         description: "Не удалось сохранить настройки",
@@ -883,6 +929,41 @@ export default function SettingsPage() {
               checked={singleVendorMode}
               disabled={isLoading}
               onCheckedChange={handleSaveSingleVendorMode}
+            />
+          </div>
+        </div>
+      </Card>
+
+      {/* Stores Page */}
+      <Card className="p-6">
+        <div className="flex items-center gap-2 mb-6">
+          <Store className="h-5 w-5 text-primary" />
+          <h2 className="text-xl font-semibold">Витрина продавцов</h2>
+        </div>
+
+        <div className="space-y-4">
+          <div className="bg-secondary/40 p-4 rounded-lg border border-border">
+            <p className="text-sm text-muted-foreground">
+              Страница <code className="bg-background px-2 py-1 rounded">/stores</code> со
+              списком магазинов. При выключении страница отдаёт 404, пункт
+              «Магазины» пропадает из верхнего меню, а адрес — из sitemap.
+              Товары продавцов остаются в каталоге и открываются как обычно.
+            </p>
+          </div>
+
+          <div className="flex items-center justify-between py-3">
+            <div>
+              <p className="font-medium">Показывать страницу «Магазины»</p>
+              <p className="text-sm text-muted-foreground">
+                {storesPageEnabled
+                  ? "Витрина продавцов открыта, ссылка есть в меню"
+                  : "Витрина продавцов скрыта, ссылки в меню нет"}
+              </p>
+            </div>
+            <Switch
+              checked={storesPageEnabled}
+              disabled={isLoading}
+              onCheckedChange={handleSaveStoresPageEnabled}
             />
           </div>
         </div>

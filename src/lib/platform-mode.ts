@@ -20,3 +20,21 @@ export async function isSingleVendorMode(): Promise<boolean> {
 
   return settings?.singleVendorMode ?? false
 }
+
+/**
+ * Показывать ли витрину продавцов `/stores`.
+ *
+ * Выключенная витрина означает и отсутствие страницы (404), и
+ * отсутствие пункта в меню, и отсутствие адреса в sitemap: ссылка,
+ * ведущая на 404, хуже отсутствующей ссылки.
+ *
+ * Пока настроек в базе нет, витрина считается включённой — это
+ * поведение площадки до появления выключателя.
+ */
+export async function isStoresPageEnabled(): Promise<boolean> {
+  const settings = await prisma.platformSettings.findFirst({
+    select: { storesPageEnabled: true },
+  })
+
+  return settings?.storesPageEnabled ?? true
+}

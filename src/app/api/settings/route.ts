@@ -39,6 +39,9 @@ export async function GET() {
         // Наружу отдаём следствие, а не сам режим: остальное устройство
         // площадки посетителя не касается.
         sellerRegistrationEnabled: !settings.singleVendorMode,
+        // Витрина продавцов: клиентским частям интерфейса нужно знать,
+        // рисовать ли ссылку на /stores.
+        storesPageEnabled: settings.storesPageEnabled,
       }
     })
   } catch (error) {
