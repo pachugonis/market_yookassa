@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { configuredGateways, defaultProvider } from "@/lib/payments"
 import { isCardBindingAvailable } from "@/lib/payments/card-binding"
+import { isSingleVendorMode } from "@/lib/platform-mode"
 
 /**
  * Способы оплаты, доступные на площадке. Список зависит от того, ключи
@@ -10,6 +11,10 @@ import { isCardBindingAvailable } from "@/lib/payments/card-binding"
 export const dynamic = "force-dynamic"
 
 export async function GET() {
+  // В режиме одного продавца сплитования нет, а значит карта продавца
+  // никуда не участвует: предлагать её привязку не за чем.
+  const singleVendor = await isSingleVendorMode()
+
   return NextResponse.json({
     success: true,
     data: {
@@ -20,7 +25,7 @@ export async function GET() {
       default: defaultProvider(),
       // Привязка карты для выплат имеет смысл только при подключённом
       // терминале выплат CloudPayments.
-      cardBinding: isCardBindingAvailable(),
+      cardBinding: !singleVendor && isCardBindingAvailable(),
     },
   })
 }

@@ -50,6 +50,16 @@ export async function POST(request: NextRequest) {
     const settings = await prisma.platformSettings.findFirst()
     const requireEmailVerification = settings?.requireEmailVerification ?? false
 
+    // В режиме одного продавца роль SELLER выдаёт только администратор
+    // вручную. Форма её и не показывает, но запрос сюда может прийти
+    // и в обход формы.
+    if (settings?.singleVendorMode && validatedData.role === "SELLER") {
+      return NextResponse.json(
+        { success: false, error: "Регистрация продавцов на площадке закрыта" },
+        { status: 403 }
+      )
+    }
+
     const hashedPassword = await bcrypt.hash(validatedData.password, 12)
 
     // Generate verification token if required

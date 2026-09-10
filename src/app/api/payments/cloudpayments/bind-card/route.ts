@@ -6,6 +6,7 @@ import {
   startCardBinding,
   unbindCard,
 } from "@/lib/payments/card-binding"
+import { isSingleVendorMode } from "@/lib/platform-mode"
 
 /**
  * Привязка и отвязка карты продавца для выплат CloudPayments.
@@ -41,6 +42,19 @@ export async function POST() {
         error: "Выплаты через CloudPayments не подключены на площадке",
       },
       { status: 503 }
+    )
+  }
+
+  // Привязка — это авторизация на карте. Начинать её в режиме, где
+  // сплитования всё равно не будет, значит списать у продавца деньги
+  // ни за чем.
+  if (await isSingleVendorMode()) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Выплаты на карту продавца отключены на площадке",
+      },
+      { status: 403 }
     )
   }
 

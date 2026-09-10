@@ -17,7 +17,8 @@ import {
   Shield,
   Bell,
   Send,
-  Construction
+  Construction,
+  Store
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
@@ -91,6 +92,7 @@ export default function SettingsPage() {
           sessionTimeout: data.data.sessionTimeout ?? 24,
           maxLoginAttempts: data.data.maxLoginAttempts ?? 5,
         })
+        setSingleVendorMode(data.data.singleVendorMode ?? false)
         setMaintenanceSettings({
           maintenanceMode: data.data.maintenanceMode ?? false,
           maintenanceMessage: data.data.maintenanceMessage ?? "Сайт временно недоступен. Ведутся технические работы.",
@@ -135,6 +137,51 @@ export default function SettingsPage() {
     maintenanceMode: false,
     maintenanceMessage: "Сайт временно недоступен. Ведутся технические работы.",
   })
+
+  // Режим одного продавца
+  const [singleVendorMode, setSingleVendorMode] = useState(false)
+
+  const handleSaveSingleVendorMode = async (enabled: boolean) => {
+    setIsLoading(true)
+    // Показываем новое положение сразу: переключатель без отклика
+    // выглядит сломанным. При ошибке вернём как было.
+    setSingleVendorMode(enabled)
+
+    try {
+      const response = await fetch("/api/admin/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ singleVendorMode: enabled }),
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        toast({
+          title: "Успех",
+          description: enabled
+            ? "Режим одного продавца включён"
+            : "Режим одного продавца выключен",
+        })
+      } else {
+        setSingleVendorMode(!enabled)
+        toast({
+          title: "Ошибка",
+          description: data.error || "Не удалось сохранить настройки",
+          variant: "destructive",
+        })
+      }
+    } catch {
+      setSingleVendorMode(!enabled)
+      toast({
+        title: "Ошибка",
+        description: "Не удалось сохранить настройки",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   const handleSavePlatformSettings = async () => {
     setIsLoading(true)
@@ -791,6 +838,52 @@ export default function SettingsPage() {
               {isLoading ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
               Сохранить
             </Button>
+          </div>
+        </div>
+      </Card>
+
+      {/* Single Vendor Mode */}
+      <Card className="p-6">
+        <div className="flex items-center gap-2 mb-6">
+          <Store className="h-5 w-5 text-primary" />
+          <h2 className="text-xl font-semibold">Режим одного продавца</h2>
+        </div>
+
+        <div className="space-y-4">
+          <div className="bg-secondary/40 p-4 rounded-lg border border-border">
+            <p className="text-sm text-muted-foreground mb-2">
+              Площадка работает как магазин одного лица. При включении:
+            </p>
+            <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
+              <li>регистрация продавцов закрыта — новые аккаунты только покупатели;</li>
+              <li>товары выставляет и правит только администратор;</li>
+              <li>
+                сплитования нет: вся сумма сделки приходит на счёт площадки,
+                реквизиты продавцов у платёжных сервисов не используются.
+              </li>
+            </ul>
+            <p className="text-sm text-muted-foreground mt-3">
+              Уже заведённые продавцы кабинет не теряют: там остаётся история
+              продаж и остаток на балансе, который они смогут вывести. Роль
+              продавца при необходимости выдаётся вручную в разделе
+              «Пользователи».
+            </p>
+          </div>
+
+          <div className="flex items-center justify-between py-3">
+            <div>
+              <p className="font-medium">Включить режим одного продавца</p>
+              <p className="text-sm text-muted-foreground">
+                {singleVendorMode
+                  ? "Товары выставляет только администратор, платежи идут одному получателю"
+                  : "Площадка открыта для сторонних продавцов"}
+              </p>
+            </div>
+            <Switch
+              checked={singleVendorMode}
+              disabled={isLoading}
+              onCheckedChange={handleSaveSingleVendorMode}
+            />
           </div>
         </div>
       </Card>

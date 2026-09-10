@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth"
 import { z } from "zod"
 import { isValidProductFileUrl, COVER_IMAGE_PATTERN } from "@/lib/storage"
 import { getCatalogProducts } from "@/lib/catalog"
+import { isSingleVendorMode } from "@/lib/platform-mode"
 
 const createProductSchema = z.object({
   title: z.string().min(3, "Название должно содержать минимум 3 символа").max(200),
@@ -62,6 +63,19 @@ export async function POST(request: NextRequest) {
     if (session.user.role !== "SELLER" && session.user.role !== "ADMIN") {
       return NextResponse.json(
         { success: false, error: "Только продавцы могут создавать товары" },
+        { status: 403 }
+      )
+    }
+
+    // В режиме одного продавца витрину наполняет только администратор:
+    // роль SELLER могла остаться у аккаунтов, заведённых до включения
+    // режима, и сама по себе права выставлять товар больше не даёт.
+    if (session.user.role !== "ADMIN" && (await isSingleVendorMode())) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Товары на площадке выставляет только администратор",
+        },
         { status: 403 }
       )
     }

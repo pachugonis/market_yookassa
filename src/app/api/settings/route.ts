@@ -28,13 +28,17 @@ export async function GET() {
     }
 
     // Return only public settings
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       data: {
         siteName: settings.siteName,
         siteDescription: settings.siteDescription,
         supportEmail: settings.supportEmail,
         maxFileSize: settings.maxFileSize,
+        // Форме регистрации нужно знать, показывать ли выбор роли.
+        // Наружу отдаём следствие, а не сам режим: остальное устройство
+        // площадки посетителя не касается.
+        sellerRegistrationEnabled: !settings.singleVendorMode,
       }
     })
   } catch (error) {

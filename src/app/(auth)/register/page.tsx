@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { motion } from "framer-motion"
@@ -18,6 +18,24 @@ export default function RegisterPage() {
   const [role, setRole] = useState<"BUYER" | "SELLER">("BUYER")
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  // Пока настройки не пришли, выбор роли не показываем: мелькнувшая
+  // и тут же исчезнувшая кнопка «Продавец» хуже, чем её отсутствие.
+  const [sellerRegistrationEnabled, setSellerRegistrationEnabled] = useState(false)
+
+  useEffect(() => {
+    fetch("/api/settings")
+      .then((response) => response.json())
+      .then((data) => {
+        if (data.success) {
+          setSellerRegistrationEnabled(
+            data.data.sellerRegistrationEnabled ?? true
+          )
+        }
+      })
+      .catch(() => {
+        // Настройки недоступны — остаёмся на регистрации покупателя.
+      })
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -69,7 +87,9 @@ export default function RegisterPage() {
           <CardHeader className="space-y-1 text-center">
             <CardTitle className="text-2xl font-bold">Регистрация</CardTitle>
             <CardDescription>
-              Создайте аккаунт для покупки или продажи товаров
+              {sellerRegistrationEnabled
+                ? "Создайте аккаунт для покупки или продажи товаров"
+                : "Создайте аккаунт для покупки товаров"}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -84,6 +104,7 @@ export default function RegisterPage() {
                 </motion.div>
               )}
 
+              {sellerRegistrationEnabled && (
               <div className="space-y-2">
                 <Label>Тип аккаунта</Label>
                 <div className="grid grid-cols-2 gap-3">
@@ -122,6 +143,7 @@ export default function RegisterPage() {
                   </p>
                 )}
               </div>
+              )}
 
               <div className="space-y-2">
                 <Label htmlFor="name">Имя</Label>

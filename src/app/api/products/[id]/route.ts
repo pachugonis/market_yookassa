@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
 import { z } from "zod"
 import { COVER_IMAGE_PATTERN } from "@/lib/storage"
+import { isSingleVendorMode } from "@/lib/platform-mode"
 
 const updateProductSchema = z.object({
   title: z.string().min(3).max(200).optional(),
@@ -86,6 +87,20 @@ export async function PUT(
     if (product.sellerId !== session.user.id && session.user.role !== "ADMIN") {
       return NextResponse.json(
         { success: false, error: "Нет доступа к этому товару" },
+        { status: 403 }
+      )
+    }
+
+    // В режиме одного продавца витриной распоряжается администратор.
+    // Правку тоже закрываем: иначе в старой карточке можно заменить
+    // название, описание и цену — то есть выставить новый товар в обход
+    // запрета на создание.
+    if (session.user.role !== "ADMIN" && (await isSingleVendorMode())) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Товарами на площадке управляет только администратор",
+        },
         { status: 403 }
       )
     }

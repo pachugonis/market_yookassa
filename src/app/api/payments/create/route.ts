@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
     }
 
     const settings = await prisma.platformSettings.findFirst({
-      select: { commissionRate: true },
+      select: { commissionRate: true, singleVendorMode: true },
     })
 
     const { commission, sellerEarnings } = calculateCommission(
@@ -91,7 +91,14 @@ export async function POST(request: NextRequest) {
     // Сплитование возможно, только если продавец подключил счёт именно
     // у этого провайдера. Иначе деньги приходят площадке и
     // распределяются через внутренний баланс.
-    const splitAccountId = splitAccountFor(provider, product.seller)
+    //
+    // В режиме одного продавца сплитования нет вовсе: вся сумма
+    // приходит на счёт площадки. Реквизиты, оставшиеся у продавцов с
+    // прежних времён, при этом игнорируются — решает режим, а не
+    // содержимое чужого профиля.
+    const splitAccountId = settings?.singleVendorMode
+      ? null
+      : splitAccountFor(provider, product.seller)
 
     // Create pending purchase
     const purchase = await prisma.purchase.create({

@@ -468,6 +468,11 @@ model PlatformSettings {
   enableTwoFactor         Boolean  @default(false)
   sessionTimeout          Int      @default(24)
   maxLoginAttempts        Int      @default(5)
+  /// Площадка одного продавца: регистрация продавцов закрыта, товары
+  /// выставляет только администратор, а деньги по сделкам целиком
+  /// приходят на счёт площадки — сплитование не применяется, даже если
+  /// у продавца сохранились реквизиты у провайдера.
+  singleVendorMode        Boolean  @default(false)
   maintenanceMode         Boolean  @default(false)
   maintenanceMessage      String   @default("Сайт временно недоступен. Ведутся технические работы.")
   smtpHost                String?

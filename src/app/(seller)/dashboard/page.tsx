@@ -15,6 +15,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { formatPrice, formatDate } from "@/lib/utils"
+import { useSellerCapabilities } from "@/components/seller/seller-capabilities"
 
 interface Stats {
   balance: number
@@ -48,6 +49,7 @@ const statCards: Array<{
 ]
 
 export default function DashboardPage() {
+  const { canManageProducts } = useSellerCapabilities()
   const [stats, setStats] = useState<Stats | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
@@ -85,12 +87,14 @@ export default function DashboardPage() {
           <h1 className="text-3xl font-bold">Панель продавца</h1>
           <p className="text-muted-foreground">Управляйте своими товарами и продажами</p>
         </div>
-        <Link href="/dashboard/products/new">
-          <Button>
-            <Plus className="h-4 w-4 mr-2" />
-            Добавить товар
-          </Button>
-        </Link>
+        {canManageProducts && (
+          <Link href="/dashboard/products/new">
+            <Button>
+              <Plus className="h-4 w-4 mr-2" />
+              Добавить товар
+            </Button>
+          </Link>
+        )}
       </div>
 
       {/* Stats Grid */}

@@ -17,6 +17,7 @@ import {
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
+import { useSellerCapabilities } from "@/components/seller/seller-capabilities"
 
 const navItems = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Обзор" },
@@ -28,6 +29,10 @@ const navItems = [
 
 export function SellerSidebar() {
   const pathname = usePathname()
+  const { canManageProducts } = useSellerCapabilities()
+  const items = canManageProducts
+    ? navItems
+    : navItems.filter((item) => item.href !== "/dashboard/products")
 
   return (
     <aside className="w-64 border-r bg-background h-screen sticky top-0 hidden md:flex flex-col">
@@ -43,7 +48,7 @@ export function SellerSidebar() {
 
       {/* Navigation */}
       <nav className="flex-1 p-4 space-y-1">
-        {navItems.map((item) => {
+        {items.map((item) => {
           const isActive = pathname === item.href || 
             (item.href !== "/dashboard" && pathname.startsWith(item.href))
           return (
