@@ -9,9 +9,11 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { useSiteName } from "@/components/layout/site-name-provider"
 
 export default function RegisterPage() {
   const router = useRouter()
+  const siteName = useSiteName()
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -79,7 +81,7 @@ export default function RegisterPage() {
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2 text-2xl font-bold text-primary">
             <ShoppingBag className="h-8 w-8" />
-            Amazonus
+            {siteName}
           </Link>
         </div>
 
