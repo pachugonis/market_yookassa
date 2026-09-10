@@ -1,29 +1,42 @@
 import { prisma } from "@/lib/prisma"
-import { SITE_NAME, SITE_TAGLINE } from "@/lib/seo"
+import { SITE_DESCRIPTION, SITE_NAME, SITE_TAGLINE } from "@/lib/seo"
+
+export interface SiteSettings {
+  siteName: string
+  siteDescription: string
+}
 
 /**
- * Название площадки из «Основных настроек» админки.
+ * Название и описание площадки из «Основных настроек» админки.
  *
- * Читаем на сервере, а не запросом из браузера: название стоит в шапке
- * страницы и в метатегах, и подставленное после загрузки оно успевало
+ * Читаем на сервере, а не запросом из браузера: и то, и другое стоит в
+ * метатегах и в шапке страницы, а подставленное после загрузки успевало
  * бы мигнуть старым значением.
  *
- * Ошибку базы глотаем намеренно. Название нужно и при отрисовке
+ * Ошибку базы глотаем намеренно. Настройки нужны при отрисовке
  * метатегов, а те собираются в том числе во время сборки образа, когда
  * DATABASE_URL — заглушка (см. Dockerfile). Упавший запрос там уронил
- * бы сборку целиком; значение по умолчанию из `seo.ts` для заголовка
- * страницы — приемлемая замена.
+ * бы сборку целиком; значения по умолчанию из `seo.ts` — приемлемая
+ * замена.
  */
-export async function getSiteName(): Promise<string> {
+export async function getSiteSettings(): Promise<SiteSettings> {
   try {
     const settings = await prisma.platformSettings.findFirst({
-      select: { siteName: true },
+      select: { siteName: true, siteDescription: true },
     })
 
-    return settings?.siteName?.trim() || SITE_NAME
+    return {
+      siteName: settings?.siteName?.trim() || SITE_NAME,
+      siteDescription: settings?.siteDescription?.trim() || SITE_DESCRIPTION,
+    }
   } catch {
-    return SITE_NAME
+    return { siteName: SITE_NAME, siteDescription: SITE_DESCRIPTION }
   }
+}
+
+/** Только название — там, где описание не нужно. */
+export async function getSiteName(): Promise<string> {
+  return (await getSiteSettings()).siteName
 }
 
 /**

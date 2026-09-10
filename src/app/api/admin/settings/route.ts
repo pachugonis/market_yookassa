@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
-import { SITE_NAME } from "@/lib/seo"
+import { SITE_DESCRIPTION, SITE_NAME } from "@/lib/seo"
 import { z } from "zod"
 
 const settingsSchema = z.object({
@@ -56,7 +56,7 @@ export async function GET() {
       settings = await prisma.platformSettings.create({
         data: {
           siteName: SITE_NAME,
-          siteDescription: "Маркетплейс цифровых товаров",
+          siteDescription: SITE_DESCRIPTION,
           supportEmail: "support@amazonus.ru",
           commissionRate: 10,
           minPayoutAmount: 100000,

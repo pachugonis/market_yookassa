@@ -3,8 +3,8 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 import { Toaster } from "@/components/ui/toaster";
-import { SITE_DESCRIPTION, SITE_URL } from "@/lib/seo";
-import { getSiteName, siteTitle } from "@/lib/site-settings";
+import { SITE_URL } from "@/lib/seo";
+import { getSiteSettings, siteTitle } from "@/lib/site-settings";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -16,11 +16,11 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-// Название площадки задаётся в админке, поэтому метатеги собираются на
-// каждый запрос: статический объект `metadata` запомнил бы значение,
-// каким оно было на момент сборки.
+// Название и описание площадки задаются в админке, поэтому метатеги
+// собираются на каждый запрос: статический объект `metadata` запомнил
+// бы значения, какими они были на момент сборки.
 export async function generateMetadata(): Promise<Metadata> {
-  const siteName = await getSiteName()
+  const { siteName, siteDescription } = await getSiteSettings()
   const title = siteTitle(siteName)
 
   return {
@@ -32,7 +32,7 @@ export async function generateMetadata(): Promise<Metadata> {
       // Страницы задают только свой заголовок, суффикс подставляется сам.
       template: `%s — ${siteName}`,
     },
-    description: SITE_DESCRIPTION,
+    description: siteDescription,
     applicationName: siteName,
     alternates: {
       canonical: "/",
@@ -43,12 +43,12 @@ export async function generateMetadata(): Promise<Metadata> {
       siteName,
       url: "/",
       title,
-      description: SITE_DESCRIPTION,
+      description: siteDescription,
     },
     twitter: {
       card: "summary_large_image",
       title,
-      description: SITE_DESCRIPTION,
+      description: siteDescription,
     },
     robots: {
       index: true,

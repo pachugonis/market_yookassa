@@ -21,7 +21,7 @@ import {
   Store
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import { SITE_NAME } from "@/lib/seo"
+import { SITE_DESCRIPTION, SITE_NAME } from "@/lib/seo"
 
 export default function SettingsPage() {
   const { toast } = useToast()
@@ -31,7 +31,7 @@ export default function SettingsPage() {
   // Platform settings
   const [platformSettings, setPlatformSettings] = useState({
     siteName: SITE_NAME,
-    siteDescription: "Маркетплейс цифровых товаров",
+    siteDescription: SITE_DESCRIPTION,
     supportEmail: "support@amazonus.ru",
     commissionRate: 10,
     minProductPrice: 1,
@@ -60,7 +60,7 @@ export default function SettingsPage() {
         setPlatformSettings(prev => ({
           ...prev,
           siteName: data.data.siteName || SITE_NAME,
-          siteDescription: data.data.siteDescription || "Маркетплейс цифровых товаров",
+          siteDescription: data.data.siteDescription || SITE_DESCRIPTION,
           supportEmail: data.data.supportEmail || "support@amazonus.ru",
           commissionRate: data.data.commissionRate,
           minPayoutAmount: (data.data.minPayoutAmount || 100000) / 100,

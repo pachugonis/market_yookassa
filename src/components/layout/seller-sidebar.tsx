@@ -16,7 +16,7 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Separator } from "@/components/ui/separator"
-import { useSiteName } from "@/components/layout/site-name-provider"
+import { useSiteName } from "@/components/layout/site-settings-provider"
 
 const navItems = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Обзор" },

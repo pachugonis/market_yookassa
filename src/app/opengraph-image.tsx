@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og"
-import { SITE_DESCRIPTION, SITE_TAGLINE } from "@/lib/seo"
-import { getSiteName } from "@/lib/site-settings"
+import { SITE_TAGLINE } from "@/lib/seo"
+import { getSiteSettings } from "@/lib/site-settings"
 
 export const size = { width: 1200, height: 630 }
 export const contentType = "image/png"
@@ -9,14 +9,14 @@ export const contentType = "image/png"
 // самой картинке.
 export const alt = SITE_TAGLINE
 
-// Название площадки меняется в админке — рисуем картинку на каждый
+// Название и описание меняются в админке — рисуем картинку на каждый
 // запрос, иначе в репостах осталось бы имя времён сборки образа.
 export const dynamic = "force-dynamic"
 
 // Картинка-заглушка для репостов: используется везде, где страница
 // не задала собственный og:image.
 export default async function OpengraphImage() {
-  const siteName = await getSiteName()
+  const { siteName, siteDescription } = await getSiteSettings()
 
   return new ImageResponse(
     (
@@ -46,7 +46,7 @@ export default async function OpengraphImage() {
             maxWidth: 900,
           }}
         >
-          {SITE_DESCRIPTION}
+          {siteDescription}
         </div>
       </div>
     ),

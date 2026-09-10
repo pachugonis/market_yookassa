@@ -1,5 +1,5 @@
-import { SiteNameProvider } from "@/components/layout/site-name-provider"
-import { getSiteName } from "@/lib/site-settings"
+import { SiteSettingsProvider } from "@/components/layout/site-settings-provider"
+import { getSiteSettings } from "@/lib/site-settings"
 
 // Название площадки меняется в админке — страницы входа и регистрации
 // должны показывать текущее, а не то, что было на момент сборки.
@@ -10,7 +10,9 @@ export default async function AuthLayout({
 }: {
   children: React.ReactNode
 }) {
-  const siteName = await getSiteName()
+  const siteSettings = await getSiteSettings()
 
-  return <SiteNameProvider value={siteName}>{children}</SiteNameProvider>
+  return (
+    <SiteSettingsProvider value={siteSettings}>{children}</SiteSettingsProvider>
+  )
 }

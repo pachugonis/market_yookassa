@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { useSiteName } from "@/components/layout/site-name-provider"
+import { useSiteName } from "@/components/layout/site-settings-provider"
 
 export default function RegisterPage() {
   const router = useRouter()

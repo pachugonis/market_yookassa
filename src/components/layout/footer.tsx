@@ -2,25 +2,17 @@
 
 import Link from "next/link"
 import { ShoppingBag } from "lucide-react"
-import { useState, useEffect } from "react"
-import { useSiteName } from "@/components/layout/site-name-provider"
+import {
+  useSiteDescription,
+  useSiteName,
+} from "@/components/layout/site-settings-provider"
 
 export function Footer() {
-  // Название приходит из layout'а, описание — по-прежнему запросом:
-  // в разметку оно не попадает раньше, чем страница отрисована.
+  // Название и описание приходят из layout'а уже отрисованными: запрос
+  // из браузера показывал бы значения по умолчанию до первого ответа.
   const siteName = useSiteName()
-  const [siteDescription, setSiteDescription] = useState("Маркетплейс цифровых товаров. Покупайте и продавайте программы, игры, музыку и многое другое.")
+  const siteDescription = useSiteDescription()
 
-  useEffect(() => {
-    fetch("/api/settings")
-      .then(res => res.json())
-      .then(data => {
-        if (data.success && data.data?.siteDescription) {
-          setSiteDescription(data.data.siteDescription)
-        }
-      })
-      .catch(() => {})
-  }, [])
   return (
     <footer className="border-t bg-secondary/30">
       <div className="container mx-auto px-4 py-12">

@@ -17,7 +17,7 @@ import {
   Store
 } from "lucide-react"
 import { useState } from "react"
-import { useSiteName } from "@/components/layout/site-name-provider"
+import { useSiteName } from "@/components/layout/site-settings-provider"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {

@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
-import { absoluteUrl, SITE_DESCRIPTION } from "@/lib/seo"
-import { getSiteName } from "@/lib/site-settings"
+import { absoluteUrl } from "@/lib/seo"
+import { getSiteSettings } from "@/lib/site-settings"
 import { HomePage } from "./home-page"
 
 export const metadata: Metadata = {
@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 }
 
 export default async function Page() {
-  const siteName = await getSiteName()
+  const { siteName, siteDescription } = await getSiteSettings()
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -18,7 +18,7 @@ export default async function Page() {
         "@id": absoluteUrl("/#organization"),
         name: siteName,
         url: absoluteUrl("/"),
-        description: SITE_DESCRIPTION,
+        description: siteDescription,
         logo: absoluteUrl("/icon.svg"),
       },
       {
