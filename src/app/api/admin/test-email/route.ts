@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
+import { getSiteName } from "@/lib/site-settings"
 import nodemailer from "nodemailer"
 
 export async function POST(request: NextRequest) {
@@ -37,19 +38,23 @@ export async function POST(request: NextRequest) {
     // Verify connection
     await transporter.verify()
 
+    // Название площадки берём из настроек: письмо должно выглядеть так
+    // же, как настоящие уведомления.
+    const siteName = await getSiteName()
+
     // Send test email
     await transporter.sendMail({
-      from: `${fromName || "Amazonus"} <${fromEmail || smtpUser}>`,
+      from: `${fromName || siteName} <${fromEmail || smtpUser}>`,
       to: session.user.email,
-      subject: "Тестовое письмо - Amazonus",
+      subject: `Тестовое письмо - ${siteName}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #333;">Тестовое письмо</h2>
-          <p>Это тестовое письмо от Amazonus.</p>
+          <p>Это тестовое письмо от ${siteName}.</p>
           <p>Если вы получили это письмо, значит настройки SMTP работают корректно!</p>
           <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
           <p style="color: #666; font-size: 12px;">
-            Отправлено из панели администратора Amazonus<br>
+            Отправлено из панели администратора ${siteName}<br>
             ${new Date().toLocaleString('ru-RU')}
           </p>
         </div>

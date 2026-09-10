@@ -2,12 +2,17 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { Mail } from "lucide-react"
 import { prisma } from "@/lib/prisma"
-import { absoluteUrl, SITE_NAME } from "@/lib/seo"
+import { absoluteUrl } from "@/lib/seo"
+import { getSiteName } from "@/lib/site-settings"
 
-export const metadata: Metadata = {
-  title: "Поддержка",
-  description: `Поддержка ${SITE_NAME}: ответы на частые вопросы о покупке, скачивании, возврате и выплатах продавцам, а также контакты службы поддержки.`,
-  alternates: { canonical: absoluteUrl("/support") },
+export async function generateMetadata(): Promise<Metadata> {
+  const siteName = await getSiteName()
+
+  return {
+    title: "Поддержка",
+    description: `Поддержка ${siteName}: ответы на частые вопросы о покупке, скачивании, возврате и выплатах продавцам, а также контакты службы поддержки.`,
+    alternates: { canonical: absoluteUrl("/support") },
+  }
 }
 
 const faq = [

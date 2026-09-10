@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { getSiteName } from "@/lib/site-settings"
 import { authenticator } from "@otplib/preset-default"
 import QRCode from "qrcode"
 
@@ -54,7 +55,10 @@ export async function POST() {
       },
     })
 
-    const otpauth = authenticator.keyuri(user.email, "Amazonus", secret)
+    // Издатель — то, чем площадка подписана в приложении-аутентификаторе.
+    // У уже настроенных аккаунтов подпись остаётся прежней: она вшита в
+    // добавленную запись и меняется только пересозданием ключа.
+    const otpauth = authenticator.keyuri(user.email, await getSiteName(), secret)
     const qrCode = await QRCode.toDataURL(otpauth)
 
     // Резервные коды выдаются на шаге подтверждения (/2fa/enable),

@@ -1,5 +1,6 @@
 import nodemailer from "nodemailer"
 import { prisma } from "./prisma"
+import { getSiteName } from "./site-settings"
 
 export interface EmailOptions {
   to: string
@@ -41,9 +42,9 @@ export async function sendEmail(options: EmailOptions) {
       },
     })
 
-    // Send email
+    // Отправитель: своё имя из настроек почты, иначе — название площадки.
     const info = await transporter.sendMail({
-      from: `${settings.fromName || "Amazonus"} <${settings.fromEmail || settings.smtpUser}>`,
+      from: `${settings.fromName || (await getSiteName())} <${settings.fromEmail || settings.smtpUser}>`,
       to: options.to,
       subject: options.subject,
       html: options.html,
@@ -61,6 +62,8 @@ export async function sendPurchaseEmail(
   productTitle: string,
   downloadUrl: string
 ) {
+  const siteName = escapeHtml(await getSiteName())
+
   return sendEmail({
     to: buyerEmail,
     subject: `Покупка: ${productTitle}`,
@@ -75,7 +78,7 @@ export async function sendPurchaseEmail(
         <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
         <p style="color: #666; font-size: 12px;">
           С уважением,<br>
-          Команда Amazonus
+          Команда ${siteName}
         </p>
       </div>
     `,
@@ -87,6 +90,8 @@ export async function sendPayoutRequestEmail(
   sellerName: string,
   amount: number
 ) {
+  const siteName = escapeHtml(await getSiteName())
+
   return sendEmail({
     to: adminEmail,
     subject: "Новый запрос на выплату",
@@ -97,7 +102,7 @@ export async function sendPayoutRequestEmail(
         <p>Пожалуйста, обработайте запрос в панели администратора.</p>
         <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
         <p style="color: #666; font-size: 12px;">
-          Amazonus Admin Panel
+          ${siteName} Admin Panel
         </p>
       </div>
     `,
@@ -109,6 +114,8 @@ export async function sendNewProductNotification(
   sellerName: string,
   productTitle: string
 ) {
+  const siteName = escapeHtml(await getSiteName())
+
   return sendEmail({
     to: adminEmail,
     subject: "Новый товар загружен",
@@ -119,7 +126,7 @@ export async function sendNewProductNotification(
         <p>Проверьте товар в панели администратора.</p>
         <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
         <p style="color: #666; font-size: 12px;">
-          Amazonus Admin Panel
+          ${siteName} Admin Panel
         </p>
       </div>
     `,
@@ -131,24 +138,26 @@ export async function sendVerificationEmail(
   userName: string,
   verificationUrl: string
 ) {
+  const siteName = escapeHtml(await getSiteName())
+
   return sendEmail({
     to: userEmail,
     subject: "Подтвердите вашу регистрацию",
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #333;">Добро пожаловать, ${escapeHtml(userName)}!</h2>
-        <p>Спасибо за регистрацию на Amazonus!</p>
+        <p>Спасибо за регистрацию на ${siteName}!</p>
         <p>Пожалуйста, подтвердите ваш email адрес, нажав на кнопку ниже:</p>
         <a href="${encodeURI(verificationUrl)}" style="display: inline-block; padding: 12px 24px; background: #0070f3; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0;">
           Подтвердить Email
         </a>
         <p>Или скопируйте и вставьте эту ссылку в браузер:</p>
         <p style="color: #666; word-break: break-all;">${escapeHtml(verificationUrl)}</p>
-        <p style="color: #999; font-size: 12px; margin-top: 20px;">Если вы не регистрировались на Amazonus, просто проигнорируйте это письмо.</p>
+        <p style="color: #999; font-size: 12px; margin-top: 20px;">Если вы не регистрировались на ${siteName}, просто проигнорируйте это письмо.</p>
         <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
         <p style="color: #666; font-size: 12px;">
           С уважением,<br>
-          Команда Amazonus
+          Команда ${siteName}
         </p>
       </div>
     `,

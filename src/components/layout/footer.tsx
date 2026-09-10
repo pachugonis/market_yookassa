@@ -3,18 +3,20 @@
 import Link from "next/link"
 import { ShoppingBag } from "lucide-react"
 import { useState, useEffect } from "react"
+import { useSiteName } from "@/components/layout/site-name-provider"
 
 export function Footer() {
-  const [siteName, setSiteName] = useState("Amazonus")
+  // Название приходит из layout'а, описание — по-прежнему запросом:
+  // в разметку оно не попадает раньше, чем страница отрисована.
+  const siteName = useSiteName()
   const [siteDescription, setSiteDescription] = useState("Маркетплейс цифровых товаров. Покупайте и продавайте программы, игры, музыку и многое другое.")
 
   useEffect(() => {
     fetch("/api/settings")
       .then(res => res.json())
       .then(data => {
-        if (data.success && data.data) {
-          if (data.data.siteName) setSiteName(data.data.siteName)
-          if (data.data.siteDescription) setSiteDescription(data.data.siteDescription)
+        if (data.success && data.data?.siteDescription) {
+          setSiteDescription(data.data.siteDescription)
         }
       })
       .catch(() => {})

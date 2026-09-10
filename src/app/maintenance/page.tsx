@@ -1,6 +1,10 @@
 import { Construction } from "lucide-react"
 import { Card } from "@/components/ui/card"
 
+// Заголовок вкладки берёт название площадки из настроек (см. корневой
+// layout), а оно меняется в админке: страницу нельзя пререндерить.
+export const dynamic = "force-dynamic"
+
 export default function MaintenancePage() {
   return (
     <div className="min-h-screen flex items-center justify-center gradient-bg p-4">

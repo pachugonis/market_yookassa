@@ -1,11 +1,16 @@
 import type { Metadata } from "next"
 import { prisma } from "@/lib/prisma"
-import { absoluteUrl, SITE_NAME } from "@/lib/seo"
+import { absoluteUrl } from "@/lib/seo"
+import { getSiteName } from "@/lib/site-settings"
 
-export const metadata: Metadata = {
-  title: "Политика конфиденциальности",
-  description: `Политика конфиденциальности ${SITE_NAME}: какие персональные данные собирает площадка, зачем они нужны, как хранятся и как их удалить.`,
-  alternates: { canonical: absoluteUrl("/privacy") },
+export async function generateMetadata(): Promise<Metadata> {
+  const siteName = await getSiteName()
+
+  return {
+    title: "Политика конфиденциальности",
+    description: `Политика конфиденциальности ${siteName}: какие персональные данные собирает площадка, зачем они нужны, как хранятся и как их удалить.`,
+    alternates: { canonical: absoluteUrl("/privacy") },
+  }
 }
 
 export default async function PrivacyPage() {

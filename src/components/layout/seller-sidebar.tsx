@@ -16,6 +16,7 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Separator } from "@/components/ui/separator"
+import { useSiteName } from "@/components/layout/site-name-provider"
 
 const navItems = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Обзор" },
@@ -27,6 +28,7 @@ const navItems = [
 
 export function SellerSidebar() {
   const pathname = usePathname()
+  const siteName = useSiteName()
 
   return (
     <aside className="w-64 border-r bg-background h-screen sticky top-0 hidden md:flex flex-col">
@@ -34,7 +36,7 @@ export function SellerSidebar() {
       <div className="p-6">
         <Link href="/" className="flex items-center gap-2 font-bold text-xl text-primary">
           <ShoppingBag className="h-7 w-7" />
-          Amazonus
+          {siteName}
         </Link>
       </div>
 

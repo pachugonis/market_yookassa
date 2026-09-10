@@ -2,7 +2,8 @@ import { cache } from "react"
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 import { prisma } from "@/lib/prisma"
-import { absoluteUrl, SITE_NAME, truncateForMeta } from "@/lib/seo"
+import { absoluteUrl, truncateForMeta } from "@/lib/seo"
+import { getSiteName } from "@/lib/site-settings"
 import { CategoryProducts } from "./category-products"
 
 interface Props {
@@ -35,9 +36,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 
   const url = absoluteUrl(`/category/${category.slug}`)
+  const siteName = await getSiteName()
   const description = truncateForMeta(
     category.description ||
-      `${category.name} — купить и скачать цифровые товары на ${SITE_NAME}. Безопасная оплата и мгновенная доставка после покупки.`
+      `${category.name} — купить и скачать цифровые товары на ${siteName}. Безопасная оплата и мгновенная доставка после покупки.`
   )
 
   return {
@@ -47,9 +49,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     openGraph: {
       type: "website",
       url,
-      siteName: SITE_NAME,
+      siteName,
       locale: "ru_RU",
-      title: `${category.name} — ${SITE_NAME}`,
+      title: `${category.name} — ${siteName}`,
       description,
     },
   }

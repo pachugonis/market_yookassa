@@ -1,14 +1,19 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { Shield, Zap, Wallet, Users } from "lucide-react"
-import { absoluteUrl, SITE_NAME } from "@/lib/seo"
+import { absoluteUrl } from "@/lib/seo"
+import { getSiteName } from "@/lib/site-settings"
 import { isSingleVendorMode } from "@/lib/platform-mode"
 import { DISPUTE_WINDOW_HOURS } from "@/lib/dispute-window"
 
-export const metadata: Metadata = {
-  title: "О нас",
-  description: `${SITE_NAME} — маркетплейс цифровых товаров: как устроена площадка, как защищены покупатели и на каких условиях работают продавцы.`,
-  alternates: { canonical: absoluteUrl("/about") },
+export async function generateMetadata(): Promise<Metadata> {
+  const siteName = await getSiteName()
+
+  return {
+    title: "О нас",
+    description: `${siteName} — маркетплейс цифровых товаров: как устроена площадка, как защищены покупатели и на каких условиях работают продавцы.`,
+    alternates: { canonical: absoluteUrl("/about") },
+  }
 }
 
 /**
@@ -42,13 +47,16 @@ const featuresFor = (instantCapture: boolean) => [
 ]
 
 export default async function AboutPage() {
-  const features = featuresFor(await isSingleVendorMode())
+  const [features, siteName] = await Promise.all([
+    isSingleVendorMode().then(featuresFor),
+    getSiteName(),
+  ])
 
   return (
     <div className="container mx-auto px-4 py-12 max-w-4xl">
-      <h1 className="text-3xl md:text-4xl font-bold mb-4">О площадке {SITE_NAME}</h1>
+      <h1 className="text-3xl md:text-4xl font-bold mb-4">О площадке {siteName}</h1>
       <p className="text-lg text-muted-foreground mb-10">
-        {SITE_NAME} — маркетплейс цифровых товаров. Здесь авторы продают программы,
+        {siteName} — маркетплейс цифровых товаров. Здесь авторы продают программы,
         игры, музыку, графику, шаблоны и электронные книги, а покупатели получают
         их сразу после оплаты.
       </p>

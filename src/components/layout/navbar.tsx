@@ -16,7 +16,8 @@ import {
   AlertCircle,
   Store
 } from "lucide-react"
-import { useState, useEffect } from "react"
+import { useState } from "react"
+import { useSiteName } from "@/components/layout/site-name-provider"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -36,18 +37,9 @@ export function Navbar({ storesPageEnabled = true }: { storesPageEnabled?: boole
   const { data: session } = useSession()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
-  const [siteName, setSiteName] = useState("Amazonus")
-
-  useEffect(() => {
-    fetch("/api/settings")
-      .then(res => res.json())
-      .then(data => {
-        if (data.success && data.data?.siteName) {
-          setSiteName(data.data.siteName)
-        }
-      })
-      .catch(() => {})
-  }, [])
+  // Название приходит из layout'а уже отрисованным: запрос из браузера
+  // показывал бы старое имя до первого ответа.
+  const siteName = useSiteName()
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()

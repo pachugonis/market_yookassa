@@ -1,13 +1,23 @@
 import { ImageResponse } from "next/og"
-import { SITE_DESCRIPTION, SITE_NAME } from "@/lib/seo"
+import { SITE_DESCRIPTION, SITE_TAGLINE } from "@/lib/seo"
+import { getSiteName } from "@/lib/site-settings"
 
 export const size = { width: 1200, height: 630 }
 export const contentType = "image/png"
-export const alt = `${SITE_NAME} — маркетплейс цифровых товаров`
+// Название сюда не подставить: `alt` — статичный экспорт, он попал бы в
+// разметку тем, каким был на момент сборки. Название и так написано на
+// самой картинке.
+export const alt = SITE_TAGLINE
+
+// Название площадки меняется в админке — рисуем картинку на каждый
+// запрос, иначе в репостах осталось бы имя времён сборки образа.
+export const dynamic = "force-dynamic"
 
 // Картинка-заглушка для репостов: используется везде, где страница
 // не задала собственный og:image.
-export default function OpengraphImage() {
+export default async function OpengraphImage() {
+  const siteName = await getSiteName()
+
   return new ImageResponse(
     (
       <div
@@ -25,7 +35,7 @@ export default function OpengraphImage() {
         }}
       >
         <div style={{ fontSize: 92, fontWeight: 700, letterSpacing: "-0.03em" }}>
-          {SITE_NAME}
+          {siteName}
         </div>
         <div
           style={{

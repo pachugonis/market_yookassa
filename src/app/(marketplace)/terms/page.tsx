@@ -1,18 +1,30 @@
 import type { Metadata } from "next"
 import { prisma } from "@/lib/prisma"
 import { absoluteUrl, SITE_NAME } from "@/lib/seo"
+import { getSiteName } from "@/lib/site-settings"
 import { DISPUTE_WINDOW_HOURS } from "@/lib/dispute-window"
 
-export const metadata: Metadata = {
-  title: "Условия использования",
-  description: `Условия использования маркетплейса ${SITE_NAME}: правила покупки и продажи цифровых товаров, оплата, возвраты и разрешение споров.`,
-  alternates: { canonical: absoluteUrl("/terms") },
+export async function generateMetadata(): Promise<Metadata> {
+  const siteName = await getSiteName()
+
+  return {
+    title: "Условия использования",
+    description: `Условия использования маркетплейса ${siteName}: правила покупки и продажи цифровых товаров, оплата, возвраты и разрешение споров.`,
+    alternates: { canonical: absoluteUrl("/terms") },
+  }
 }
 
 export default async function TermsPage() {
   const settings = await prisma.platformSettings.findFirst({
-    select: { commissionRate: true, supportEmail: true, singleVendorMode: true },
+    select: {
+      siteName: true,
+      commissionRate: true,
+      supportEmail: true,
+      singleVendorMode: true,
+    },
   })
+
+  const siteName = settings?.siteName?.trim() || SITE_NAME
 
   const commission = settings?.commissionRate ?? 10
   const supportEmail = settings?.supportEmail ?? "support@example.com"
@@ -31,7 +43,7 @@ export default async function TermsPage() {
         <section>
           <h2 className="text-xl font-semibold text-foreground mb-3">1. Общие положения</h2>
           <p>
-            Настоящие условия регулируют использование маркетплейса {SITE_NAME} (далее — Площадка).
+            Настоящие условия регулируют использование маркетплейса {siteName} (далее — Площадка).
             Регистрируясь или совершая покупку, пользователь подтверждает согласие с этими условиями.
             Площадка выступает посредником между продавцом и покупателем цифровых товаров и не является
             их автором или правообладателем.

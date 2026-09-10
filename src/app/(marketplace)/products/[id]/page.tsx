@@ -2,7 +2,8 @@ import { cache } from "react"
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 import { prisma } from "@/lib/prisma"
-import { absoluteUrl, SITE_NAME, truncateForMeta } from "@/lib/seo"
+import { absoluteUrl, truncateForMeta } from "@/lib/seo"
+import { getSiteName } from "@/lib/site-settings"
 import { ProductDetail } from "./product-detail"
 
 interface Props {
@@ -56,6 +57,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 
   const url = absoluteUrl(`/products/${product.id}`)
+  const siteName = await getSiteName()
   const description = truncateForMeta(product.description)
   const images = product.coverImage ? [absoluteUrl(product.coverImage)] : undefined
 
@@ -66,7 +68,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     openGraph: {
       type: "article",
       url,
-      siteName: SITE_NAME,
+      siteName,
       locale: "ru_RU",
       title: product.title,
       description,
