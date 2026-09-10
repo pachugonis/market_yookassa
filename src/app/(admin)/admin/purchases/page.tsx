@@ -68,11 +68,11 @@ export default async function PurchasesPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Покупки</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold">Покупки</h1>
         <p className="text-muted-foreground mt-2">Все транзакции на платформе</p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <Card className="p-6">
           <h3 className="font-semibold mb-2">Всего покупок</h3>
           <p className="text-3xl font-bold">{stats.total}</p>
@@ -87,7 +87,7 @@ export default async function PurchasesPage() {
         </Card>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <Card className="p-6">
           <h3 className="font-semibold mb-2">Выручка</h3>
           <p className="text-3xl font-bold">{stats.totalRevenue.toLocaleString('ru-RU')} ₽</p>
@@ -100,7 +100,7 @@ export default async function PurchasesPage() {
 
       <Card>
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full min-w-[760px]">
             <thead className="border-b border-border">
               <tr>
                 <th className="text-left p-4 font-medium">ID</th>

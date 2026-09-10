@@ -125,7 +125,7 @@ export default function AdminPayoutsPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-bold">Выплаты</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold">Выплаты</h1>
           <p className="text-muted-foreground">
             Выводы продавцов и возвраты покупателям. Транзакции подписываются
             в BTCPay — {pending.length} в работе.
@@ -172,7 +172,7 @@ export default function AdminPayoutsPage() {
             </CardHeader>
 
             <CardContent className="space-y-3 text-sm">
-              <div className="grid gap-1 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
                 <div>
                   <span className="text-muted-foreground">К отправке: </span>
                   {formatBtc(payout.netSats ?? 0)}

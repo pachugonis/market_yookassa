@@ -459,7 +459,7 @@ export default function SettingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Настройки</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold">Настройки</h1>
         <p className="text-muted-foreground mt-2">Управление настройками платформы</p>
       </div>
 

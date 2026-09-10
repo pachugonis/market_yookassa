@@ -69,12 +69,12 @@ export default async function AdminDashboard() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Панель администратора</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold">Панель администратора</h1>
         <p className="text-muted-foreground mt-2">Общая статистика и управление</p>
       </div>
 
       {/* Stats Grid */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card className="p-6">
           <div className="flex items-center justify-between">
             <div>
@@ -128,7 +128,7 @@ export default async function AdminDashboard() {
       </div>
 
       {/* Reports Stats */}
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <Card className="p-6">
           <div className="flex items-center justify-between">
             <div>
@@ -152,7 +152,7 @@ export default async function AdminDashboard() {
         </Card>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         {/* Recent Users */}
         <Card className="p-6">
           <div className="flex items-center gap-2 mb-4">

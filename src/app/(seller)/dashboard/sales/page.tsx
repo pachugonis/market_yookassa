@@ -53,7 +53,7 @@ export default function SalesPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">История продаж</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold">История продаж</h1>
         <p className="text-muted-foreground">Все ваши завершенные продажи</p>
       </div>
 

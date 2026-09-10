@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation"
 import { auth } from "@/lib/auth"
-import { AdminSidebar } from "@/components/layout/admin-sidebar"
+import { AdminSidebar, AdminMobileNav } from "@/components/layout/admin-sidebar"
 
 export default async function AdminLayout({
   children,
@@ -18,9 +18,14 @@ export default async function AdminLayout({
   }
 
   return (
+    // `min-w-0` обязателен: без него колонка с контентом не сжимается
+    // уже своих широких таблиц и растягивает страницу вбок.
     <div className="min-h-screen flex">
       <AdminSidebar />
-      <main className="flex-1 p-6 md:p-8 bg-secondary/20">{children}</main>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <AdminMobileNav />
+        <main className="flex-1 bg-secondary/20 p-4 sm:p-6 md:p-8">{children}</main>
+      </div>
     </div>
   )
 }

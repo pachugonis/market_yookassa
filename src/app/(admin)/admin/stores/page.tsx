@@ -123,7 +123,7 @@ export default function AdminStoresPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Магазины</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold">Магазины</h1>
           <p className="text-muted-foreground mt-2">
             Управление продавцами и их магазинами
           </p>
@@ -135,7 +135,7 @@ export default function AdminStoresPage() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-5">
         <Card className="p-6">
           <div className="flex items-center justify-between">
             <div>
@@ -205,7 +205,7 @@ export default function AdminStoresPage() {
       {/* Sellers Table */}
       <Card>
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full min-w-[760px]">
             <thead className="border-b border-border">
               <tr>
                 <th className="text-left p-4 font-medium">Продавец</th>

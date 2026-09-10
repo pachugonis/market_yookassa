@@ -252,7 +252,7 @@ export default function NewProductPage() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
       >
-        <h1 className="text-3xl font-bold mb-2">Новый товар</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold mb-2">Новый товар</h1>
         <p className="text-muted-foreground mb-8">
           Заполните информацию о вашем цифровом товаре
         </p>

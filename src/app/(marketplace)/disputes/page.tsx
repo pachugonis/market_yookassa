@@ -124,7 +124,7 @@ export default function DisputesPage() {
           </Button>
         </motion.div>
       ) : (
-        <div className="grid gap-4">
+        <div className="grid grid-cols-1 gap-4">
           {disputes.map((dispute, index) => (
             <motion.div
               key={dispute.id}

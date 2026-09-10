@@ -108,7 +108,7 @@ export default function AdminReportsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Жалобы и репорты</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold">Жалобы и репорты</h1>
           <p className="text-muted-foreground mt-2">Управление жалобами пользователей</p>
         </div>
         <Button onClick={fetchReports} disabled={loading}>
@@ -176,7 +176,7 @@ export default function AdminReportsPage() {
               >
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
+                    <div className="mb-2 flex flex-wrap items-center gap-2">
                       <Badge className={statusColors[report.status]}>
                         {statusLabels[report.status]}
                       </Badge>
@@ -184,7 +184,7 @@ export default function AdminReportsPage() {
                       <Badge variant="secondary">{reasonLabels[report.reason]}</Badge>
                     </div>
                     <p className="text-sm mb-2 line-clamp-2">{report.description}</p>
-                    <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
                       <span>От: {report.reporter.name}</span>
                       <span>•</span>
                       <span>{format(new Date(report.createdAt), "d MMMM yyyy, HH:mm", { locale: ru })}</span>

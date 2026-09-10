@@ -45,13 +45,13 @@ export default async function UsersPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Пользователи</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold">Пользователи</h1>
         <p className="text-muted-foreground mt-2">Управление пользователями платформы</p>
       </div>
 
       <Card>
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full min-w-[760px]">
             <thead className="border-b border-border">
               <tr>
                 <th className="text-left p-4 font-medium">Пользователь</th>
@@ -104,7 +104,7 @@ export default async function UsersPage() {
         </div>
       </Card>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <Card className="p-6">
           <h3 className="font-semibold mb-2">Всего пользователей</h3>
           <p className="text-3xl font-bold">{users.length}</p>

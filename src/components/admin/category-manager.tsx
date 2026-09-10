@@ -289,9 +289,9 @@ export function CategoryManager({ categories }: CategoryManagerProps) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Категории</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold">Категории</h1>
           <p className="text-muted-foreground mt-2">Управление категориями товаров</p>
         </div>
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
@@ -431,7 +431,7 @@ export function CategoryManager({ categories }: CategoryManagerProps) {
 
       <Card>
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full min-w-[640px]">
             <thead className="border-b border-border">
               <tr>
                 <th className="text-left p-4 font-medium">Иконка</th>
@@ -662,10 +662,10 @@ export function CategoryManager({ categories }: CategoryManagerProps) {
           {categories
             .sort((a, b) => b._count.products - a._count.products)
             .map((category) => (
-              <div key={category.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                <div className="flex items-center gap-3">
+              <div key={category.id} className="flex items-center justify-between gap-3 py-2 border-b border-border last:border-0">
+                <div className="flex min-w-0 items-center gap-3">
                   {isImageIcon(category.icon) ? (
-                    <div className="relative w-6 h-6 rounded overflow-hidden">
+                    <div className="relative w-6 h-6 rounded overflow-hidden shrink-0">
                       <Image
                         src={category.icon}
                         alt={category.name}
@@ -677,10 +677,12 @@ export function CategoryManager({ categories }: CategoryManagerProps) {
                   ) : (
                     <span className="text-xl">{category.icon}</span>
                   )}
-                  <span className="font-medium">{category.name}</span>
+                  <span className="truncate font-medium">{category.name}</span>
                 </div>
-                <div className="flex items-center gap-4">
-                  <div className="w-64 bg-secondary rounded-full h-2">
+                {/* Полоса тянется по остатку ширины: жёсткие 256 px не
+                    помещались рядом с названием на телефоне. */}
+                <div className="flex min-w-0 flex-1 items-center justify-end gap-3">
+                  <div className="h-2 w-full max-w-64 flex-1 rounded-full bg-secondary">
                     <div
                       className="bg-primary h-2 rounded-full"
                       style={{
@@ -688,7 +690,7 @@ export function CategoryManager({ categories }: CategoryManagerProps) {
                       }}
                     />
                   </div>
-                  <span className="text-sm font-medium w-12 text-right">
+                  <span className="w-8 shrink-0 text-right text-sm font-medium sm:w-12">
                     {category._count.products}
                   </span>
                 </div>

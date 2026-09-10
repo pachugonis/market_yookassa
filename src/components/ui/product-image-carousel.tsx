@@ -62,7 +62,9 @@ export function ProductImageCarousel({
           <Button
             variant="ghost"
             size="icon"
-            className="absolute left-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-black/50 text-white hover:bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity"
+            // На тач-экране наведения нет, поэтому стрелки там видны
+            // всегда — иначе листать галерею было бы нечем.
+            className="absolute left-2 top-1/2 h-9 w-9 -translate-y-1/2 rounded-full bg-black/50 text-white opacity-100 transition-opacity hover:bg-black/70 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100"
             onClick={(e) => {
               e.preventDefault()
               e.stopPropagation()
@@ -74,7 +76,7 @@ export function ProductImageCarousel({
           <Button
             variant="ghost"
             size="icon"
-            className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-black/50 text-white hover:bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity"
+            className="absolute right-2 top-1/2 h-9 w-9 -translate-y-1/2 rounded-full bg-black/50 text-white opacity-100 transition-opacity hover:bg-black/70 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100"
             onClick={(e) => {
               e.preventDefault()
               e.stopPropagation()

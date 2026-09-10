@@ -446,7 +446,7 @@ export default function EditProductPage() {
             </Button>
           </Link>
           <div>
-            <h1 className="text-3xl font-bold">Редактировать товар</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold">Редактировать товар</h1>
             <p className="text-muted-foreground">
               Измените информацию о вашем товаре
             </p>
@@ -677,10 +677,10 @@ export default function EditProductPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 {/* Stats */}
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-3 gap-2 sm:gap-4">
                   <div className="p-3 bg-secondary/50 rounded-lg">
                     <p className="text-sm text-muted-foreground">Всего</p>
-                    <p className="text-2xl font-bold">{licenseKeyStats.total}</p>
+                    <p className="text-xl font-bold sm:text-2xl">{licenseKeyStats.total}</p>
                   </div>
                   <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
                     <p className="text-sm text-muted-foreground">Доступно</p>
@@ -863,8 +863,9 @@ export default function EditProductPage() {
             </Card>
           )}
 
-          {/* Submit */}
-          <div className="flex gap-4">
+          {/* Submit — на узких экранах кнопки в столбик: подписи
+              не переносятся и в одну строку не помещались. */}
+          <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
             <Button
               type="button"
               variant="outline"

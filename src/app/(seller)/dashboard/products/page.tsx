@@ -133,9 +133,9 @@ export default function ProductsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Мои товары</h1>
+          <h1 className="text-2xl font-bold sm:text-3xl">Мои товары</h1>
           <p className="text-muted-foreground">
             {canManageProducts
               ? "Управление вашими цифровыми товарами"
@@ -174,7 +174,10 @@ export default function ProductsPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4">
+        /* Именно `grid-cols-1`, а не голый `grid`: неявная колонка имеет
+           ширину `auto` и не сжимается уже своего содержимого, из-за чего
+           длинные названия растягивали карточку за экран. */
+        <div className="grid grid-cols-1 gap-4">
           {products.map((product, index) => (
             <motion.div
               key={product.id}
@@ -186,7 +189,7 @@ export default function ProductsPage() {
                 <CardContent className="p-4">
                   <div className="flex gap-4">
                     {/* Image */}
-                    <div className="relative w-24 h-24 rounded-lg overflow-hidden bg-secondary shrink-0">
+                    <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-secondary sm:h-24 sm:w-24">
                       {product.coverImage ? (
                         <Image
                           src={product.coverImage}
@@ -205,14 +208,17 @@ export default function ProductsPage() {
 
                     {/* Info */}
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-4">
-                        <div>
+                      <div className="flex items-start justify-between gap-3">
+                        {/* min-w-0 обязателен: без него `truncate` у заголовка
+                            не срабатывает и строка выталкивает бейдж за карточку. */}
+                        <div className="min-w-0">
                           <h3 className="font-semibold truncate">{product.title}</h3>
-                          <p className="text-sm text-muted-foreground">
+                          <p className="truncate text-sm text-muted-foreground">
                             {product.category.name} • {formatDate(new Date(product.createdAt))}
                           </p>
                         </div>
                         <Badge
+                          className="shrink-0"
                           variant={
                             product.status === "ACTIVE" ? "success" :
                             product.status === "DRAFT" ? "secondary" : "destructive"
@@ -223,7 +229,9 @@ export default function ProductsPage() {
                         </Badge>
                       </div>
 
-                      <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
+                      {/* Цифры переносятся: втроём в одну строку они не
+                          помещались рядом с обложкой на телефоне. */}
+                      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
                         <span className="font-semibold text-foreground">
                           {formatPrice(product.price)}
                         </span>
@@ -232,7 +240,7 @@ export default function ProductsPage() {
                       </div>
 
                       {/* Actions */}
-                      <div className="flex gap-2 mt-3">
+                      <div className="mt-3 flex flex-wrap gap-2">
                         <Link href={`/products/${product.id}`}>
                           <Button variant="outline" size="sm">
                             <Eye className="h-4 w-4" />

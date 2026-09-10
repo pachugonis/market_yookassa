@@ -285,7 +285,7 @@ export default function ProfilePage() {
 
         {/* Profile Tab */}
         <TabsContent value="profile" className="space-y-6">
-          <div className="grid gap-6">
+          <div className="grid grid-cols-1 gap-6">
         {/* Main Profile Card */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -392,7 +392,7 @@ export default function ProfilePage() {
               </div>
 
               {/* Profile Details */}
-              <div className="grid gap-4">
+              <div className="grid grid-cols-1 gap-4">
                 <div className="flex items-center gap-3 p-3 rounded-lg bg-secondary/30">
                   <Mail className="h-5 w-5 text-muted-foreground" />
                   <div>

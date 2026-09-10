@@ -143,10 +143,16 @@ export function ProductsCatalog({ initialProducts, initialCategories, filters }:
           </div>
         </form>
 
+        {/*
+          На телефоне фильтры делят ширину поровну: фиксированные
+          180 + 160 px с отступом не помещались в экран 375 px и
+          вызывали горизонтальную прокрутку страницы.
+        */}
         <div className="flex gap-3">
           <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-            <SelectTrigger className="w-[180px]">
-              <SlidersHorizontal className="h-4 w-4 mr-2" />
+            <SelectTrigger className="min-w-0 flex-1 md:w-[180px] md:flex-none">
+              {/* Иконка только там, где есть запас ширины под текст. */}
+              <SlidersHorizontal className="mr-2 hidden h-4 w-4 shrink-0 sm:block" />
               <SelectValue placeholder="Категория" />
             </SelectTrigger>
             <SelectContent>
@@ -167,7 +173,7 @@ export function ProductsCatalog({ initialProducts, initialCategories, filters }:
           </Select>
 
           <Select value={sortBy} onValueChange={setSortBy}>
-            <SelectTrigger className="w-[160px]">
+            <SelectTrigger className="min-w-0 flex-1 md:w-[160px] md:flex-none">
               <SelectValue placeholder="Сортировка" />
             </SelectTrigger>
             <SelectContent>

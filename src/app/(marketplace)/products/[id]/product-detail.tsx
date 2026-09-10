@@ -247,9 +247,16 @@ export function ProductDetail({ product, avgRating, availableStock }: ProductDet
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="grid lg:grid-cols-3 gap-8">
-        {/* Main Content */}
-        <div className="lg:col-span-2 space-y-6">
+      {/*
+        На телефоне порядок блоков задаётся через `order`: карточка
+        покупки поднимается сразу под заголовок. Без этого цена и кнопка
+        «Купить» оказывались в самом низу — после описания и всех
+        отзывов. На широком экране раскладка прежняя: две колонки
+        контента слева и липкая карточка справа.
+      */}
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+        {/* Обложка и заголовок */}
+        <div className="order-1 space-y-6 lg:col-span-2 lg:col-start-1 lg:row-start-1">
           {/* Cover Image */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -292,7 +299,10 @@ export function ProductDetail({ product, avgRating, availableStock }: ProductDet
               </div>
             </div>
           </motion.div>
+        </div>
 
+        {/* Описание и отзывы — под карточкой покупки на телефоне */}
+        <div className="order-3 space-y-6 lg:order-none lg:col-span-2 lg:col-start-1 lg:row-start-2">
           {/* Description */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -497,12 +507,12 @@ export function ProductDetail({ product, avgRating, availableStock }: ProductDet
         </div>
 
         {/* Sidebar */}
-        <div className="lg:col-span-1">
+        <div className="order-2 lg:order-none lg:col-span-1 lg:col-start-3 lg:row-start-1 lg:row-span-2">
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.2 }}
-            className="sticky top-24"
+            className="lg:sticky lg:top-24"
           >
             {/* Purchase Card */}
             <Card className="mb-6">

@@ -57,13 +57,13 @@ export default async function ProductsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Товары</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold">Товары</h1>
         <p className="text-muted-foreground mt-2">Все товары на платформе</p>
       </div>
 
       <Card>
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full min-w-[760px]">
             <thead className="border-b border-border">
               <tr>
                 <th className="text-left p-4 font-medium">Товар</th>
@@ -132,7 +132,7 @@ export default async function ProductsPage() {
         </div>
       </Card>
 
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
         <Card className="p-6">
           <h3 className="font-semibold mb-2">Всего товаров</h3>
           <p className="text-3xl font-bold">{products.length}</p>

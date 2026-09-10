@@ -208,7 +208,7 @@ export default function ReportDetailPage({ params }: { params: Promise<{ id: str
             Назад
           </Button>
           <div>
-            <h1 className="text-3xl font-bold">Детали жалобы</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold">Детали жалобы</h1>
             <p className="text-muted-foreground mt-1">ID: {report.id}</p>
           </div>
         </div>
@@ -220,7 +220,7 @@ export default function ReportDetailPage({ params }: { params: Promise<{ id: str
         </div>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         {/* Report Details */}
         <Card className="p-6">
           <h2 className="text-xl font-bold mb-4">Информация о жалобе</h2>

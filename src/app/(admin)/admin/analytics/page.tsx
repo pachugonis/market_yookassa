@@ -229,12 +229,12 @@ export default async function AnalyticsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Аналитика</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold">Аналитика</h1>
         <p className="text-muted-foreground mt-2">Статистика и показатели платформы за последний месяц</p>
       </div>
 
       {/* Key Metrics */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card className="p-6">
           <div className="flex items-center justify-between">
             <div>
@@ -318,7 +318,7 @@ export default async function AnalyticsPage() {
         </Card>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         {/* Top Products */}
         <Card className="p-6">
           <div className="flex items-center gap-2 mb-4">
@@ -328,14 +328,16 @@ export default async function AnalyticsPage() {
           <div className="space-y-3">
             {analytics.topProducts.map((product: any, index: number) => (
               <div key={product.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                <div className="flex items-center gap-3">
-                  <span className="text-lg font-bold text-muted-foreground w-6">{index + 1}</span>
-                  <div>
-                    <p className="font-medium text-sm">{product.title}</p>
-                    <p className="text-xs text-muted-foreground">{product.category.name}</p>
+                <div className="flex min-w-0 items-center gap-3">
+                  <span className="w-6 shrink-0 text-lg font-bold text-muted-foreground">{index + 1}</span>
+                  {/* min-w-0 + truncate: длинные названия иначе
+                      выталкивали сумму справа за пределы карточки. */}
+                  <div className="min-w-0">
+                    <p className="truncate font-medium text-sm">{product.title}</p>
+                    <p className="truncate text-xs text-muted-foreground">{product.category.name}</p>
                   </div>
                 </div>
-                <div className="text-right">
+                <div className="shrink-0 pl-3 text-right">
                   <p className="font-medium">{product._count.purchases} продаж</p>
                   <p className="text-xs text-muted-foreground">{product.price.toLocaleString('ru-RU')} ₽</p>
                 </div>
@@ -353,22 +355,24 @@ export default async function AnalyticsPage() {
           <div className="space-y-3">
             {analytics.topSellers.map((seller: any, index: number) => (
               <div key={seller.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                <div className="flex items-center gap-3">
-                  <span className="text-lg font-bold text-muted-foreground w-6">{index + 1}</span>
-                  <div className="flex items-center gap-2">
-                    <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                <div className="flex min-w-0 items-center gap-3">
+                  <span className="w-6 shrink-0 text-lg font-bold text-muted-foreground">{index + 1}</span>
+                  <div className="flex min-w-0 items-center gap-2">
+                    <div className="h-8 w-8 shrink-0 rounded-full bg-primary/10 flex items-center justify-center">
                       <span className="text-sm font-medium text-primary">
                         {seller.name.charAt(0).toUpperCase()}
                       </span>
                     </div>
-                    <div>
-                      <p className="font-medium text-sm">{seller.name}</p>
-                      <p className="text-xs text-muted-foreground">{seller.email}</p>
+                    {/* Почта бывает длинной — обрезаем, иначе она
+                        выталкивает счётчик товаров за карточку. */}
+                    <div className="min-w-0">
+                      <p className="truncate font-medium text-sm">{seller.name}</p>
+                      <p className="truncate text-xs text-muted-foreground">{seller.email}</p>
                     </div>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className="font-medium">{seller._count.products} товаров</p>
+                <div className="shrink-0 pl-3 text-right">
+                  <p className="whitespace-nowrap font-medium">{seller._count.products} товаров</p>
                 </div>
               </div>
             ))}

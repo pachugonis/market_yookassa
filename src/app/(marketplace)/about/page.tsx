@@ -61,7 +61,7 @@ export default async function AboutPage() {
         их сразу после оплаты.
       </p>
 
-      <div className="grid gap-6 sm:grid-cols-2 mb-12">
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 mb-12">
         {features.map(({ icon: Icon, title, text }) => (
           <div key={title} className="rounded-lg border p-6">
             <Icon className="h-8 w-8 text-primary mb-3" />

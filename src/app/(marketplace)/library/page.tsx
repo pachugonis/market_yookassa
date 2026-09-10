@@ -276,7 +276,7 @@ export default function LibraryPage() {
           </Button>
         </motion.div>
       ) : (
-        <div className="grid gap-4">
+        <div className="grid grid-cols-1 gap-4">
           {purchases.map((purchase, index) => (
             <motion.div
               key={purchase.id}

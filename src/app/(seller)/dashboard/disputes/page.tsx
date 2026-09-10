@@ -101,7 +101,7 @@ export default function SellerDisputesPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Споры по продажам</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold">Споры по продажам</h1>
         <p className="text-muted-foreground">Открытые и завершённые споры покупателей</p>
       </div>
 
@@ -116,7 +116,7 @@ export default function SellerDisputesPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4">
+        <div className="grid grid-cols-1 gap-4">
           {disputes.map((dispute, index) => (
             <motion.div
               key={dispute.id}
