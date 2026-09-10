@@ -7,8 +7,9 @@ import { motion } from "framer-motion"
 import { 
   Plus, 
   Edit, 
-  Trash2, 
+  Trash2,
   Eye,
+  EyeOff,
   Loader2,
   Package
 } from "lucide-react"
@@ -25,6 +26,7 @@ import {
 } from "@/components/ui/dialog"
 import { formatPrice, formatDate } from "@/lib/utils"
 import { toast } from "@/hooks/use-toast"
+import { useSellerCapabilities } from "@/components/seller/seller-capabilities"
 
 interface Product {
   id: string
@@ -39,10 +41,12 @@ interface Product {
 }
 
 export default function ProductsPage() {
+  const { canManageProducts } = useSellerCapabilities()
   const [products, setProducts] = useState<Product[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [unpublishingId, setUnpublishingId] = useState<string | null>(null)
 
   useEffect(() => {
     fetchProducts()
@@ -59,6 +63,40 @@ export default function ProductsPage() {
       console.error("Error fetching products:", error)
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  /**
+   * Снять товар с витрины. Единственное изменение карточки, доступное
+   * продавцу, когда правка закрыта: убрать своё из продажи он должен
+   * мочь сам, не дожидаясь администратора.
+   */
+  const handleUnpublish = async (id: string) => {
+    setUnpublishingId(id)
+    try {
+      const res = await fetch(`/api/products/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "INACTIVE" }),
+      })
+      const data = await res.json()
+
+      if (data.success) {
+        setProducts((prev) =>
+          prev.map((p) => (p.id === id ? { ...p, status: "INACTIVE" } : p))
+        )
+        toast({ title: "Товар снят с продажи" })
+      } else {
+        toast({ title: "Ошибка", description: data.error, variant: "destructive" })
+      }
+    } catch {
+      toast({
+        title: "Ошибка",
+        description: "Не удалось снять товар с продажи",
+        variant: "destructive",
+      })
+    } finally {
+      setUnpublishingId(null)
     }
   }
 
@@ -98,14 +136,20 @@ export default function ProductsPage() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold">Мои товары</h1>
-          <p className="text-muted-foreground">Управление вашими цифровыми товарами</p>
+          <p className="text-muted-foreground">
+            {canManageProducts
+              ? "Управление вашими цифровыми товарами"
+              : "Новые товары на площадке заводит администратор. Свои прежние вы можете посмотреть и снять с продажи"}
+          </p>
         </div>
-        <Link href="/dashboard/products/new">
-          <Button>
-            <Plus className="h-4 w-4 mr-2" />
-            Добавить товар
-          </Button>
-        </Link>
+        {canManageProducts && (
+          <Link href="/dashboard/products/new">
+            <Button>
+              <Plus className="h-4 w-4 mr-2" />
+              Добавить товар
+            </Button>
+          </Link>
+        )}
       </div>
 
       {/* Products Grid */}
@@ -115,14 +159,18 @@ export default function ProductsPage() {
             <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-lg font-semibold mb-2">Нет товаров</h3>
             <p className="text-muted-foreground mb-4">
-              Создайте свой первый товар для продажи
+              {canManageProducts
+                ? "Создайте свой первый товар для продажи"
+                : "Товары на площадке выставляет администратор"}
             </p>
-            <Link href="/dashboard/products/new">
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Добавить товар
-              </Button>
-            </Link>
+            {canManageProducts && (
+              <Link href="/dashboard/products/new">
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Добавить товар
+                </Button>
+              </Link>
+            )}
           </CardContent>
         </Card>
       ) : (
@@ -190,11 +238,29 @@ export default function ProductsPage() {
                             <Eye className="h-4 w-4" />
                           </Button>
                         </Link>
-                        <Link href={`/dashboard/products/${product.id}/edit`}>
-                          <Button variant="outline" size="sm">
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                        </Link>
+                        {canManageProducts ? (
+                          <Link href={`/dashboard/products/${product.id}/edit`}>
+                            <Button variant="outline" size="sm">
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          </Link>
+                        ) : (
+                          product.status === "ACTIVE" && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleUnpublish(product.id)}
+                              disabled={unpublishingId === product.id}
+                            >
+                              {unpublishingId === product.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <EyeOff className="h-4 w-4 mr-2" />
+                              )}
+                              Снять с продажи
+                            </Button>
+                          )
+                        )}
                         <Button
                           variant="outline"
                           size="sm"

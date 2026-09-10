@@ -91,22 +91,29 @@ export async function PUT(
       )
     }
 
+    const body = await request.json()
+    const validatedData = updateProductSchema.parse(body)
+
     // В режиме одного продавца витриной распоряжается администратор.
     // Правку тоже закрываем: иначе в старой карточке можно заменить
     // название, описание и цену — то есть выставить новый товар в обход
-    // запрета на создание.
+    // запрета на создание. Исключение одно — снять свой товар с
+    // продажи: это только убирает карточку с витрины, ничего не выставляя.
     if (session.user.role !== "ADMIN" && (await isSingleVendorMode())) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Товарами на площадке управляет только администратор",
-        },
-        { status: 403 }
-      )
-    }
+      const onlyUnpublishes =
+        Object.keys(validatedData).length === 1 &&
+        validatedData.status === "INACTIVE"
 
-    const body = await request.json()
-    const validatedData = updateProductSchema.parse(body)
+      if (!onlyUnpublishes) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Товарами на площадке управляет только администратор",
+          },
+          { status: 403 }
+        )
+      }
+    }
 
     const updatedProduct = await prisma.product.update({
       where: { id },
