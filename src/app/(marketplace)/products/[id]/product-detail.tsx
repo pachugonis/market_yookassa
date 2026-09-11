@@ -28,43 +28,17 @@ import { formatPrice, formatDate } from "@/lib/utils"
 import { toast } from "@/hooks/use-toast"
 import { ReportDialog } from "@/components/ReportDialog"
 import { ProductImageCarousel } from "@/components/ui/product-image-carousel"
+import type { PublicProduct } from "@/lib/catalog"
 
-interface Review {
-  id: string
-  rating: number
-  comment: string | null
-  createdAt: Date
-  buyer: { name: string; avatar: string | null }
-}
+type Review = PublicProduct["reviews"][number]
 
 interface ProductDetailProps {
-  product: {
-    id: string
-    title: string
-    description: string
-    price: number
-    coverImage: string | null
-    fileName: string
-    fileSize: number
-    downloadCount: number
-    createdAt: Date
-    seller: {
-      id: string
-      name: string
-      avatar: string | null
-      createdAt: Date
-      _count: { products: number }
-    }
-    category: { name: string; slug: string }
-    reviews: Review[]
-    images?: Array<{ id: string; imageUrl: string; order: number }>
-    _count: { reviews: number; purchases: number }
-  }
+  product: PublicProduct
   avgRating: number
-  availableStock: number | null
 }
 
-export function ProductDetail({ product, avgRating, availableStock }: ProductDetailProps) {
+export function ProductDetail({ product, avgRating }: ProductDetailProps) {
+  const { availableStock } = product
   const { data: session } = useSession()
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
@@ -524,10 +498,9 @@ export function ProductDetail({ product, avgRating, availableStock }: ProductDet
                 <div className="space-y-3 mb-6">
                   <div className="flex items-center gap-2 text-sm">
                     <FileDown className="h-4 w-4 text-muted-foreground" />
-                    <span>{product.fileName}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <span>Размер: {formatFileSize(product.fileSize)}</span>
+                    <span>
+                      {product.fileType}, {formatFileSize(product.fileSize)}
+                    </span>
                   </div>
                   {availableStock !== null && (
                     <div className="flex items-center gap-2 text-sm">

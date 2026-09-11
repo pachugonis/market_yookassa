@@ -1,8 +1,7 @@
 import { cache } from "react"
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
-import { visibleProductWhere } from "@/lib/catalog"
-import { prisma } from "@/lib/prisma"
+import { getPublicProduct } from "@/lib/catalog"
 import { absoluteUrl, truncateForMeta } from "@/lib/seo"
 import { getSiteName } from "@/lib/site-settings"
 import { ProductDetail } from "./product-detail"
@@ -15,39 +14,7 @@ interface Props {
  * generateMetadata и сам рендер страницы просят одни и те же данные.
  * cache() схлопывает это в один запрос к базе за проход рендера.
  */
-const getProduct = cache(async (id: string) => {
-  return prisma.product.findUnique({
-    where: { id, ...visibleProductWhere },
-    include: {
-      seller: {
-        select: {
-          id: true,
-          name: true,
-          avatar: true,
-          createdAt: true,
-          _count: { select: { products: true } }
-        }
-      },
-      category: true,
-      reviews: {
-        include: {
-          buyer: { select: { name: true, avatar: true } }
-        },
-        orderBy: { createdAt: "desc" },
-        take: 10
-      },
-      images: {
-        select: { id: true, imageUrl: true, order: true },
-        orderBy: { order: "asc" }
-      },
-      _count: { select: { reviews: true, purchases: true } },
-      licenseKeys: {
-        where: { isSold: false },
-        select: { id: true }
-      }
-    }
-  })
-})
+const getProduct = cache(getPublicProduct)
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params
@@ -97,7 +64,7 @@ export default async function ProductPage({ params }: Props) {
     ? product.reviews.reduce((acc, r) => acc + r.rating, 0) / product.reviews.length
     : 0
 
-  const availableStock = product.hasLicenseKeys ? product.licenseKeys.length : null
+  const { availableStock } = product
 
   const inStock = availableStock === null || availableStock > 0
 
@@ -167,7 +134,7 @@ export default async function ProductPage({ params }: Props) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
       />
-      <ProductDetail product={product} avgRating={avgRating} availableStock={availableStock} />
+      <ProductDetail product={product} avgRating={avgRating} />
     </>
   )
 }

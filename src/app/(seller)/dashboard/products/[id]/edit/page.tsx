@@ -41,7 +41,6 @@ interface Product {
   price: number
   categoryId: string
   coverImage: string | null
-  fileUrl: string
   fileName: string
   fileSize: number
   status: string

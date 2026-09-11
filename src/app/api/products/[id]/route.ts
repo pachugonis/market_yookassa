@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth"
 import { z } from "zod"
 import { COVER_IMAGE_PATTERN } from "@/lib/storage"
 import { isSingleVendorMode } from "@/lib/platform-mode"
+import { getPublicProduct } from "@/lib/catalog"
 
 const updateProductSchema = z.object({
   title: z.string().min(3).max(200).optional(),
@@ -23,22 +24,34 @@ export async function GET(
 ) {
   try {
     const { id } = await params
+    const session = await auth()
 
-    const product = await prisma.product.findUnique({
-      where: { id },
-      include: {
-        seller: { select: { id: true, name: true, avatar: true } },
-        category: true,
-        reviews: {
-          include: {
-            buyer: { select: { name: true, avatar: true } },
+    // Редактор товара открывает и черновики, и снятые с продажи — ему
+    // нужны служебные поля. Путь к файлу (fileUrl) не нужен и ему.
+    const owned = session?.user
+      ? await prisma.product.findFirst({
+          where: {
+            id,
+            ...(session.user.role === "ADMIN" ? {} : { sellerId: session.user.id }),
           },
-          orderBy: { createdAt: "desc" },
-        },
-        images: { select: { id: true, imageUrl: true, order: true }, orderBy: { order: "asc" } },
-        _count: { select: { reviews: true, purchases: true } },
-      },
-    })
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            price: true,
+            categoryId: true,
+            coverImage: true,
+            status: true,
+            fileName: true,
+            fileSize: true,
+            hasLicenseKeys: true,
+          },
+        })
+      : null
+
+    // Всем остальным — то же, что на карточке товара: только видимые
+    // товары и без имени и пути к файлу.
+    const product = owned ?? (await getPublicProduct(id))
 
     if (!product) {
       return NextResponse.json(

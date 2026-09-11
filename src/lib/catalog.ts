@@ -20,6 +20,91 @@ export const visibleProductWhere = {
   category: visibleCategoryWhere,
 } satisfies Prisma.ProductWhereInput
 
+/**
+ * Тип файла по расширению — всё, что покупатель узнаёт о файле до оплаты.
+ * Само имя не показываем: продавцы называют файлы по содержимому
+ * («encryption-keys.json»), и имя раскрывает товар раньше покупки.
+ */
+export function fileTypeLabel(fileName: string): string {
+  const ext = fileName.match(/\.([A-Za-z0-9]{1,10})$/)?.[1]
+  return ext ? ext.toUpperCase() : "Файл"
+}
+
+/**
+ * Карточка товара для всех посетителей — страница /products/[id] и
+ * публичный GET /api/products/[id]. Поля перечислены явно: fileUrl
+ * (путь к продаваемому файлу), имя файла, id ключей и покупателей
+ * наружу не уходят.
+ */
+export async function getPublicProduct(id: string) {
+  const product = await prisma.product.findUnique({
+    where: { id, ...visibleProductWhere },
+    select: {
+      id: true,
+      title: true,
+      description: true,
+      price: true,
+      coverImage: true,
+      fileName: true,
+      fileSize: true,
+      downloadCount: true,
+      hasLicenseKeys: true,
+      createdAt: true,
+      seller: {
+        select: {
+          id: true,
+          name: true,
+          avatar: true,
+          createdAt: true,
+          _count: { select: { products: true } },
+        },
+      },
+      category: { select: { name: true, slug: true } },
+      reviews: {
+        select: {
+          id: true,
+          rating: true,
+          comment: true,
+          createdAt: true,
+          buyer: { select: { name: true, avatar: true } },
+        },
+        orderBy: { createdAt: "desc" },
+        take: 10,
+      },
+      images: {
+        select: { id: true, imageUrl: true, order: true },
+        orderBy: { order: "asc" },
+      },
+      _count: {
+        select: {
+          reviews: true,
+          purchases: true,
+          licenseKeys: { where: { isSold: false } },
+        },
+      },
+    },
+  })
+
+  if (!product) return null
+
+  const {
+    fileName,
+    hasLicenseKeys,
+    _count: { licenseKeys: unsoldKeys, ...counts },
+    ...rest
+  } = product
+
+  return {
+    ...rest,
+    fileType: fileTypeLabel(fileName),
+    _count: counts,
+    // null — товар без ключей, запас не ограничен
+    availableStock: hasLicenseKeys ? unsoldKeys : null,
+  }
+}
+
+export type PublicProduct = NonNullable<Awaited<ReturnType<typeof getPublicProduct>>>
+
 export interface CatalogSeller {
   id: string
   name: string
