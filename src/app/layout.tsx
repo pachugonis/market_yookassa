@@ -1,19 +1,25 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 import { Toaster } from "@/components/ui/toaster";
 import { SITE_URL } from "@/lib/seo";
 import { getSiteSettings, siteTitle } from "@/lib/site-settings";
 
-const geistSans = Geist({
+// Шрифты лежат в репозитории, а не грузятся из Google Fonts: next/font/google
+// скачивает их во время сборки, и на серверах, откуда Google недоступен,
+// сборка падает. Файлы — из npm-пакета geist (OFL, см. fonts/OFL.txt),
+// вариативные, с кириллицей.
+const geistSans = localFont({
+  src: "./fonts/Geist-Variable.woff2",
   variable: "--font-geist-sans",
-  subsets: ["latin", "cyrillic"],
+  weight: "100 900",
 });
 
-const geistMono = Geist_Mono({
+const geistMono = localFont({
+  src: "./fonts/GeistMono-Variable.woff2",
   variable: "--font-geist-mono",
-  subsets: ["latin"],
+  weight: "100 900",
 });
 
 // Название и описание площадки задаются в админке, поэтому метатеги
