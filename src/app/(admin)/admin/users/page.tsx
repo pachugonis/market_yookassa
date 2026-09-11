@@ -3,6 +3,7 @@ import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { UserRole } from "@prisma/client"
 import { UserManager } from "@/components/admin/user-manager"
+import { formatPrice } from "@/lib/utils"
 
 async function getUsers() {
   const users = await prisma.user.findMany({
@@ -87,7 +88,7 @@ export default async function UsersPage() {
                   <td className="p-4 text-center">{user._count.products}</td>
                   <td className="p-4 text-center">{user._count.purchases}</td>
                   <td className="p-4">
-                    <span className="font-medium">{(user.balance / 100).toFixed(2)} ₽</span>
+                    <span className="font-medium">{formatPrice(user.balance)}</span>
                   </td>
                   <td className="p-4 text-sm text-muted-foreground">
                     {new Date(user.createdAt).toLocaleDateString("ru-RU")}
