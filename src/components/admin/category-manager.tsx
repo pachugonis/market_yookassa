@@ -32,10 +32,12 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Card } from "@/components/ui/card"
+import { Switch } from "@/components/ui/switch"
 import { Plus, Pencil, Trash2, ChevronRight, Upload, X } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
 import Image from "next/image"
+import { cn } from "@/lib/utils"
 
 interface Category {
   id: string
@@ -44,6 +46,7 @@ interface Category {
   icon: string
   description: string | null
   parentId: string | null
+  isHidden: boolean
   subcategories?: Category[]
   _count: {
     products: number
@@ -63,6 +66,9 @@ export function CategoryManager({ categories }: CategoryManagerProps) {
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
+  // Переключатель срабатывает сразу, не дожидаясь router.refresh(): иначе
+  // он возвращался бы назад на время, пока страница перезапрашивается.
+  const [hiddenOverrides, setHiddenOverrides] = useState<Record<string, boolean>>({})
   const fileInputRef = useRef<HTMLInputElement>(null)
   const editFileInputRef = useRef<HTMLInputElement>(null)
 
@@ -149,6 +155,40 @@ export function CategoryManager({ categories }: CategoryManagerProps) {
     }
     if (editFileInputRef.current) {
       editFileInputRef.current.value = ""
+    }
+  }
+
+  const isHidden = (category: Category) =>
+    hiddenOverrides[category.id] ?? category.isHidden
+
+  // Подкатегория скрытого раздела не видна на сайте, даже если сама включена.
+  const isHiddenByParent = (category: Category) => {
+    const parent = category.parentId
+      ? categories.find((c) => c.id === category.parentId)
+      : undefined
+    return parent ? isHidden(parent) : false
+  }
+
+  const handleToggleVisibility = async (category: Category, visible: boolean) => {
+    const hidden = !visible
+    setHiddenOverrides((prev) => ({ ...prev, [category.id]: hidden }))
+
+    try {
+      const response = await fetch(`/api/admin/categories/${category.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isHidden: hidden }),
+      })
+      const data = await response.json()
+      if (!data.success) throw new Error(data.error)
+      router.refresh()
+    } catch {
+      setHiddenOverrides((prev) => ({ ...prev, [category.id]: !hidden }))
+      toast({
+        title: "Ошибка",
+        description: "Не удалось переключить категорию",
+        variant: "destructive",
+      })
     }
   }
 
@@ -431,7 +471,7 @@ export function CategoryManager({ categories }: CategoryManagerProps) {
 
       <Card>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[640px]">
+          <table className="w-full min-w-[760px]">
             <thead className="border-b border-border">
               <tr>
                 <th className="text-left p-4 font-medium">Иконка</th>
@@ -439,12 +479,19 @@ export function CategoryManager({ categories }: CategoryManagerProps) {
                 <th className="text-left p-4 font-medium">Slug</th>
                 <th className="text-left p-4 font-medium">Описание</th>
                 <th className="text-left p-4 font-medium">Товаров</th>
+                <th className="text-left p-4 font-medium">На сайте</th>
                 <th className="text-right p-4 font-medium">Действия</th>
               </tr>
             </thead>
             <tbody>
               {flattenedCategories.map((category) => (
-                <tr key={category.id} className="border-b border-border last:border-0 hover:bg-secondary/50">
+                <tr
+                  key={category.id}
+                  className={cn(
+                    "border-b border-border last:border-0 hover:bg-secondary/50",
+                    (isHidden(category) || isHiddenByParent(category)) && "opacity-60"
+                  )}
+                >
                   <td className="p-4">
                     <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center overflow-hidden">
                       {isImageIcon(category.icon) ? (
@@ -476,6 +523,23 @@ export function CategoryManager({ categories }: CategoryManagerProps) {
                   </td>
                   <td className="p-4">
                     <span className="font-medium">{category._count.products}</span>
+                  </td>
+                  <td className="p-4">
+                    <label className="flex items-center gap-2 text-sm">
+                      <Switch
+                        checked={!isHidden(category)}
+                        onCheckedChange={(checked) => handleToggleVisibility(category, checked)}
+                        aria-label={`Показывать категорию «${category.name}» на сайте`}
+                      />
+                      <span className="text-muted-foreground whitespace-nowrap">
+                        {isHidden(category) ? "Скрыта" : "Показана"}
+                      </span>
+                    </label>
+                    {!isHidden(category) && isHiddenByParent(category) && (
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Скрыта вместе с родителем
+                      </p>
+                    )}
                   </td>
                   <td className="p-4">
                     <div className="flex justify-end gap-2">
@@ -639,6 +703,7 @@ export function CategoryManager({ categories }: CategoryManagerProps) {
               {selectedCategory && selectedCategory._count.products > 0 && (
                 <span className="block mt-2 text-red-600 font-medium">
                   Невозможно удалить категорию, в которой есть товары ({selectedCategory._count.products}).
+                  Чтобы убрать её с сайта, выключите переключатель «На сайте».
                 </span>
               )}
             </AlertDialogDescription>

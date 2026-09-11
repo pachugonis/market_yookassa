@@ -186,6 +186,10 @@ model Category {
   icon        String
   description String?
   parentId    String?
+  /// Скрытая категория пропадает с сайта вместе с подкатегориями и
+  /// товарами: её нет в меню, каталоге и sitemap, страницы отвечают 404.
+  /// Нужно, чтобы временно убрать раздел, не удаляя его.
+  isHidden    Boolean   @default(false)
   createdAt   DateTime  @default(now())
 
   parent      Category?  @relation("CategoryToSubcategory", fields: [parentId], references: [id], onDelete: Cascade)

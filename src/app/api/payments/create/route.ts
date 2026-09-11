@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
+import { visibleProductWhere } from "@/lib/catalog"
 import { calculateCommission } from "@/lib/yookassa"
 import { getGateway, resolveProvider, splitAccountFor } from "@/lib/payments"
 
@@ -36,7 +37,7 @@ export async function POST(request: NextRequest) {
     }
 
     const product = await prisma.product.findUnique({
-      where: { id: productId, status: "ACTIVE" },
+      where: { id: productId, ...visibleProductWhere },
       include: {
         seller: {
           select: {

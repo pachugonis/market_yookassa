@@ -33,9 +33,9 @@ export async function CatalogView({ params }: { params: CatalogSearchParams }) {
       sort: firstParam(params.sort),
     }),
     prisma.category.findMany({
-      where: { parentId: null },
+      where: { parentId: null, isHidden: false },
       orderBy: { name: "asc" },
-      include: { subcategories: { orderBy: { name: "asc" } } },
+      include: { subcategories: { where: { isHidden: false }, orderBy: { name: "asc" } } },
     }),
   ])
 

@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next"
+import { visibleCategoryWhere, visibleProductWhere } from "@/lib/catalog"
 import { isCatalogHomePage, isStoresPageEnabled } from "@/lib/platform-mode"
 import { prisma } from "@/lib/prisma"
 import { absoluteUrl } from "@/lib/seo"
@@ -24,9 +25,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const [storesEnabled, catalogIsHome, categories, products] = await Promise.all([
       isStoresPageEnabled(),
       isCatalogHomePage(),
-      prisma.category.findMany({ select: { slug: true } }),
+      prisma.category.findMany({ where: visibleCategoryWhere, select: { slug: true } }),
       prisma.product.findMany({
-        where: { status: "ACTIVE" },
+        where: visibleProductWhere,
         select: { id: true, updatedAt: true, coverImage: true },
         orderBy: { updatedAt: "desc" },
         // Лимит Google — 50 000 URL на файл.

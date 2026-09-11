@@ -7,7 +7,25 @@ import {
   useSiteName,
 } from "@/components/layout/site-settings-provider"
 
-export function Footer() {
+// Ссылки на разделы прописаны вручную, а не берутся из базы: в футере
+// нужны несколько главных, а не все подряд.
+const FOOTER_CATEGORIES = [
+  { slug: "software", name: "Программы" },
+  { slug: "games", name: "Игры" },
+  { slug: "music", name: "Музыка" },
+  { slug: "graphics", name: "Графика" },
+  { slug: "ebooks", name: "Электронные книги" },
+]
+
+interface FooterProps {
+  /** Slug'и категорий, видимых на сайте: скрытые в админке не показываем. */
+  categorySlugs: string[]
+}
+
+export function Footer({ categorySlugs }: FooterProps) {
+  const footerCategories = FOOTER_CATEGORIES.filter((category) =>
+    categorySlugs.includes(category.slug)
+  )
   // Название и описание приходят из layout'а уже отрисованными: запрос
   // из браузера показывал бы значения по умолчанию до первого ответа.
   const siteName = useSiteName()
@@ -32,11 +50,13 @@ export function Footer() {
           <div>
             <h3 className="font-semibold mb-4">Каталог</h3>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li><Link href="/category/software" className="hover:text-primary transition-colors">Программы</Link></li>
-              <li><Link href="/category/games" className="hover:text-primary transition-colors">Игры</Link></li>
-              <li><Link href="/category/music" className="hover:text-primary transition-colors">Музыка</Link></li>
-              <li><Link href="/category/graphics" className="hover:text-primary transition-colors">Графика</Link></li>
-              <li><Link href="/category/ebooks" className="hover:text-primary transition-colors">Электронные книги</Link></li>
+              {footerCategories.map((category) => (
+                <li key={category.slug}>
+                  <Link href={`/category/${category.slug}`} className="hover:text-primary transition-colors">
+                    {category.name}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
 

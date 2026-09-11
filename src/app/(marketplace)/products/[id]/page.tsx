@@ -1,6 +1,7 @@
 import { cache } from "react"
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
+import { visibleProductWhere } from "@/lib/catalog"
 import { prisma } from "@/lib/prisma"
 import { absoluteUrl, truncateForMeta } from "@/lib/seo"
 import { getSiteName } from "@/lib/site-settings"
@@ -16,7 +17,7 @@ interface Props {
  */
 const getProduct = cache(async (id: string) => {
   return prisma.product.findUnique({
-    where: { id, status: "ACTIVE" },
+    where: { id, ...visibleProductWhere },
     include: {
       seller: {
         select: {

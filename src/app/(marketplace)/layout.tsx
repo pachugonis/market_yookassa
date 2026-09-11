@@ -16,13 +16,14 @@ export default async function MarketplaceLayout({
   const storesPageEnabled = await isStoresPageEnabled()
   const siteSettings = await getSiteSettings()
   const categories = await prisma.category.findMany({
-    where: { parentId: null } as any,
+    where: { parentId: null, isHidden: false },
     orderBy: { name: "asc" },
     include: {
       subcategories: {
+        where: { isHidden: false },
         orderBy: { name: "asc" },
       },
-    } as any,
+    },
   })
 
   return (
@@ -31,7 +32,7 @@ export default async function MarketplaceLayout({
         <Navbar storesPageEnabled={storesPageEnabled} />
         <CategoryNav categories={categories} />
         <main className="flex-1">{children}</main>
-        <Footer />
+        <Footer categorySlugs={categories.map((category) => category.slug)} />
       </div>
     </SiteSettingsProvider>
   )

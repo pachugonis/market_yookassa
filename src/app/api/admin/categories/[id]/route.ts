@@ -83,6 +83,60 @@ export async function PUT(
   }
 }
 
+const visibilitySchema = z.object({
+  isHidden: z.boolean(),
+})
+
+// Переключатель «на сайте / скрыта» из таблицы категорий: остальные поля
+// правит PUT, которому нужна вся форма целиком.
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await auth()
+
+    if (!session?.user || session.user.role !== "ADMIN") {
+      return NextResponse.json(
+        { success: false, error: "Доступ запрещен" },
+        { status: 403 }
+      )
+    }
+
+    const { id } = await params
+    const { isHidden } = visibilitySchema.parse(await request.json())
+
+    const existing = await prisma.category.findUnique({ where: { id } })
+
+    if (!existing) {
+      return NextResponse.json(
+        { success: false, error: "Категория не найдена" },
+        { status: 404 }
+      )
+    }
+
+    const category = await prisma.category.update({
+      where: { id },
+      data: { isHidden },
+    })
+
+    return NextResponse.json({ success: true, data: category })
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { success: false, error: error.issues[0]?.message || "Ошибка валидации" },
+        { status: 400 }
+      )
+    }
+
+    console.error("Error updating category visibility:", error)
+    return NextResponse.json(
+      { success: false, error: "Ошибка обновления категории" },
+      { status: 500 }
+    )
+  }
+}
+
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

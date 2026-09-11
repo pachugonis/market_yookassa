@@ -1,4 +1,24 @@
+import type { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
+
+/**
+ * Категория видна на сайте, если не скрыта ни она сама, ни её родитель:
+ * скрытие раздела в админке прячет и все его подкатегории.
+ */
+export const visibleCategoryWhere = {
+  isHidden: false,
+  OR: [{ parentId: null }, { parent: { isHidden: false } }],
+} satisfies Prisma.CategoryWhereInput
+
+/**
+ * Товар, который можно показать и продать: активный и из видимой категории.
+ * Товары скрытой категории ведут себя как снятые с продажи — их нет в
+ * выдаче, карточка отвечает 404, оплату не создать.
+ */
+export const visibleProductWhere = {
+  status: "ACTIVE",
+  category: visibleCategoryWhere,
+} satisfies Prisma.ProductWhereInput
 
 export interface CatalogSeller {
   id: string
@@ -10,23 +30,23 @@ export interface CatalogSeller {
 }
 
 /**
- * Продавцы с хотя бы одним активным товаром — витрина /stores и /api/sellers.
+ * Продавцы с хотя бы одним видимым товаром — витрина /stores и /api/sellers.
  * Эндпоинт публичный, поэтому email наружу не отдаём.
  */
 export async function getCatalogSellers(): Promise<CatalogSeller[]> {
   const sellers = await prisma.user.findMany({
     where: {
       role: { in: ["SELLER", "ADMIN"] },
-      products: { some: { status: "ACTIVE" } },
+      products: { some: visibleProductWhere },
     },
     select: {
       id: true,
       name: true,
       avatar: true,
       createdAt: true,
-      _count: { select: { products: { where: { status: "ACTIVE" } } } },
+      _count: { select: { products: { where: visibleProductWhere } } },
       products: {
-        where: { status: "ACTIVE" },
+        where: visibleProductWhere,
         select: { id: true, reviews: { select: { rating: true } } },
       },
     },
@@ -72,9 +92,7 @@ export async function getCatalogProducts(
   const page = filters.page && filters.page > 0 ? filters.page : 1
   const limit = filters.limit && filters.limit > 0 ? filters.limit : 20
 
-  const where: Record<string, unknown> = {
-    status: "ACTIVE",
-  }
+  const where: Record<string, unknown> = { ...visibleProductWhere }
 
   if (search) {
     where.OR = [
@@ -84,7 +102,7 @@ export async function getCatalogProducts(
   }
 
   if (category && category !== "all") {
-    where.category = { slug: category }
+    where.category = { ...visibleCategoryWhere, slug: category }
   }
 
   if (seller) {

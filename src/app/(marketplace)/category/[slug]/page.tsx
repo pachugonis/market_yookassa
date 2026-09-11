@@ -1,6 +1,7 @@
 import { cache } from "react"
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
+import { visibleCategoryWhere, visibleProductWhere } from "@/lib/catalog"
 import { prisma } from "@/lib/prisma"
 import { absoluteUrl, truncateForMeta } from "@/lib/seo"
 import { getSiteName } from "@/lib/site-settings"
@@ -11,11 +12,13 @@ interface Props {
 }
 
 // Один запрос на проход рендера: его делят generateMetadata и сама страница.
+// Скрытая категория (или подкатегория скрытой) для сайта не существует.
 const getCategory = cache(async (slug: string) => {
   return prisma.category.findUnique({
-    where: { slug },
+    where: { slug, ...visibleCategoryWhere },
     include: {
       subcategories: {
+        where: { isHidden: false },
         orderBy: { name: "asc" },
         include: {
           _count: {
@@ -70,9 +73,9 @@ export default async function CategoryPage({ params }: Props) {
   const categoryIds = [category.id, ...(category.subcategories?.map(sub => sub.id) || [])]
 
   const products = await prisma.product.findMany({
-    where: { 
+    where: {
+      ...visibleProductWhere,
       categoryId: { in: categoryIds },
-      status: "ACTIVE" 
     },
     include: {
       seller: { select: { name: true, avatar: true } },
