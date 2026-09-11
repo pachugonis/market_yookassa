@@ -52,3 +52,26 @@ export async function isStoresPageEnabled(): Promise<boolean> {
 
   return settings?.storesPageEnabled ?? true
 }
+
+/**
+ * Показывать ли по адресу «/» каталог товаров вместо витрины-лендинга.
+ *
+ * Каталог именно рисуется на главной, а не открывается редиректом на
+ * «/products»: главная площадки должна оставаться по короткому адресу —
+ * он стоит в ссылках, письмах и метатегах.
+ *
+ * Адрес «/products» при этом продолжает работать: на него ведут меню,
+ * поиск в шапке и внешние ссылки. Чтобы поисковик не считал две
+ * одинаковые страницы разными, канонический адрес каталога в этом
+ * режиме — «/» (см. `products/page.tsx` и `sitemap.ts`).
+ *
+ * Пока настроек в базе нет, главная остаётся лендингом — это поведение
+ * площадки до появления переключателя.
+ */
+export async function isCatalogHomePage(): Promise<boolean> {
+  const settings = await prisma.platformSettings.findFirst({
+    select: { homePage: true },
+  })
+
+  return settings?.homePage === "CATALOG"
+}

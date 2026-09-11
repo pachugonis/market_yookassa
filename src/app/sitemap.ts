@@ -1,5 +1,5 @@
 import type { MetadataRoute } from "next"
-import { isStoresPageEnabled } from "@/lib/platform-mode"
+import { isCatalogHomePage, isStoresPageEnabled } from "@/lib/platform-mode"
 import { prisma } from "@/lib/prisma"
 import { absoluteUrl } from "@/lib/seo"
 
@@ -11,9 +11,9 @@ export const dynamic = "force-dynamic"
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const staticEntries: MetadataRoute.Sitemap = [
     { url: absoluteUrl("/"), changeFrequency: "daily", priority: 1 },
-    { url: absoluteUrl("/products"), changeFrequency: "daily", priority: 0.9 },
-    // Витрина продавцов живёт не здесь: её адрес попадает в карту только
-    // при включённой в админке странице — см. ниже.
+    // Каталог живёт не здесь: когда он назначен главной, его адрес в карте
+    // уже есть — это «/», и второй адрес с тем же содержимым туда не нужен.
+    // Витрина продавцов — тоже ниже, она зависит от настройки.
     { url: absoluteUrl("/about"), changeFrequency: "monthly", priority: 0.4 },
     { url: absoluteUrl("/terms"), changeFrequency: "yearly", priority: 0.3 },
     { url: absoluteUrl("/privacy"), changeFrequency: "yearly", priority: 0.3 },
@@ -21,8 +21,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ]
 
   try {
-    const [storesEnabled, categories, products] = await Promise.all([
+    const [storesEnabled, catalogIsHome, categories, products] = await Promise.all([
       isStoresPageEnabled(),
+      isCatalogHomePage(),
       prisma.category.findMany({ select: { slug: true } }),
       prisma.product.findMany({
         where: { status: "ACTIVE" },
@@ -35,6 +36,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
     return [
       ...staticEntries,
+      ...(catalogIsHome
+        ? []
+        : [
+            {
+              url: absoluteUrl("/products"),
+              changeFrequency: "daily" as const,
+              priority: 0.9,
+            },
+          ]),
       ...(storesEnabled
         ? [
             {
@@ -59,8 +69,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ]
   } catch (error) {
     // Без базы отдаём хотя бы статичную часть: пустой sitemap для поисковика
-    // хуже, чем неполный.
+    // хуже, чем неполный. Настройку главной прочитать не удалось — каталог
+    // отдаём по его собственному адресу, он рабочий в любом случае.
     console.error("Error building sitemap:", error)
-    return staticEntries
+    return [
+      ...staticEntries,
+      { url: absoluteUrl("/products"), changeFrequency: "daily", priority: 0.9 },
+    ]
   }
 }

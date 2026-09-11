@@ -18,7 +18,8 @@ import {
   Bell,
   Send,
   Construction,
-  Store
+  Store,
+  Home
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { SITE_DESCRIPTION, SITE_NAME } from "@/lib/seo"
@@ -95,6 +96,7 @@ export default function SettingsPage() {
         })
         setSingleVendorMode(data.data.singleVendorMode ?? false)
         setStoresPageEnabled(data.data.storesPageEnabled ?? true)
+        setCatalogAsHomePage(data.data.homePage === "CATALOG")
         setMaintenanceSettings({
           maintenanceMode: data.data.maintenanceMode ?? false,
           maintenanceMessage: data.data.maintenanceMessage ?? "Сайт временно недоступен. Ведутся технические работы.",
@@ -220,6 +222,51 @@ export default function SettingsPage() {
       }
     } catch {
       setStoresPageEnabled(!enabled)
+      toast({
+        title: "Ошибка",
+        description: "Не удалось сохранить настройки",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // Главная страница: лендинг или каталог
+  const [catalogAsHomePage, setCatalogAsHomePage] = useState(false)
+
+  const handleSaveHomePage = async (asHome: boolean) => {
+    setIsLoading(true)
+    // Как и у соседних переключателей: положение меняем сразу, при
+    // ошибке возвращаем обратно.
+    setCatalogAsHomePage(asHome)
+
+    try {
+      const response = await fetch("/api/admin/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ homePage: asHome ? "CATALOG" : "LANDING" }),
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        toast({
+          title: "Успех",
+          description: asHome
+            ? "Главная страница теперь — каталог товаров"
+            : "Главная страница теперь — витрина",
+        })
+      } else {
+        setCatalogAsHomePage(!asHome)
+        toast({
+          title: "Ошибка",
+          description: data.error || "Не удалось сохранить настройки",
+          variant: "destructive",
+        })
+      }
+    } catch {
+      setCatalogAsHomePage(!asHome)
       toast({
         title: "Ошибка",
         description: "Не удалось сохранить настройки",
@@ -930,6 +977,43 @@ export default function SettingsPage() {
               checked={singleVendorMode}
               disabled={isLoading}
               onCheckedChange={handleSaveSingleVendorMode}
+            />
+          </div>
+        </div>
+      </Card>
+
+      {/* Home Page */}
+      <Card className="p-6">
+        <div className="flex items-center gap-2 mb-6">
+          <Home className="h-5 w-5 text-primary" />
+          <h2 className="text-xl font-semibold">Главная страница</h2>
+        </div>
+
+        <div className="space-y-4">
+          <div className="bg-secondary/40 p-4 rounded-lg border border-border">
+            <p className="text-sm text-muted-foreground">
+              Что открывается по адресу{" "}
+              <code className="bg-background px-2 py-1 rounded">/</code>: витрина
+              с баннером и подборками или сразу каталог товаров — тот же, что на{" "}
+              <code className="bg-background px-2 py-1 rounded">/products</code>.
+              Адрес каталога остаётся рабочим в любом случае: на него ведут меню,
+              поиск в шапке и внешние ссылки.
+            </p>
+          </div>
+
+          <div className="flex items-center justify-between py-3">
+            <div>
+              <p className="font-medium">Показывать каталог на главной</p>
+              <p className="text-sm text-muted-foreground">
+                {catalogAsHomePage
+                  ? "Сайт открывается каталогом товаров"
+                  : "Сайт открывается витриной с подборками"}
+              </p>
+            </div>
+            <Switch
+              checked={catalogAsHomePage}
+              disabled={isLoading}
+              onCheckedChange={handleSaveHomePage}
             />
           </div>
         </div>
