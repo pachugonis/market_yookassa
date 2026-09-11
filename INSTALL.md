@@ -1,883 +1,439 @@
-# Installation Guide for Market YooKassa
+# Установка на VPS (Ubuntu 24.04)
 
-This guide provides detailed instructions for installing the Market YooKassa project on Ubuntu 24 VPS using both standard installation and Docker methods.
+Скрипт [`install.sh`](./install.sh) разворачивает маркетплейс на чистом
+сервере одной командой: ставит все зависимости, создаёт базу данных,
+собирает приложение, настраивает HTTPS и создаёт администратора.
 
-## Table of Contents
+Установка в Docker описана в [DOCKER_INSTALL.md](./DOCKER_INSTALL.md), в
+Kubernetes — в [KUBERNETES_INSTALL.md](./KUBERNETES_INSTALL.md).
 
-- [Prerequisites](#prerequisites)
-- [Method 1: Standard Installation](#method-1-standard-installation)
-- [Method 2: Docker Installation](#method-2-docker-installation)
-- [Post-Installation Setup](#post-installation-setup)
-- [Troubleshooting](#troubleshooting)
+## Содержание
 
----
-
-## Prerequisites
-
-### System Requirements
-
-- Ubuntu 24.04 LTS
-- Minimum 2GB RAM
-- At least 10GB free disk space
-- Root or sudo access
-- Domain name (optional, for production)
-
-### Update System
-
-```bash
-sudo apt update && sudo apt upgrade -y
-```
+- [Что делает скрипт](#что-делает-скрипт)
+- [Что нужно заранее](#что-нужно-заранее)
+- [Установка](#установка)
+- [Установка без вопросов](#установка-без-вопросов)
+- [После установки](#после-установки)
+- [Где что лежит](#где-что-лежит)
+- [Управление](#управление)
+- [Обновление](#обновление)
+- [Резервные копии](#резервные-копии)
+- [Решение проблем](#решение-проблем)
 
 ---
 
-## Method 1: Standard Installation
+## Что делает скрипт
 
-### Step 1: Install Node.js 20.x
+1. Создаёт swap на 2 ГБ, если памяти меньше 3 ГБ, — без него сборка
+   Next.js на маленьком VPS падает из-за нехватки памяти.
+2. Ставит пакеты: Node.js 22 (из NodeSource), PostgreSQL 16, nginx,
+   certbot, ufw, git, rsync.
+3. Создаёт системного пользователя `market`, от имени которого работает
+   приложение, и копирует код в `/opt/market-yookassa`.
+4. Создаёт базу `market_yookassa` и пользователя PostgreSQL со случайным
+   паролем. База доступна только с самого сервера.
+5. Настраивает nginx как обратный прокси, открывает в ufw порты SSH, 80
+   и 443.
+6. Выпускает сертификат Let's Encrypt и включает перенаправление на
+   HTTPS. Сертификат продлевается автоматически.
+7. Создаёт `.env` со сгенерированными секретами (`NEXTAUTH_SECRET`,
+   `CRON_SECRET`, пароль БД) и ключами платёжных сервисов.
+8. Ставит npm-зависимости, применяет схему БД, создаёт категории
+   товаров и администратора, собирает приложение.
+9. Регистрирует службы systemd:
+   - `market-yookassa` — само приложение, перезапускается при сбое и
+     после перезагрузки сервера;
+   - `market-yookassa-cron.timer` — раз в 10 минут подтверждает сделки
+     и снимает просроченные холды (см. [ESCROW.md](./ESCROW.md));
+   - `market-yookassa-backup.timer` — каждую ночь сохраняет копию базы
+     и загруженных файлов.
 
-```bash
-# Install Node.js 20.x via NodeSource repository
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-sudo apt install -y nodejs
+Запускать скрипт повторно безопасно: секреты, база и загруженные файлы
+сохраняются. Так же выполняется [обновление](#обновление).
 
-# Verify installation
-node --version  # Should show v20.x.x
-npm --version
-```
+## Что нужно заранее
 
-### Step 2: Install PostgreSQL 16
+- **VPS с Ubuntu 24.04**: от 1 ГБ памяти (лучше 2 ГБ), от 10 ГБ диска
+  плюс место под файлы товаров. Нужен доступ root или sudo.
+- **Домен**, у которого A-запись указывает на IP сервера. Проверить
+  можно командой `dig +short shop.example.ru`. Если хотите открывать
+  сайт и по `www.`, нужна запись и для `www.shop.example.ru`. Без
+  домена сайт можно поставить по IP, но тогда он будет работать только
+  по HTTP — для приёма платежей это не годится.
+- **Ключи хотя бы одного платёжного сервиса.** Без них приложение не
+  запускается в режиме продакшена. Для проверки подойдёт тестовый
+  магазин ЮKassa.
 
-```bash
-# Add PostgreSQL repository
-sudo apt install -y wget ca-certificates
-wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
-echo "deb http://apt.postgresql.org/pub/repos/apt/ $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+| Сервис | Что понадобится | Где взять |
+|---|---|---|
+| ЮKassa | `shopId` и секретный ключ | Личный кабинет ЮKassa → Интеграция → Ключи API |
+| CloudPayments | Public ID и API Secret терминала оплат; для «Безопасной сделки» — ещё и терминала выплат | Личный кабинет CloudPayments → Сайты |
+| BTCPay Server | Адрес сервера, Greenfield API-ключ, Store ID, секрет вебхука | Ваш BTCPay → Account → API Keys и Store → Settings |
 
-# Install PostgreSQL
-sudo apt update
-sudo apt install -y postgresql-16 postgresql-contrib-16
+## Установка
 
-# Start and enable PostgreSQL
-sudo systemctl start postgresql
-sudo systemctl enable postgresql
-
-# Create database and user
-sudo -u postgres psql <<EOF
-CREATE DATABASE market_yookassa;
-CREATE USER marketuser WITH ENCRYPTED PASSWORD 'your_secure_password';
-GRANT ALL PRIVILEGES ON DATABASE market_yookassa TO marketuser;
-\c market_yookassa
-GRANT ALL ON SCHEMA public TO marketuser;
-EOF
-```
-
-### Step 3: Install Git
-
-```bash
-sudo apt install -y git
-```
-
-### Step 4: Clone the Repository
-
-```bash
-# Create app directory
-sudo mkdir -p /var/www/market-yookassa
-sudo chown -R $USER:$USER /var/www/market-yookassa
-
-# Clone repository
-cd /var/www/market-yookassa
-git clone https://github.com/your-username/market-yookassa.git .
-```
-
-### Step 5: Configure Environment Variables
+Подключитесь к серверу и обновите систему:
 
 ```bash
-# Copy example environment file
-cp .env.example .env
-
-# Edit environment variables
-nano .env
+ssh root@IP_СЕРВЕРА
+apt update && apt upgrade -y
 ```
 
-Update the following variables:
+Если обновилось ядро, перезагрузите сервер (`reboot`) и подключитесь
+снова.
 
-```env
-# Database
-DATABASE_URL="postgresql://marketuser:your_secure_password@localhost:5432/market_yookassa?schema=public"
-
-# NextAuth
-NEXTAUTH_URL="https://yourdomain.com"
-NEXTAUTH_SECRET="generate-random-32-char-string-here"
-
-# YooKassa (get from https://yookassa.ru)
-YOOKASSA_SHOP_ID="your_shop_id"
-YOOKASSA_SECRET_KEY="your_secret_key"
-
-# CloudPayments (get from https://cloudpayments.ru) — payment terminal
-CLOUDPAYMENTS_PUBLIC_ID="pk_xxxxxxxxxxxxxxxxxxxxxxxxx"
-CLOUDPAYMENTS_API_SECRET="your_api_secret"
-# Payout terminal, required for split payments ("Безопасная сделка")
-CLOUDPAYMENTS_PAYOUT_PUBLIC_ID="pk_xxxxxxxxxxxxxxxxxxxxxxxxx"
-CLOUDPAYMENTS_PAYOUT_API_SECRET="your_payout_api_secret"
-
-# Verification hold used to bind a seller's payout card (RUB, default 1);
-# it is authorized and released right away
-CLOUDPAYMENTS_CARD_BINDING_AMOUNT="1"
-
-# BTCPay Server — bitcoin payments priced in roubles
-BTCPAY_URL="https://btcpay.example.com"
-BTCPAY_API_KEY="your_greenfield_api_key"
-BTCPAY_STORE_ID="your_store_id"
-# Webhook secret; without it BTCPay notifications are rejected
-BTCPAY_WEBHOOK_SECRET="your_webhook_secret"
-# Invoice lifetime in minutes (default 30)
-BTCPAY_INVOICE_EXPIRATION_MINUTES="30"
-# Confirmations to wait for: MediumSpeed means one (default)
-BTCPAY_SPEED_POLICY="MediumSpeed"
-
-# Which provider to offer by default: YOOKASSA, CLOUDPAYMENTS or BTCPAY
-PAYMENT_PROVIDER_DEFAULT="YOOKASSA"
-
-# Escrow: days before a held deal is confirmed automatically (default 3)
-ESCROW_AUTO_CONFIRM_DAYS="3"
-
-# Secret for the background job POST /api/cron/settle-holds
-CRON_SECRET="generate-random-32-char-string-here"
-
-# App
-NEXT_PUBLIC_BASE_URL="https://yourdomain.com"
-UPLOAD_DIR="uploads"
-```
-
-Deal flow (two-stage payment + split) is described in [ESCROW.md](./ESCROW.md);
-it requires a scheduled call to `/api/cron/settle-holds`.
-
-**Generate secure NEXTAUTH_SECRET:**
+Скачайте проект и запустите скрипт:
 
 ```bash
-openssl rand -base64 32
+git clone https://github.com/pachugonis/market_yookassa.git
+cd market_yookassa
+sudo bash install.sh
 ```
 
-### Step 6: Install Dependencies
+Скрипт задаст вопросы:
+
+| Вопрос | Пример ответа |
+|---|---|
+| Домен сайта или IP сервера | `shop.example.ru` |
+| Перенаправлять `www` на основной домен? | `y`, если есть DNS-запись для `www`, иначе `n` |
+| Email администратора | `admin@example.ru` |
+| Имя администратора | Enter — «Администратор» |
+| Пароль администратора | Enter — сгенерировать случайный (не короче 8 символов) |
+| Email для Let's Encrypt | Enter — тот же, что у администратора |
+| Подключить ЮKassa / CloudPayments / BTCPay? | ответьте `y` хотя бы на один сервис и введите его ключи |
+
+Секретные значения при вводе не отображаются. Установка занимает
+5–15 минут, дольше всего идёт сборка. В конце скрипт выведет адрес сайта
+и данные для входа.
+
+> **Совет.** Данные для входа также сохраняются в файл
+> `/root/market-yookassa-credentials.txt`. Перенесите их в менеджер
+> паролей, а файл удалите: `rm /root/market-yookassa-credentials.txt`.
+
+### Если репозиторий закрытый
+
+Для приватного репозитория `git clone` на сервере попросит логин и
+токен GitHub. Можно обойтись без этого: скопируйте проект со своего
+компьютера и запустите скрипт из копии.
 
 ```bash
-npm install
+# на своём компьютере, из папки проекта
+rsync -a --exclude node_modules --exclude .next --exclude .env \
+  ./ root@IP_СЕРВЕРА:/root/market_yookassa/
+
+# на сервере
+cd /root/market_yookassa && sudo bash install.sh
 ```
 
-### Step 7: Initialize Database
+Не копируйте на сервер свой локальный `.env`: скрипт создаёт свой, с
+новыми секретами.
+
+## Установка без вопросов
+
+Любой ответ можно передать переменной окружения. Если заданы все
+обязательные значения, а `NONINTERACTIVE=1`, скрипт ничего не
+спрашивает. Так удобно ставить через cloud-init или Ansible.
 
 ```bash
-# Generate Prisma Client
-npm run db:generate
-
-# Run database migrations
-npm run db:push
-
-# (Optional) Seed database with initial data
-npm run db:seed
+sudo NONINTERACTIVE=1 \
+  DOMAIN=shop.example.ru \
+  ADMIN_EMAIL=admin@example.ru \
+  LETSENCRYPT_EMAIL=admin@example.ru \
+  YOOKASSA_SHOP_ID=123456 \
+  YOOKASSA_SECRET_KEY=live_xxxxxxxxxxxxxxxx \
+  bash install.sh
 ```
 
-### Step 8: Create Upload Directory
+Если пароль администратора не задан, скрипт его сгенерирует и выведет в
+конце.
+
+Если на сервере ещё нет исходников, скрипт скачает их сам. Этот способ
+работает только для публичного репозитория:
 
 ```bash
-# Create uploads directory with proper permissions
-mkdir -p uploads public/avatars public/covers public/category-icons
-chmod 755 uploads public/avatars public/covers public/category-icons
+curl -fsSL https://raw.githubusercontent.com/pachugonis/market_yookassa/main/install.sh \
+  | sudo DOMAIN=shop.example.ru ADMIN_EMAIL=admin@example.ru bash
 ```
 
-### Step 9: Build the Application
+Исходники скачиваются в `/usr/local/src/market-yookassa`.
+
+### Все параметры
+
+| Переменная | По умолчанию | Назначение |
+|---|---|---|
+| `DOMAIN` | — (спросит) | Домен или IP сайта |
+| `WWW_ALIAS` | спросит | `yes` — перенаправлять `www.домен` на домен |
+| `ADMIN_EMAIL` | — (спросит) | Email администратора |
+| `ADMIN_NAME` | `Администратор` | Имя администратора |
+| `ADMIN_PASSWORD` | генерируется | Пароль администратора, не короче 8 символов |
+| `LETSENCRYPT_EMAIL` | email администратора | Email для уведомлений о сертификате |
+| `ENABLE_SSL` | `yes` | `no` — не выпускать сертификат |
+| `SETUP_FIREWALL` | `yes` | `no` — не трогать ufw |
+| `ENABLE_BACKUPS` | `yes` | `no` — не включать ежедневные бэкапы |
+| `BACKUP_DIR` | `/var/backups/market-yookassa` | Куда складывать бэкапы |
+| `BACKUP_KEEP_DAYS` | `7` | Сколько дней хранить бэкапы |
+| `APP_DIR` | `/opt/market-yookassa` | Каталог приложения |
+| `APP_USER` | `market` | Системный пользователь приложения |
+| `APP_PORT` | `3000` | Локальный порт Next.js (снаружи закрыт) |
+| `DB_NAME` / `DB_USER` | `market_yookassa` / `marketuser` | База и пользователь PostgreSQL |
+| `NODE_MAJOR` | `22` | Версия Node.js из NodeSource |
+| `SWAP_SIZE_GB` | `2` | Размер swap, если памяти меньше 3 ГБ |
+| `REPO_URL` / `BRANCH` | этот репозиторий / `main` | Откуда скачивать исходники, если скрипт запущен не из копии |
+| `NONINTERACTIVE` | `0` | `1` — ничего не спрашивать |
+
+Ключи платёжных сервисов задаются переменными с теми же именами, что в
+`.env`: `YOOKASSA_SHOP_ID`, `YOOKASSA_SECRET_KEY`,
+`CLOUDPAYMENTS_PUBLIC_ID`, `CLOUDPAYMENTS_API_SECRET`,
+`CLOUDPAYMENTS_PAYOUT_PUBLIC_ID`, `CLOUDPAYMENTS_PAYOUT_API_SECRET`,
+`BTCPAY_URL`, `BTCPAY_API_KEY`, `BTCPAY_STORE_ID`,
+`BTCPAY_WEBHOOK_SECRET`, `PAYMENT_PROVIDER_DEFAULT`.
+
+Параметры первой установки сохраняются в
+`/etc/market-yookassa/install.conf`, и при повторном запуске скрипт
+берёт их оттуда. Переменная окружения, заданная при запуске, важнее
+сохранённого значения.
+
+---
+
+## После установки
+
+### 1. Войдите в админку
+
+Откройте `https://ваш-домен/admin-login` и войдите с email и паролем
+администратора. Сразу после входа:
+
+- включите двухфакторную аутентификацию: **Профиль → Безопасность**;
+- в админке, в разделе **Настройки → Основные настройки**, задайте
+  название и описание сайта, email поддержки и комиссию площадки.
+
+### 2. Подключите почту (SMTP)
+
+Без SMTP письма не отправляются: не работают подтверждение email и
+уведомления. Настройки задаются в админке: **Настройки → Настройки
+Email**. Примеры для Яндекса, Gmail и Mail.ru есть в
+[README.md](./README.md#-настройка-email). Там же есть кнопка отправки
+тестового письма.
+
+### 3. Укажите адреса уведомлений в платёжных сервисах
+
+Без уведомлений (вебхуков) оплата не подтверждается автоматически.
+
+| Сервис | Адрес уведомлений |
+|---|---|
+| ЮKassa | `https://ваш-домен/api/payments/webhook` — в разделе Интеграция → HTTP-уведомления, события `payment.*` и `refund.succeeded` |
+| CloudPayments | `https://ваш-домен/api/payments/cloudpayments/webhook?type=ТИП` — отдельно для каждого типа: `check`, `pay`, `fail`, `confirm`, `cancel`, `refund` |
+| BTCPay Server | `https://ваш-домен/api/payments/btcpay/webhook` — Store → Settings → Webhooks, секрет совпадает с `BTCPAY_WEBHOOK_SECRET` |
+
+Как работают двухэтапная оплата и сплитование, описано в
+[ESCROW.md](./ESCROW.md).
+
+### 4. Проверьте сайт
 
 ```bash
-# Build Next.js application
-npm run build
-```
-
-### Step 10: Install PM2 Process Manager
-
-```bash
-# Install PM2 globally
-sudo npm install -g pm2
-
-# Start application with PM2
-pm2 start npm --name "market-yookassa" -- start
-
-# Set PM2 to start on system boot
-pm2 startup
-pm2 save
-```
-
-### Step 11: Configure Nginx as Reverse Proxy
-
-```bash
-# Install Nginx
-sudo apt install -y nginx
-
-# Create Nginx configuration
-sudo nano /etc/nginx/sites-available/market-yookassa
-```
-
-Add the following configuration:
-
-```nginx
-server {
-    listen 80;
-    server_name yourdomain.com www.yourdomain.com;
-
-    client_max_body_size 500M;
-
-    location / {
-        proxy_pass http://localhost:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_cache_bypass $http_upgrade;
-    }
-}
-```
-
-Enable the site:
-
-```bash
-# Enable site
-sudo ln -s /etc/nginx/sites-available/market-yookassa /etc/nginx/sites-enabled/
-
-# Test Nginx configuration
-sudo nginx -t
-
-# Restart Nginx
-sudo systemctl restart nginx
-```
-
-### Step 12: Install SSL Certificate (Recommended)
-
-```bash
-# Install Certbot
-sudo apt install -y certbot python3-certbot-nginx
-
-# Obtain SSL certificate
-sudo certbot --nginx -d yourdomain.com -d www.yourdomain.com
-
-# Auto-renewal is set up automatically
-# Test renewal
-sudo certbot renew --dry-run
-```
-
-### Step 13: Configure Firewall
-
-```bash
-# Enable UFW firewall
-sudo ufw allow OpenSSH
-sudo ufw allow 'Nginx Full'
-sudo ufw enable
-sudo ufw status
+systemctl status market-yookassa         # служба активна (running)
+curl -s https://ваш-домен/api/health     # {"status":"ok",...}
+systemctl list-timers 'market-yookassa*' # таймеры обработки сделок и бэкапов
 ```
 
 ---
 
-## Method 2: Docker Installation
+## Где что лежит
 
-### Step 1: Install Docker and Docker Compose
+| Путь | Что там |
+|---|---|
+| `/opt/market-yookassa` | Приложение |
+| `/opt/market-yookassa/.env` | Настройки и секреты (доступны только пользователю `market`) |
+| `/opt/market-yookassa/uploads` | Файлы товаров и картинки баннеров |
+| `/opt/market-yookassa/public/{avatars,covers,category-icons}` | Аватары, обложки и иконки категорий |
+| `/etc/market-yookassa/install.conf` | Параметры установки |
+| `/etc/nginx/sites-available/market-yookassa` | Конфигурация nginx |
+| `/etc/systemd/system/market-yookassa*` | Службы и таймеры |
+| `/usr/local/sbin/market-yookassa-{cron,backup}` | Скрипты обработки сделок и бэкапа |
+| `/var/backups/market-yookassa` | Резервные копии |
 
-```bash
-# Install Docker
-sudo apt install -y apt-transport-https ca-certificates curl software-properties-common
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
-echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-
-sudo apt update
-sudo apt install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
-
-# Start and enable Docker
-sudo systemctl start docker
-sudo systemctl enable docker
-
-# Add current user to docker group
-sudo usermod -aG docker $USER
-newgrp docker
-
-# Verify installation
-docker --version
-docker compose version
-```
-
-### Step 2: Clone the Repository
+## Управление
 
 ```bash
-# Create app directory
-mkdir -p ~/market-yookassa
-cd ~/market-yookassa
+# Состояние, перезапуск, остановка
+systemctl status market-yookassa
+systemctl restart market-yookassa
+systemctl stop market-yookassa
 
-# Clone repository
-git clone https://github.com/your-username/market-yookassa.git .
+# Журнал приложения (Ctrl+C — выход)
+journalctl -u market-yookassa -f
+journalctl -u market-yookassa --since "1 hour ago"
+
+# Обработка сделок: запустить вручную и посмотреть результат
+systemctl start market-yookassa-cron
+journalctl -u market-yookassa-cron -n 20
 ```
 
-### Step 3: Create Docker Configuration Files
+### Изменение настроек
 
-Create `Dockerfile`:
+Отредактируйте `.env` и перезапустите приложение:
 
 ```bash
-nano Dockerfile
+nano /opt/market-yookassa/.env
+systemctl restart market-yookassa
 ```
 
-```dockerfile
-# Base image
-FROM node:20-alpine AS base
+Переменные `NEXT_PUBLIC_*` подставляются в код при сборке. Если вы их
+изменили, пересоберите приложение: `sudo bash install.sh`.
 
-# Install dependencies only when needed
-FROM base AS deps
-RUN apk add --no-cache libc6-compat
-WORKDIR /app
-
-# Copy package files
-COPY package*.json ./
-COPY prisma ./prisma/
-
-# Install dependencies
-RUN npm ci
-
-# Generate Prisma Client
-RUN npx prisma generate
-
-# Rebuild the source code only when needed
-FROM base AS builder
-WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
-
-# Build Next.js application
-ENV NEXT_TELEMETRY_DISABLED 1
-RUN npm run build
-
-# Production image, copy all the files and run next
-FROM base AS runner
-WORKDIR /app
-
-ENV NODE_ENV production
-ENV NEXT_TELEMETRY_DISABLED 1
-
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
-
-# Copy necessary files
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
-COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-
-# Create uploads directory
-RUN mkdir -p uploads public/avatars public/covers public/category-icons
-RUN chown -R nextjs:nodejs uploads public
-
-USER nextjs
-
-EXPOSE 3000
-
-ENV PORT 3000
-
-CMD ["node", "server.js"]
-```
-
-Create `docker-compose.yml`:
+### Новый администратор или сброс пароля
 
 ```bash
-nano docker-compose.yml
+cd /opt/market-yookassa
+sudo -u market npm run admin:create -- admin@example.ru
 ```
 
-```yaml
-version: '3.8'
+Команда спросит пароль (он не отображается при вводе). Если пользователь
+с таким email уже есть, он станет администратором, а его пароль
+заменится новым. Двухфакторная аутентификация при этом не
+сбрасывается.
 
-services:
-  postgres:
-    image: postgres:16-alpine
-    container_name: market-postgres
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: market_yookassa
-      POSTGRES_USER: marketuser
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
-    networks:
-      - market-network
+### Смена домена
 
-  app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: market-app
-    restart: unless-stopped
-    ports:
-      - "3000:3000"
-    environment:
-      DATABASE_URL: postgresql://marketuser:${DB_PASSWORD}@postgres:5432/market_yookassa?schema=public
-      NEXTAUTH_URL: ${NEXTAUTH_URL}
-      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
-      YOOKASSA_SHOP_ID: ${YOOKASSA_SHOP_ID}
-      YOOKASSA_SECRET_KEY: ${YOOKASSA_SECRET_KEY}
-      CLOUDPAYMENTS_PUBLIC_ID: ${CLOUDPAYMENTS_PUBLIC_ID}
-      CLOUDPAYMENTS_API_SECRET: ${CLOUDPAYMENTS_API_SECRET}
-      CLOUDPAYMENTS_PAYOUT_PUBLIC_ID: ${CLOUDPAYMENTS_PAYOUT_PUBLIC_ID}
-      CLOUDPAYMENTS_PAYOUT_API_SECRET: ${CLOUDPAYMENTS_PAYOUT_API_SECRET}
-      BTCPAY_URL: ${BTCPAY_URL}
-      BTCPAY_API_KEY: ${BTCPAY_API_KEY}
-      BTCPAY_STORE_ID: ${BTCPAY_STORE_ID}
-      BTCPAY_WEBHOOK_SECRET: ${BTCPAY_WEBHOOK_SECRET}
-      NEXT_PUBLIC_BASE_URL: ${NEXT_PUBLIC_BASE_URL}
-      UPLOAD_DIR: uploads
-    volumes:
-      - ./uploads:/app/uploads
-      - ./public/avatars:/app/public/avatars
-      - ./public/covers:/app/public/covers
-      - ./public/category-icons:/app/public/category-icons
-    depends_on:
-      - postgres
-    networks:
-      - market-network
+1. Добавьте DNS-запись для нового домена.
+2. Замените домен в `NEXTAUTH_URL` и `NEXT_PUBLIC_BASE_URL` в
+   `/opt/market-yookassa/.env`.
+3. Запустите скрипт с новым доменом:
+   `sudo DOMAIN=new.example.ru bash install.sh`. Скрипт перенастроит
+   nginx, выпустит сертификат и пересоберёт приложение.
+4. Обновите адреса уведомлений в платёжных сервисах.
 
-  nginx:
-    image: nginx:alpine
-    container_name: market-nginx
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./ssl:/etc/nginx/ssl:ro
-    depends_on:
-      - app
-    networks:
-      - market-network
+---
 
-networks:
-  market-network:
-    driver: bridge
+## Обновление
 
-volumes:
-  postgres_data:
-```
-
-Create `nginx.conf`:
+Скачайте новую версию и запустите скрипт ещё раз из той же папки:
 
 ```bash
-nano nginx.conf
+cd ~/market_yookassa        # папка, из которой ставили
+git pull
+sudo bash install.sh
 ```
 
-```nginx
-events {
-    worker_connections 1024;
-}
+Если ставили через `curl`, достаточно повторить ту же команду: скрипт
+сам скачает изменения в `/usr/local/src/market-yookassa`.
 
-http {
-    upstream app {
-        server app:3000;
-    }
+При обновлении скрипт:
 
-    server {
-        listen 80;
-        server_name yourdomain.com www.yourdomain.com;
-        client_max_body_size 500M;
+- копирует новый код в `/opt/market-yookassa`, не трогая `.env`,
+  `uploads/` и загруженные картинки;
+- ставит зависимости и применяет изменения схемы БД;
+- пересобирает и перезапускает приложение.
 
-        location / {
-            proxy_pass http://app;
-            proxy_http_version 1.1;
-            proxy_set_header Upgrade $http_upgrade;
-            proxy_set_header Connection 'upgrade';
-            proxy_set_header Host $host;
-            proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto $scheme;
-            proxy_cache_bypass $http_upgrade;
-        }
-    }
-}
-```
+Пока идёт сборка, сайт может отвечать ошибками несколько минут. Перед
+крупными обновлениями включите в админке **Настройки → Режим
+технических работ**.
 
-### Step 4: Configure Environment Variables
+Перед обновлением сделайте бэкап: `market-yookassa-backup`. Если
+изменение схемы грозит потерей данных (например, удаляется колонка),
+Prisma остановит обновление с предупреждением. Тогда разберитесь, что
+именно удаляется, и примените схему вручную:
 
 ```bash
-# Create .env file
-nano .env
-```
-
-```env
-# Database
-DB_PASSWORD=your_secure_database_password
-
-# NextAuth
-NEXTAUTH_URL=https://yourdomain.com
-NEXTAUTH_SECRET=generate-random-32-char-string-here
-
-# YooKassa
-YOOKASSA_SHOP_ID=your_shop_id
-YOOKASSA_SECRET_KEY=your_secret_key
-
-# CloudPayments
-CLOUDPAYMENTS_PUBLIC_ID=pk_xxxxxxxxxxxxxxxxxxxxxxxxx
-CLOUDPAYMENTS_API_SECRET=your_api_secret
-CLOUDPAYMENTS_PAYOUT_PUBLIC_ID=pk_xxxxxxxxxxxxxxxxxxxxxxxxx
-CLOUDPAYMENTS_PAYOUT_API_SECRET=your_payout_api_secret
-
-# BTCPay Server
-BTCPAY_URL=https://btcpay.example.com
-BTCPAY_API_KEY=your_greenfield_api_key
-BTCPAY_STORE_ID=your_store_id
-BTCPAY_WEBHOOK_SECRET=your_webhook_secret
-
-# App
-NEXT_PUBLIC_BASE_URL=https://yourdomain.com
-```
-
-### Step 5: Update next.config.ts for Docker
-
-Add to `next.config.ts`:
-
-```typescript
-const nextConfig = {
-  output: 'standalone',
-  // ... other config
-};
-```
-
-### Step 6: Build and Start Containers
-
-```bash
-# Build and start all containers
-docker compose up -d --build
-
-# View logs
-docker compose logs -f
-
-# Check container status
-docker compose ps
-```
-
-### Step 7: Initialize Database
-
-```bash
-# Run migrations
-docker compose exec app npx prisma db push
-
-# (Optional) Seed database
-docker compose exec app npm run db:seed
-```
-
-### Step 8: Setup SSL with Let's Encrypt (Optional)
-
-```bash
-# Stop nginx container temporarily
-docker compose stop nginx
-
-# Install Certbot
-sudo apt install -y certbot
-
-# Obtain certificate
-sudo certbot certonly --standalone -d yourdomain.com -d www.yourdomain.com
-
-# Create SSL directory
-mkdir -p ssl
-sudo cp /etc/letsencrypt/live/yourdomain.com/fullchain.pem ssl/
-sudo cp /etc/letsencrypt/live/yourdomain.com/privkey.pem ssl/
-sudo chown -R $USER:$USER ssl/
-
-# Update nginx.conf to use SSL
-nano nginx.conf
-```
-
-Add SSL configuration:
-
-```nginx
-server {
-    listen 443 ssl http2;
-    server_name yourdomain.com www.yourdomain.com;
-
-    ssl_certificate /etc/nginx/ssl/fullchain.pem;
-    ssl_certificate_key /etc/nginx/ssl/privkey.pem;
-    
-    client_max_body_size 500M;
-
-    location / {
-        proxy_pass http://app;
-        # ... rest of proxy config
-    }
-}
-
-server {
-    listen 80;
-    server_name yourdomain.com www.yourdomain.com;
-    return 301 https://$server_name$request_uri;
-}
-```
-
-Restart containers:
-
-```bash
-docker compose up -d
+cd /opt/market-yookassa
+sudo -u market npx prisma db push --accept-data-loss
 ```
 
 ---
 
-## Post-Installation Setup
+## Резервные копии
 
-### 1. Create Admin Account
+Каждую ночь (около 03:30) в `/var/backups/market-yookassa` сохраняются:
 
-Access your application at `http://yourdomain.com` (or `https://yourdomain.com` with SSL) and register the first user. Then, manually set their role to ADMIN:
+- `db-ДАТА.dump` — дамп базы данных;
+- `files-ДАТА.tar.gz` — `.env`, файлы товаров, аватары, обложки, иконки.
 
-**Standard Installation:**
+Копии старше 7 дней удаляются. Сделать копию вручную:
+`market-yookassa-backup`.
 
-```bash
-psql -U marketuser -d market_yookassa
-UPDATE "User" SET role = 'ADMIN' WHERE email = 'admin@example.com';
-\q
-```
+> **Важно.** Копии хранятся на том же сервере и при его потере пропадут
+> вместе с ним. Регулярно переносите их в другое место, например:
+> `rsync -a root@IP_СЕРВЕРА:/var/backups/market-yookassa/ ./backups/`.
 
-**Docker Installation:**
-
-```bash
-docker compose exec postgres psql -U marketuser -d market_yookassa
-UPDATE "User" SET role = 'ADMIN' WHERE email = 'admin@example.com';
-\q
-```
-
-### 2. Configure a payment provider
-
-At least one provider must be configured. Both can run side by side —
-the buyer picks one on the product page.
-
-**YooKassa**
-
-1. Register at https://yookassa.ru
-2. Create a shop and obtain credentials
-3. Update `.env` with your `YOOKASSA_SHOP_ID` and `YOOKASSA_SECRET_KEY`
-4. Point the webhook at `https://yourdomain.com/api/payments/webhook`
-5. Restart the application
-
-**CloudPayments**
-
-1. Register at https://cloudpayments.ru and ask your manager to enable
-   two-stage payments and «Безопасная сделка» (two terminals: payments
-   and payouts)
-2. Copy Public ID and API Secret of both terminals into `.env`
-3. Point every notification (check, pay, fail, confirm, cancel, refund) at
-   `https://yourdomain.com/api/payments/cloudpayments/webhook?type=<name>`
-4. Restart the application
-
-Sellers bind their payout card themselves in the dashboard («Доходы» →
-«Карта для выплат»): the card is verified by a small hold that is
-released immediately. See [ESCROW.md](./ESCROW.md) for the deal flow.
-
-**Standard Installation:**
+### Восстановление
 
 ```bash
-pm2 restart market-yookassa
+systemctl stop market-yookassa
+
+# База данных
+sudo -u postgres pg_restore --clean --if-exists \
+  -d market_yookassa /var/backups/market-yookassa/db-ДАТА.dump
+
+# Файлы
+tar -C /opt/market-yookassa -xzf /var/backups/market-yookassa/files-ДАТА.tar.gz
+chown -R market:market /opt/market-yookassa
+
+systemctl start market-yookassa
 ```
 
-**Docker Installation:**
-
-```bash
-docker compose restart app
-```
-
-### 3. Set Up Automated Backups
-
-Create backup script:
-
-```bash
-sudo nano /usr/local/bin/backup-market.sh
-```
-
-```bash
-#!/bin/bash
-BACKUP_DIR="/backups/market-yookassa"
-DATE=$(date +%Y%m%d_%H%M%S)
-
-mkdir -p $BACKUP_DIR
-
-# Backup database
-docker compose exec -T postgres pg_dump -U marketuser market_yookassa > $BACKUP_DIR/db_$DATE.sql
-
-# Backup uploads
-tar -czf $BACKUP_DIR/uploads_$DATE.tar.gz uploads/
-
-# Keep only last 7 days of backups
-find $BACKUP_DIR -name "*.sql" -mtime +7 -delete
-find $BACKUP_DIR -name "*.tar.gz" -mtime +7 -delete
-```
-
-Make executable and schedule:
-
-```bash
-sudo chmod +x /usr/local/bin/backup-market.sh
-sudo crontab -e
-```
-
-Add daily backup at 2 AM:
-
-```
-0 2 * * * /usr/local/bin/backup-market.sh
-```
+Чтобы перенести сайт на новый сервер, установите его там скриптом с тем
+же доменом, а затем восстановите базу и файлы, как показано выше. После
+этого пароль БД в восстановленном `.env` будет от старого сервера —
+запустите `sudo bash install.sh` ещё раз, и скрипт выставит этот пароль
+пользователю PostgreSQL.
 
 ---
 
-## Troubleshooting
+## Решение проблем
 
-### Database Connection Issues
-
-**Standard Installation:**
+### Приложение не запускается
 
 ```bash
-# Check PostgreSQL status
-sudo systemctl status postgresql
-
-# Check connection
-psql -U marketuser -d market_yookassa -h localhost
+journalctl -u market-yookassa -n 100 --no-pager
 ```
 
-**Docker Installation:**
+- **«Небезопасная конфигурация окружения»** — в `.env` не задан ни один
+  платёжный сервис, или `NEXTAUTH_SECRET` слишком короткий. Исправьте
+  `.env` и выполните `systemctl restart market-yookassa`.
+- **`Can't reach database server`** — проверьте PostgreSQL:
+  `systemctl status postgresql`.
+
+### Сертификат не выпустился
+
+Скрипт в этом случае продолжает установку по HTTP. Проверьте, что
+домен указывает на сервер (`dig +short ваш-домен`), а порт 80 открыт
+(`ufw status`). Затем запустите `sudo bash install.sh` ещё раз: скрипт
+выпустит сертификат и переведёт адреса в `.env` на HTTPS.
+
+### Сборка падает с `JavaScript heap out of memory` или `Killed`
+
+Не хватает памяти. Проверьте swap командой `swapon --show`. На
+контейнерных VPS (OpenVZ, LXC) swap создать нельзя — выберите тариф с
+2 ГБ памяти или больше.
+
+### 502 Bad Gateway
+
+nginx работает, а приложение нет. Проверьте, запущено ли оно:
+`systemctl status market-yookassa`. Сразу после перезапуска приложению
+нужно несколько секунд, чтобы стартовать.
+
+### Не загружаются большие файлы
+
+nginx принимает файлы до 520 МБ, приложение — до значения из админки
+(**Настройки → Макс. размер файла**, по умолчанию 500 МБ). Лимит nginx задан в
+`/etc/nginx/sites-available/market-yookassa` (`client_max_body_size`).
+Имейте в виду, что при повторном запуске скрипт перезапишет этот файл.
+
+### Платежи не подтверждаются
+
+- Проверьте адреса уведомлений в личном кабинете сервиса (см.
+  [После установки](#3-укажите-адреса-уведомлений-в-платёжных-сервисах)).
+- Посмотрите журнал: `journalctl -u market-yookassa | grep -i webhook`.
+- Уведомления ЮKassa и CloudPayments принимаются только с их IP-адресов.
+  Если перед сервером стоит ещё один прокси или CDN, приложение увидит
+  его адрес вместо адреса сервиса. Дополнительные сети можно разрешить
+  через `YOOKASSA_ALLOWED_IPS` и `CLOUDPAYMENTS_ALLOWED_IPS` в `.env`.
+
+### Сделки не подтверждаются автоматически
 
 ```bash
-# Check container logs
-docker compose logs postgres
-
-# Connect to database
-docker compose exec postgres psql -U marketuser -d market_yookassa
+systemctl list-timers market-yookassa-cron.timer
+journalctl -u market-yookassa-cron -n 20
 ```
 
-### Application Not Starting
-
-**Standard Installation:**
-
-```bash
-# Check PM2 logs
-pm2 logs market-yookassa
-
-# Restart application
-pm2 restart market-yookassa
-```
-
-**Docker Installation:**
-
-```bash
-# Check logs
-docker compose logs app
-
-# Restart container
-docker compose restart app
-```
-
-### Upload Issues
-
-```bash
-# Check permissions
-ls -la uploads/ public/avatars/ public/covers/
-
-# Fix permissions (Standard)
-chmod -R 755 uploads/ public/avatars/ public/covers/ public/category-icons/
-
-# Fix permissions (Docker)
-docker compose exec app chown -R nextjs:nodejs uploads/ public/avatars/ public/covers/ public/category-icons/
-```
-
-### Port Already in Use
-
-```bash
-# Find process using port 3000
-sudo lsof -i :3000
-
-# Kill process
-sudo kill -9 PID
-```
-
-### SSL Certificate Renewal (Let's Encrypt)
-
-```bash
-# Renew certificates
-sudo certbot renew
-
-# Update Docker SSL files if needed
-sudo cp /etc/letsencrypt/live/yourdomain.com/fullchain.pem ssl/
-sudo cp /etc/letsencrypt/live/yourdomain.com/privkey.pem ssl/
-docker compose restart nginx
-```
-
----
-
-## Useful Commands
-
-### Standard Installation
-
-```bash
-# View application logs
-pm2 logs market-yookassa
-
-# Restart application
-pm2 restart market-yookassa
-
-# Stop application
-pm2 stop market-yookassa
-
-# Database migrations
-npm run db:push
-
-# Open Prisma Studio
-npm run db:studio
-```
-
-### Docker Installation
-
-```bash
-# View all logs
-docker compose logs -f
-
-# View specific service logs
-docker compose logs -f app
-
-# Restart all services
-docker compose restart
-
-# Stop all services
-docker compose down
-
-# Rebuild and restart
-docker compose up -d --build
-
-# Execute command in container
-docker compose exec app npm run db:push
-
-# Open shell in container
-docker compose exec app sh
-```
-
----
-
-## Security Recommendations
-
-1. **Change default passwords** in production
-2. **Enable firewall** (UFW on Ubuntu)
-3. **Use strong NEXTAUTH_SECRET** (32+ characters)
-4. **Enable SSL/TLS** with Let's Encrypt
-5. **Regular backups** of database and uploads
-6. **Keep system updated**: `sudo apt update && sudo apt upgrade`
-7. **Monitor logs** regularly for suspicious activity
-8. **Limit database access** to localhost only
-9. **Use environment variables** for sensitive data
-10. **Enable 2FA** for admin accounts in the application
-
----
-
-## Support
-
-For issues or questions:
-- Check the [GitHub repository](https://github.com/your-username/market-yookassa)
-- Review application logs
-- Contact support
-
----
-
-**Installation Complete!** Your Market YooKassa application should now be running on your Ubuntu 24 VPS.
+Ответ `403` означает, что `CRON_SECRET` в `.env` пустой или изменился
+без перезапуска приложения.

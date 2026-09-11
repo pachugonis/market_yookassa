@@ -27,6 +27,13 @@ async function main() {
 
   console.log("Categories seeded successfully!")
 
+  // Администратор с известным паролем годится только для разработки.
+  // Установщик его отключает и создаёт администратора через
+  // `npm run admin:create` с паролем, который задал владелец.
+  if (process.env.SEED_SKIP_ADMIN === "1") {
+    return
+  }
+
   // Create admin user
   console.log("Creating admin user...")
   const adminPassword = await bcrypt.hash("admin123", 12)

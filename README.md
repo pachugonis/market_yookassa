@@ -66,6 +66,9 @@
 
 ## 🚀 Установка и запуск
 
+Установка на VPS с Ubuntu 24.04 одной командой (`sudo bash install.sh`)
+описана в [INSTALL.md](./INSTALL.md). Ниже — запуск для разработки.
+
 ### 1. Клонирование репозитория
 
 ```bash
@@ -273,6 +276,9 @@ npm run db:push          # Применение схемы к БД
 npm run db:migrate       # Создание миграции
 npm run db:seed          # Заполнение тестовыми данными
 npm run db:studio        # Запуск Prisma Studio
+
+# Администратор
+npm run admin:create -- admin@example.ru   # Создать админа или сбросить пароль
 ```
 
 ## 🔒 Безопасность
