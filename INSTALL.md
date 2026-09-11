@@ -392,6 +392,19 @@ journalctl -u market-yookassa -n 100 --no-pager
 - **`Can't reach database server`** — проверьте PostgreSQL:
   `systemctl status postgresql`.
 
+### Не знаю пароль администратора
+
+Пароль сохраняется в `/root/market-yookassa-credentials.txt` сразу
+после создания администратора. Если файла нет, задайте новый пароль:
+
+```bash
+cd /opt/market-yookassa
+sudo -u market npm run admin:create -- admin@example.ru
+```
+
+Если администратора в базе нет вовсе, скрипт при повторном запуске сам
+спросит его данные и создаст его.
+
 ### Сертификат не выпустился
 
 Скрипт в этом случае продолжает установку по HTTP. Проверьте, что

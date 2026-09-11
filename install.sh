@@ -230,7 +230,22 @@ elif [[ -z $WWW_ALIAS ]]; then
   fi
 fi
 
-if [[ $FIRST_INSTALL == 1 || -n $ADMIN_EMAIL ]]; then
+# Администратора создаём, если его просят явно или в базе его ещё нет.
+# Смотрим именно в базу, а не на наличие .env: прерванная установка
+# оставляет .env, но администратора может и не быть.
+admin_exists() {
+  command -v psql >/dev/null || return 1
+  local found
+  found=$(psql_admin -d "$DB_NAME" -c "SELECT 1 FROM \"User\" WHERE role = 'ADMIN' LIMIT 1" 2>/dev/null || true)
+  [[ $found == 1 ]]
+}
+
+NEED_ADMIN=0
+if [[ -n $ADMIN_EMAIL ]] || ! admin_exists; then
+  NEED_ADMIN=1
+fi
+
+if [[ $NEED_ADMIN == 1 ]]; then
   ask ADMIN_EMAIL "Email администратора"
   ADMIN_EMAIL=${ADMIN_EMAIL,,}
   [[ $ADMIN_EMAIL =~ ^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]+$ ]] \
@@ -666,6 +681,25 @@ if [[ -n $ADMIN_EMAIL ]]; then
   step "Администратор"
   printf '%s\n' "$ADMIN_PASSWORD" \
     | as_app env ADMIN_EMAIL="$ADMIN_EMAIL" ADMIN_NAME="$ADMIN_NAME" npm run --silent admin:create
+
+  # Сохраняем сразу, а не в конце: если дальше что-то упадёт,
+  # администратор уже есть, и пароль иначе потеряется.
+  umask 077
+  cat >"$CREDENTIALS_FILE" <<CREDS
+Market YooKassa — данные установки ($(date '+%Y-%m-%d %H:%M'))
+
+Сайт:           $BASE_URL
+Вход в админку: $BASE_URL/admin-login
+Администратор:  $ADMIN_EMAIL
+Пароль:         $ADMIN_PASSWORD
+
+База данных:    $DB_NAME, пользователь $DB_USER (пароль — в $APP_DIR/.env)
+CREDS
+  umask 022
+  if [[ ${ADMIN_PASSWORD_GENERATED:-0} == 1 ]]; then
+    info "Сгенерированный пароль: $ADMIN_PASSWORD"
+  fi
+  ok "Данные для входа сохранены в $CREDENTIALS_FILE"
 fi
 
 step "Сборка приложения (несколько минут)"
@@ -811,21 +845,6 @@ ok "Приложение запущено"
 # 9. Итог
 # ---------------------------------------------------------------------------
 
-if [[ -n $ADMIN_EMAIL ]]; then
-  umask 077
-  cat >"$CREDENTIALS_FILE" <<CREDS
-Market YooKassa — данные установки ($(date '+%Y-%m-%d %H:%M'))
-
-Сайт:           $BASE_URL
-Вход в админку: $BASE_URL/admin-login
-Администратор:  $ADMIN_EMAIL
-Пароль:         $ADMIN_PASSWORD
-
-База данных:    $DB_NAME, пользователь $DB_USER (пароль — в $APP_DIR/.env)
-CREDS
-  umask 022
-fi
-
 printf '\n%s========================================================%s\n' "$C_GREEN" "$C_RESET"
 printf '%s  Установка завершена%s\n' "$C_GREEN" "$C_RESET"
 printf '%s========================================================%s\n\n' "$C_GREEN" "$C_RESET"
@@ -836,8 +855,11 @@ if [[ -n $ADMIN_EMAIL ]]; then
   if [[ ${ADMIN_PASSWORD_GENERATED:-0} == 1 ]]; then
     echo "  Пароль:           $ADMIN_PASSWORD  (сгенерирован)"
   fi
+fi
+if [[ -f $CREDENTIALS_FILE ]]; then
   echo "  Данные для входа: $CREDENTIALS_FILE — удалите после сохранения"
 fi
+echo "  Сброс пароля:     cd $APP_DIR && sudo -u $APP_USER npm run admin:create -- EMAIL"
 echo
 echo "  Код приложения:   $APP_DIR (настройки — $APP_DIR/.env)"
 echo "  Журнал:           journalctl -u $APP_NAME -f"
