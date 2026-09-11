@@ -63,6 +63,9 @@ CREDENTIALS_FILE=/root/$APP_NAME-credentials.txt
 
 export DEBIAN_FRONTEND=noninteractive
 export NEEDRESTART_MODE=a
+# needrestart после каждого apt-get сканирует процессы и печатает об
+# этом в терминал; службы, которые ставит скрипт, он перезапускает сам
+export NEEDRESTART_SUSPEND=1
 
 # ---------------------------------------------------------------------------
 # Вспомогательные функции
@@ -342,9 +345,24 @@ node_ok() {
 
 if ! node_ok; then
   info "Установка Node.js $NODE_MAJOR из NodeSource"
-  curl -fsSL "https://deb.nodesource.com/setup_${NODE_MAJOR}.x" -o /tmp/nodesource_setup.sh
-  bash /tmp/nodesource_setup.sh >/dev/null
-  rm -f /tmp/nodesource_setup.sh
+  # То же, что делает setup_XX.x от NodeSource, но без его вывода:
+  # ключ, источник пакетов и приоритет выше, чем у nodejs 18 из Ubuntu.
+  mkdir -p /usr/share/keyrings
+  rm -f /usr/share/keyrings/nodesource.gpg /etc/apt/sources.list.d/nodesource.list
+  curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key \
+    | gpg --batch --dearmor -o /usr/share/keyrings/nodesource.gpg
+  chmod 644 /usr/share/keyrings/nodesource.gpg
+  cat >/etc/apt/sources.list.d/nodesource.sources <<SOURCES
+Types: deb
+URIs: https://deb.nodesource.com/node_$NODE_MAJOR.x
+Suites: nodistro
+Components: main
+Architectures: $(dpkg --print-architecture)
+Signed-By: /usr/share/keyrings/nodesource.gpg
+SOURCES
+  printf 'Package: nodejs\nPin: origin deb.nodesource.com\nPin-Priority: 600\n' \
+    >/etc/apt/preferences.d/nodejs
+  apt-get update -qq
   apt-get install -y -qq nodejs >/dev/null
   node_ok || die "Не удалось установить Node.js ≥ 20.9"
 fi
