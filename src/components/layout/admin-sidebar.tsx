@@ -9,6 +9,7 @@ import {
   Package,
   ShoppingCart,
   FolderTree,
+  GalleryHorizontal,
   Shield,
   Settings,
   BarChart3,
@@ -62,6 +63,11 @@ const menuItems = [
     title: "Категории", 
     href: "/admin/categories", 
     icon: FolderTree 
+  },
+  {
+    title: "Баннеры",
+    href: "/admin/banners",
+    icon: GalleryHorizontal
   },
   { 
     title: "Жалобы", 

@@ -1,4 +1,6 @@
 import type { Metadata } from "next"
+import { BannerCarousel } from "@/components/home/banner-carousel"
+import { getActiveBanners } from "@/lib/banners"
 import { isCatalogHomePage } from "@/lib/platform-mode"
 import { absoluteUrl } from "@/lib/seo"
 import { getSiteSettings } from "@/lib/site-settings"
@@ -33,8 +35,11 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
 }
 
 export default async function Page({ searchParams }: Props) {
-  const { siteName, siteDescription } = await getSiteSettings()
-  const catalogIsHome = await isCatalogHomePage()
+  const [{ siteName, siteDescription }, catalogIsHome, banners] = await Promise.all([
+    getSiteSettings(),
+    isCatalogHomePage(),
+    getActiveBanners(),
+  ])
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -73,6 +78,9 @@ export default async function Page({ searchParams }: Props) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
+      {/* Карусель — принадлежность главной, а не каталога: на «/products»
+          её нет, даже когда каталог назначен главной. */}
+      <BannerCarousel banners={banners} />
       {catalogIsHome ? <CatalogView params={await searchParams} /> : <HomePage />}
     </>
   )

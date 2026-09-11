@@ -172,6 +172,44 @@ body {
   animation: sheet-slide-in-right 0.25s cubic-bezier(0.32, 0.72, 0, 1);
 }
 
+/*
+ * Карусель баннеров на главной. Лента листается нативной прокруткой со
+ * snap: так свайп на телефоне работает с инерцией системы, а не
+ * имитацией на JS. Полосу прокрутки прячем — листают стрелками,
+ * полосками внизу и пальцем.
+ */
+.banner-track {
+  scrollbar-width: none;
+}
+
+.banner-track::-webkit-scrollbar {
+  display: none;
+}
+
+/*
+ * Заполнение полоски под активным баннером — это и есть таймер
+ * автопрокрутки: карусель перелистывает по окончании анимации.
+ * Остановленная анимация (наведение, фокус, касание) останавливает и
+ * таймер, а запуск заново при смене баннера сбрасывает его.
+ */
+@keyframes banner-progress {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.banner-progress {
+  transform-origin: left;
+  animation: banner-progress var(--banner-interval, 6s) linear forwards;
+}
+
+.banner-progress[data-paused="true"] {
+  animation-play-state: paused;
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
@@ -179,6 +217,12 @@ body {
 
   .sheet-overlay[data-state="open"],
   .sheet-panel[data-state="open"] {
+    animation: none;
+  }
+
+  /* Без анимации нет и её окончания — автопрокрутка не запускается,
+     а полоска активного баннера просто залита целиком. */
+  .banner-progress {
     animation: none;
   }
 }

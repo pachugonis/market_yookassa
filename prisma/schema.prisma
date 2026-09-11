@@ -508,6 +508,33 @@ model PlatformSettings {
   updatedAt               DateTime @updatedAt
 }
 
+/// Баннер карусели на главной странице. Показывается и на лендинге,
+/// и когда главной назначен каталог.
+model Banner {
+  id             String   @id @default(cuid())
+  /// Картинка для экранов от планшета и шире: /api/banners/<uuid>.<ext>
+  /// (файл лежит в uploads/banners, см. `lib/banners.ts`).
+  imageUrl       String
+  /// Отдельная картинка для телефона. Широкий баннер на узком экране
+  /// превращается в полоску, где не прочесть текст, поэтому под
+  /// телефон его обычно рисуют выше. Не задана — берётся основная.
+  mobileImageUrl String?
+  /// Подпись: alt картинки и название баннера в админке.
+  title          String
+  /// Куда ведёт клик: путь на сайте («/products?category=games») или
+  /// внешний адрес. Пусто — баннер не кликается.
+  link           String?
+  /// Место в карусели: чем меньше, тем раньше.
+  order          Int      @default(0)
+  /// Выключенный баннер хранится, но не показывается — удобно для
+  /// сезонных акций, которые возвращаются.
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([isActive, order])
+}
+
 model Dispute {
   id              String          @id @default(cuid())
   reason          String
