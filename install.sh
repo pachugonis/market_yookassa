@@ -582,6 +582,39 @@ if is_yes "$ENABLE_SSL"; then
       SCHEME=https
       systemctl enable --now certbot.timer >/dev/null 2>&1 || true
       ok "HTTPS включён, сертификат продлевается автоматически"
+
+      # HTTPS-блоки пишет certbot, и HTTP/2 он не включает. Страница тянет
+      # два десятка JS-чанков: по HTTP/1.1 браузер качает их в шесть
+      # соединений, по HTTP/2 — одним. Директива зависит от версии: с
+      # nginx 1.25.1 это отдельное «http2 on», раньше — параметр «listen».
+      if ! grep -q http2 "$NGINX_SITE"; then
+        cp "$NGINX_SITE" "$NGINX_SITE.bak"
+        NGINX_VER=$(nginx -v 2>&1 | sed 's|.*/||')
+        if [[ $(printf '%s\n' "$NGINX_VER" 1.25.1 | sort -V | head -1) == 1.25.1 ]]; then
+          # Отдельной директивой — ровно одной, после первого listen:
+          # повторённая в том же блоке, она валит проверку конфигурации.
+          awk '{ print } !done && /^[[:space:]]*listen .*443 ssl/ {
+                  print "    http2 on;"; done = 1
+                }' "$NGINX_SITE" >"$NGINX_SITE.new" && mv "$NGINX_SITE.new" "$NGINX_SITE"
+        else
+          # До 1.25.1 — параметр listen. Вставляем сразу после «ssl»,
+          # чтобы уцелели и ipv6only=on, и комментарий certbot.
+          sed -i 's/\(listen [^;]*443 ssl\)/\1 http2/g' "$NGINX_SITE"
+        fi
+
+        # Успехом считаем только реально изменённый и рабочий конфиг:
+        # молча не сработавшая замена не должна отрапортовать «включён».
+        if grep -q http2 "$NGINX_SITE" && nginx -t >/dev/null 2>&1; then
+          rm -f "$NGINX_SITE.bak"
+          systemctl reload nginx
+          ok "HTTP/2 включён"
+        else
+          # Конфигурацию оставляем рабочей: HTTP/2 — ускорение, а не
+          # условие работы сайта.
+          mv "$NGINX_SITE.bak" "$NGINX_SITE"
+          warn "HTTP/2 включить не удалось — конфигурация nginx осталась прежней"
+        fi
+      fi
     else
       warn "certbot не смог выпустить сертификат — сайт работает по HTTP."
       warn "Проверьте DNS и доступность порта 80, затем запустите скрипт ещё раз."

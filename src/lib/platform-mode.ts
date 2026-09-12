@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma"
+import { getPlatformSettings } from "@/lib/platform-settings"
 
 /**
  * Режим площадки одного продавца.
@@ -14,9 +14,7 @@ import { prisma } from "@/lib/prisma"
  * дешевле, чем три места, где условие можно записать по-разному.
  */
 export async function isSingleVendorMode(): Promise<boolean> {
-  const settings = await prisma.platformSettings.findFirst({
-    select: { singleVendorMode: true },
-  })
+  const settings = await getPlatformSettings()
 
   return settings?.singleVendorMode ?? false
 }
@@ -46,9 +44,7 @@ export async function canManageProducts(
  * поведение площадки до появления выключателя.
  */
 export async function isStoresPageEnabled(): Promise<boolean> {
-  const settings = await prisma.platformSettings.findFirst({
-    select: { storesPageEnabled: true },
-  })
+  const settings = await getPlatformSettings()
 
   return settings?.storesPageEnabled ?? true
 }
@@ -69,9 +65,7 @@ export async function isStoresPageEnabled(): Promise<boolean> {
  * площадки до появления переключателя.
  */
 export async function isCatalogHomePage(): Promise<boolean> {
-  const settings = await prisma.platformSettings.findFirst({
-    select: { homePage: true },
-  })
+  const settings = await getPlatformSettings()
 
   return settings?.homePage === "CATALOG"
 }

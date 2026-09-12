@@ -1,40 +1,35 @@
 import { auth } from "@/lib/auth"
 import { NextResponse } from "next/server"
+import { readPlatformSettings } from "@/lib/platform-settings"
 
 /**
- * Middleware отвечает ТОЛЬКО за навигацию (редиректы для страниц).
+ * Proxy (до Next 16 — middleware) отвечает ТОЛЬКО за навигацию
+ * (редиректы для страниц).
  *
  * Авторизация обязана проверяться в каждом API-роуте и серверном
- * компоненте отдельно: middleware можно обойти (см. серию CVE
+ * компоненте отдельно: proxy можно обойти (см. серию CVE
  * «Next.js Middleware bypass»), поэтому полагаться на него как на
  * единственный барьер нельзя.
  */
 
-// Статус техработ меняется редко, а запрос идёт на каждый переход.
-// Кэшируем на несколько секунд, чтобы не ходить в API постоянно.
-const MAINTENANCE_TTL_MS = 10_000
-let maintenanceCache: { value: boolean; expiresAt: number } | null = null
+/**
+ * Режим техработ читаем прямо из базы.
+ *
+ * Раньше здесь был `fetch` на собственный `/api/maintenance/status` по
+ * публичному адресу запроса. Это был выход в интернет — DNS, TLS, nginx —
+ * и возвращался он в тот же единственный процесс Node, который в этот
+ * момент обслуживал исходный запрос. Ответ кэшировался на 10 секунд, и
+ * ровно раз в 10 секунд очередной переход по сайту вставал на 5–10 секунд.
+ *
+ * Proxy в Next 16 работает в Node-runtime, поэтому Prisma доступна прямо
+ * здесь, и посредник не нужен: локальный запрос к базе стоит доли
+ * миллисекунды и всегда отдаёт свежее значение.
+ */
+async function isMaintenanceMode(): Promise<boolean> {
+  const settings = await readPlatformSettings()
 
-async function isMaintenanceMode(requestUrl: string): Promise<boolean> {
-  const now = Date.now()
-
-  if (maintenanceCache && maintenanceCache.expiresAt > now) {
-    return maintenanceCache.value
-  }
-
-  try {
-    const url = new URL("/api/maintenance/status", requestUrl)
-    const response = await fetch(url.toString())
-    const { maintenanceMode } = await response.json()
-    const value = Boolean(maintenanceMode)
-
-    maintenanceCache = { value, expiresAt: now + MAINTENANCE_TTL_MS }
-    return value
-  } catch (error) {
-    console.error("Error checking maintenance mode:", error)
-    // При недоступности API сайт не блокируем
-    return false
-  }
+  // При недоступности базы сайт не блокируем
+  return settings?.maintenanceMode ?? false
 }
 
 export default auth(async (req) => {
@@ -50,7 +45,7 @@ export default auth(async (req) => {
   const isApiRoute = nextUrl.pathname.startsWith("/api")
   const isMaintenancePage = nextUrl.pathname.startsWith("/maintenance")
 
-  // API-роуты защищают себя сами — middleware их не трогает
+  // API-роуты защищают себя сами — proxy их не трогает
   if (isApiRoute) {
     return NextResponse.next()
   }
@@ -66,7 +61,7 @@ export default auth(async (req) => {
 
   // Check maintenance mode (exclude admin routes and admin login)
   if (!isMaintenancePage && !isAdminPage) {
-    if (await isMaintenanceMode(req.url)) {
+    if (await isMaintenanceMode()) {
       if (!isAdmin) {
         return NextResponse.redirect(new URL("/maintenance", nextUrl))
       }

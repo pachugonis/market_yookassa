@@ -13,18 +13,23 @@ export default async function MarketplaceLayout({
 }: {
   children: React.ReactNode
 }) {
-  const storesPageEnabled = await isStoresPageEnabled()
-  const siteSettings = await getSiteSettings()
-  const categories = await prisma.category.findMany({
-    where: { parentId: null, isHidden: false },
-    orderBy: { name: "asc" },
-    include: {
-      subcategories: {
-        where: { isHidden: false },
-        orderBy: { name: "asc" },
+  // Настройки и категории независимы друг от друга, поэтому идут в базу
+  // разом, а не тремя ожиданиями подряд. Оба вопроса к настройкам при
+  // этом делят один запрос — см. `platform-settings.ts`.
+  const [storesPageEnabled, siteSettings, categories] = await Promise.all([
+    isStoresPageEnabled(),
+    getSiteSettings(),
+    prisma.category.findMany({
+      where: { parentId: null, isHidden: false },
+      orderBy: { name: "asc" },
+      include: {
+        subcategories: {
+          where: { isHidden: false },
+          orderBy: { name: "asc" },
+        },
       },
-    },
-  })
+    }),
+  ])
 
   return (
     <SiteSettingsProvider value={siteSettings}>
