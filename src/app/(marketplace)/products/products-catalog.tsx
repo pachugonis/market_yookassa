@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { ProductCard } from "@/components/products/product-card"
+import { CatalogPagination } from "@/components/products/catalog-pagination"
 
 interface Product {
   id: string
@@ -38,9 +39,16 @@ export interface CatalogFilterValues {
   seller: string
 }
 
+interface PaginationState {
+  page: number
+  total: number
+  totalPages: number
+}
+
 interface Props {
   initialProducts: Product[]
   initialCategories: Category[]
+  initialPagination: PaginationState
   /**
    * Фильтры из URL. Приходят пропсами, а не через useSearchParams: этот хук
    * переводит компонент в client-only рендеринг, и карточки исчезли бы из
@@ -49,8 +57,14 @@ interface Props {
   filters: CatalogFilterValues
 }
 
-export function ProductsCatalog({ initialProducts, initialCategories, filters }: Props) {
+export function ProductsCatalog({
+  initialProducts,
+  initialCategories,
+  initialPagination,
+  filters,
+}: Props) {
   const [products, setProducts] = useState<Product[]>(initialProducts)
+  const [pagination, setPagination] = useState<PaginationState>(initialPagination)
   const [categories] = useState<Category[]>(initialCategories)
   const [isLoading, setIsLoading] = useState(false)
   const [searchQuery, setSearchQuery] = useState(filters.search)
@@ -70,6 +84,7 @@ export function ProductsCatalog({ initialProducts, initialCategories, filters }:
     setSelectedCategory(filters.category || "all")
     setSellerFilter(filters.seller)
     setProducts(initialProducts)
+    setPagination(initialPagination)
     hasRenderedServerData.current = true
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filtersKey])
@@ -83,7 +98,9 @@ export function ProductsCatalog({ initialProducts, initialCategories, filters }:
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedCategory, sortBy])
 
-  const fetchProducts = async () => {
+  // Смена фильтра всегда возвращает на первую страницу: остаться на
+  // пятой странице новой выдачи значит увидеть пустой экран.
+  const fetchProducts = async (targetPage = 1) => {
     setIsLoading(true)
     try {
       const params = new URLSearchParams()
@@ -91,17 +108,29 @@ export function ProductsCatalog({ initialProducts, initialCategories, filters }:
       if (selectedCategory && selectedCategory !== "all") params.set("category", selectedCategory)
       if (sellerFilter) params.set("seller", sellerFilter)
       params.set("sort", sortBy)
+      params.set("page", String(targetPage))
 
       const res = await fetch(`/api/products?${params.toString()}`)
       const data = await res.json()
       if (data.success) {
         setProducts(data.data)
+        if (data.pagination) {
+          setPagination(data.pagination)
+        }
       }
     } catch (error) {
       console.error("Error fetching products:", error)
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const goToPage = (target: number) => {
+    hasRenderedServerData.current = false
+    fetchProducts(target)
+    // Иначе переход на следующую страницу оставляет читателя внизу
+    // списка — там, где он нажал «Вперёд».
+    window.scrollTo({ top: 0, behavior: "smooth" })
   }
 
   const handleSearch = (e: React.FormEvent) => {
@@ -223,6 +252,15 @@ export function ProductsCatalog({ initialProducts, initialCategories, filters }:
             </motion.div>
           ))}
         </motion.div>
+      )}
+
+      {!isLoading && (
+        <CatalogPagination
+          page={pagination.page}
+          totalPages={pagination.totalPages}
+          total={pagination.total}
+          onPageChange={goToPage}
+        />
       )}
     </div>
   )

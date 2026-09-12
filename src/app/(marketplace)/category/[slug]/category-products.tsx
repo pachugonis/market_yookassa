@@ -3,6 +3,7 @@
 import { motion } from "framer-motion"
 import { Package, Folder } from "lucide-react"
 import { ProductCard } from "@/components/products/product-card"
+import { CatalogPagination } from "@/components/products/catalog-pagination"
 import Link from "next/link"
 import { Card } from "@/components/ui/card"
 
@@ -32,12 +33,23 @@ interface CategoryProductsProps {
   category: {
     name: string
     description: string | null
+    slug: string
   }
   products: Product[]
   subcategories: Subcategory[]
+  page: number
+  totalPages: number
+  total: number
 }
 
-export function CategoryProducts({ category, products, subcategories }: CategoryProductsProps) {
+export function CategoryProducts({
+  category,
+  products,
+  subcategories,
+  page,
+  totalPages,
+  total,
+}: CategoryProductsProps) {
   return (
     <div className="container mx-auto px-4 py-8">
       <motion.div
@@ -117,6 +129,19 @@ export function CategoryProducts({ category, products, subcategories }: Category
           ))}
         </motion.div>
       )}
+
+      <CatalogPagination
+        page={page}
+        totalPages={totalPages}
+        total={total}
+        // У первой страницы адрес без «?page=1»: он короче и совпадает с
+        // каноническим.
+        hrefForPage={(target) =>
+          target === 1
+            ? `/category/${category.slug}`
+            : `/category/${category.slug}?page=${target}`
+        }
+      />
     </div>
   )
 }

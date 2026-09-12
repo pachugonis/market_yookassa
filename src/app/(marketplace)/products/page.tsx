@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import { parsePageParam } from "@/lib/catalog"
 import { isCatalogHomePage } from "@/lib/platform-mode"
 import { absoluteUrl } from "@/lib/seo"
 import { CatalogSearchParams, CatalogView, isFilteredCatalog } from "./catalog-view"
@@ -21,7 +22,12 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
     // Когда каталог назначен главной, канонический адрес у него «/»:
     // содержимое там то же самое, а короткий адрес важнее.
     alternates: { canonical: absoluteUrl(catalogIsHome ? "/" : "/products") },
-    robots: isFiltered ? { index: false, follow: true } : undefined,
+    // Вторая страница и дальше — та же выдача, нарезанная иначе: в индекс
+    // её не пускаем, но ссылки с неё обходить разрешаем.
+    robots:
+      isFiltered || parsePageParam(params.page) > 1
+        ? { index: false, follow: true }
+        : undefined,
   }
 }
 

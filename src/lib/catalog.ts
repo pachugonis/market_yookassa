@@ -144,6 +144,25 @@ export async function getCatalogSellers(): Promise<CatalogSeller[]> {
   }))
 }
 
+/**
+ * Сколько товаров на странице выдачи. Одно значение на каталог и на
+ * страницы категорий: разная длина страницы у двух списков одних и тех
+ * же карточек выглядит как ошибка.
+ */
+export const CATALOG_PAGE_SIZE = 20
+
+/**
+ * Номер страницы из адреса. Мусор («?page=abc»), ноль и отрицательные
+ * значения — это первая страница: раньше `parseInt` отдавал отсюда NaN
+ * прямо в `skip`.
+ */
+export function parsePageParam(value: string | string[] | undefined): number {
+  const raw = Array.isArray(value) ? value[0] : value
+  const parsed = Number.parseInt(raw ?? "1", 10)
+
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 1
+}
+
 export interface CatalogFilters {
   search?: string | null
   category?: string | null
@@ -165,6 +184,12 @@ export interface CatalogProduct {
   images: string[]
 }
 
+/** Страница выдачи: сами карточки и сколько их всего под фильтром. */
+export interface CatalogPage {
+  products: CatalogProduct[]
+  total: number
+}
+
 /**
  * Единый источник выборки каталога: используется и в /api/products, и при
  * серверном рендеринге /products. Держим в одном месте, чтобы фильтры и
@@ -172,12 +197,15 @@ export interface CatalogProduct {
  */
 export async function getCatalogProducts(
   filters: CatalogFilters
-): Promise<CatalogProduct[]> {
+): Promise<CatalogPage> {
   const { search, category, seller, sort = "newest" } = filters
   const page = filters.page && filters.page > 0 ? filters.page : 1
-  const limit = filters.limit && filters.limit > 0 ? filters.limit : 20
+  const limit = filters.limit && filters.limit > 0 ? filters.limit : CATALOG_PAGE_SIZE
 
-  const where: Record<string, unknown> = { ...visibleProductWhere }
+  // Явный тип вместо Record<string, unknown>: тот же объект уходит и в
+  // выборку, и в подсчёт, и подсчёт на нетипизированном фильтре молча
+  // считал бы не то.
+  const where: Prisma.ProductWhereInput = { ...visibleProductWhere }
 
   if (search) {
     where.OR = [
@@ -194,33 +222,46 @@ export async function getCatalogProducts(
     where.sellerId = seller
   }
 
-  let orderBy: Record<string, unknown> = { createdAt: "desc" }
+  // Вторым ключом всегда id. Сортировка по одному неуникальному столбцу
+  // для постраничной выдачи неустойчива: у товаров, добавленных одним
+  // импортом, совпадает и createdAt, и цена, и порядок между ними база
+  // выбирает произвольно — на каждый запрос заново. Тогда один и тот же
+  // товар показывается на двух соседних страницах, а другой не
+  // показывается вовсе.
+  let orderBy: Prisma.ProductOrderByWithRelationInput[] = [
+    { createdAt: "desc" },
+    { id: "desc" },
+  ]
   if (sort === "popular") {
-    orderBy = { downloadCount: "desc" }
+    orderBy = [{ downloadCount: "desc" }, { id: "desc" }]
   } else if (sort === "price_asc") {
-    orderBy = { price: "asc" }
+    orderBy = [{ price: "asc" }, { id: "asc" }]
   } else if (sort === "price_desc") {
-    orderBy = { price: "desc" }
+    orderBy = [{ price: "desc" }, { id: "desc" }]
   }
 
   // Столбцы перечислены явно: `include` вёз строку товара целиком, вместе
   // с описанием и путём к продаваемому файлу, а карточке нужны восемь полей.
-  const products = await prisma.product.findMany({
-    where,
-    select: {
-      id: true,
-      title: true,
-      price: true,
-      coverImage: true,
-      downloadCount: true,
-      seller: { select: { name: true, avatar: true } },
-      category: { select: { name: true, slug: true } },
-      images: { select: { imageUrl: true }, orderBy: { order: "asc" } },
-    },
-    orderBy,
-    skip: (page - 1) * limit,
-    take: limit,
-  })
+  // Общее число — тем же фильтром: без него не посчитать страницы.
+  const [products, total] = await Promise.all([
+    prisma.product.findMany({
+      where,
+      select: {
+        id: true,
+        title: true,
+        price: true,
+        coverImage: true,
+        downloadCount: true,
+        seller: { select: { name: true, avatar: true } },
+        category: { select: { name: true, slug: true } },
+        images: { select: { imageUrl: true }, orderBy: { order: "asc" } },
+      },
+      orderBy,
+      skip: (page - 1) * limit,
+      take: limit,
+    }),
+    prisma.product.count({ where }),
+  ])
 
   // Средний балл считает база — одним запросом на всю страницу выдачи
   // вместо всех строк отзывов каждого товара.
@@ -237,15 +278,18 @@ export async function getCatalogProducts(
     ratings.map((row) => [row.productId, row._avg.rating ?? 0])
   )
 
-  return products.map((product) => ({
-    id: product.id,
-    title: product.title,
-    price: product.price,
-    coverImage: product.coverImage,
-    downloadCount: product.downloadCount,
-    seller: product.seller,
-    category: product.category,
-    avgRating: avgByProduct.get(product.id) ?? 0,
-    images: product.images.map((img) => img.imageUrl),
-  }))
+  return {
+    products: products.map((product) => ({
+      id: product.id,
+      title: product.title,
+      price: product.price,
+      coverImage: product.coverImage,
+      downloadCount: product.downloadCount,
+      seller: product.seller,
+      category: product.category,
+      avgRating: avgByProduct.get(product.id) ?? 0,
+      images: product.images.map((img) => img.imageUrl),
+    })),
+    total,
+  }
 }

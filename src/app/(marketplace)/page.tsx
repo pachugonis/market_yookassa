@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import { BannerCarousel } from "@/components/home/banner-carousel"
 import { getActiveBanners } from "@/lib/banners"
+import { parsePageParam } from "@/lib/catalog"
 import { isCatalogHomePage } from "@/lib/platform-mode"
 import { absoluteUrl } from "@/lib/seo"
 import { getSiteSettings } from "@/lib/site-settings"
@@ -27,8 +28,13 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
   // и точно так же не должен плодить в индексе копии под фильтрами.
   // На лендинге эти параметры ничего не значат — и скрывать из индекса
   // главную из-за случайного «?search=» в ссылке нельзя.
-  if ((await isCatalogHomePage()) && isFilteredCatalog(await searchParams)) {
-    metadata.robots = { index: false, follow: true }
+  // Вторая страница каталога на главной — тоже копия под другим адресом.
+  if (await isCatalogHomePage()) {
+    const params = await searchParams
+
+    if (isFilteredCatalog(params) || parsePageParam(params.page) > 1) {
+      metadata.robots = { index: false, follow: true }
+    }
   }
 
   return metadata

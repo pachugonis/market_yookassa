@@ -1,7 +1,12 @@
 import { cache } from "react"
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
-import { visibleCategoryWhere, visibleProductWhere } from "@/lib/catalog"
+import {
+  CATALOG_PAGE_SIZE,
+  parsePageParam,
+  visibleCategoryWhere,
+  visibleProductWhere,
+} from "@/lib/catalog"
 import { prisma } from "@/lib/prisma"
 import { absoluteUrl, truncateForMeta } from "@/lib/seo"
 import { getSiteName } from "@/lib/site-settings"
@@ -9,6 +14,7 @@ import { CategoryProducts } from "./category-products"
 
 interface Props {
   params: Promise<{ slug: string }>
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }
 
 // Один запрос на проход рендера: его делят generateMetadata и сама страница.
@@ -30,8 +36,9 @@ const getCategory = cache(async (slug: string) => {
   })
 })
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
   const { slug } = await params
+  const page = parsePageParam((await searchParams).page)
   const category = await getCategory(slug)
 
   if (!category) {
@@ -48,7 +55,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title: `${category.name} — купить и скачать`,
     description,
+    // Канонический адрес у всех страниц один — сама категория: вторая и
+    // дальше это та же выдача, нарезанная иначе, и в индексе она не нужна.
     alternates: { canonical: url },
+    robots: page > 1 ? { index: false, follow: true } : undefined,
     openGraph: {
       type: "website",
       url,
@@ -60,8 +70,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 }
 
-export default async function CategoryPage({ params }: Props) {
+export default async function CategoryPage({ params, searchParams }: Props) {
   const { slug } = await params
+  const page = parsePageParam((await searchParams).page)
 
   const category = await getCategory(slug)
 
@@ -72,24 +83,44 @@ export default async function CategoryPage({ params }: Props) {
   // Get all category IDs (current category + subcategories)
   const categoryIds = [category.id, ...(category.subcategories?.map(sub => sub.id) || [])]
 
+  const productWhere = {
+    ...visibleProductWhere,
+    categoryId: { in: categoryIds },
+  }
+
   // Столбцы перечислены явно: карточке нужно восемь полей, а `include`
   // вёз строку товара целиком — с описанием и путём к продаваемому файлу.
-  const products = await prisma.product.findMany({
-    where: {
-      ...visibleProductWhere,
-      categoryId: { in: categoryIds },
-    },
-    select: {
-      id: true,
-      title: true,
-      price: true,
-      coverImage: true,
-      downloadCount: true,
-      seller: { select: { name: true, avatar: true } },
-      category: { select: { name: true, slug: true } },
-    },
-    orderBy: { createdAt: "desc" },
-  })
+  // Общее число — тем же фильтром: без него не посчитать страницы.
+  const [products, total] = await Promise.all([
+    prisma.product.findMany({
+      where: productWhere,
+      select: {
+        id: true,
+        title: true,
+        price: true,
+        coverImage: true,
+        downloadCount: true,
+        seller: { select: { name: true, avatar: true } },
+        category: { select: { name: true, slug: true } },
+      },
+      // Вторым ключом id: сортировка по одному createdAt для страниц
+      // неустойчива — у товаров из одного импорта дата совпадает, и
+      // порядок между ними база выбирает заново на каждый запрос.
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      skip: (page - 1) * CATALOG_PAGE_SIZE,
+      take: CATALOG_PAGE_SIZE,
+    }),
+    prisma.product.count({ where: productWhere }),
+  ])
+
+  const totalPages = Math.ceil(total / CATALOG_PAGE_SIZE)
+
+  // Страница за пределами выдачи — это не пустая категория, а
+  // несуществующий адрес: пустой список по «?page=99» выглядел бы как
+  // «товары кончились».
+  if (page > 1 && products.length === 0) {
+    notFound()
+  }
 
   // Средний балл считает база. Раньше сюда приезжали все строки отзывов
   // всех товаров категории, и среднее складывалось в JS: на сотне
@@ -129,7 +160,14 @@ export default async function CategoryPage({ params }: Props) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
       />
-      <CategoryProducts category={category} products={productsWithRating} subcategories={category.subcategories || []} />
+      <CategoryProducts
+        category={category}
+        products={productsWithRating}
+        subcategories={category.subcategories || []}
+        page={page}
+        totalPages={totalPages}
+        total={total}
+      />
     </>
   )
 }

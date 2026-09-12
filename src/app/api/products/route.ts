@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
 import { z } from "zod"
 import { isValidProductFileUrl, COVER_IMAGE_PATTERN } from "@/lib/storage"
-import { getCatalogProducts } from "@/lib/catalog"
+import { CATALOG_PAGE_SIZE, getCatalogProducts, parsePageParam } from "@/lib/catalog"
 import { isSingleVendorMode } from "@/lib/platform-mode"
 
 const createProductSchema = z.object({
@@ -30,16 +30,33 @@ export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams
 
-    const productsWithRating = await getCatalogProducts({
+    const page = parsePageParam(searchParams.get("page") ?? undefined)
+    // Верхняя граница — чтобы «?limit=100000» не выгребал базу одним запросом.
+    const requestedLimit = Number.parseInt(searchParams.get("limit") ?? "", 10)
+    const limit =
+      Number.isFinite(requestedLimit) && requestedLimit > 0
+        ? Math.min(requestedLimit, 100)
+        : CATALOG_PAGE_SIZE
+
+    const { products, total } = await getCatalogProducts({
       search: searchParams.get("search"),
       category: searchParams.get("category"),
       seller: searchParams.get("seller"),
       sort: searchParams.get("sort"),
-      page: parseInt(searchParams.get("page") || "1"),
-      limit: parseInt(searchParams.get("limit") || "20"),
+      page,
+      limit,
     })
 
-    return NextResponse.json({ success: true, data: productsWithRating })
+    return NextResponse.json({
+      success: true,
+      data: products,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    })
   } catch (error) {
     console.error("Error fetching products:", error)
     return NextResponse.json(

@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma"
-import { getCatalogProducts } from "@/lib/catalog"
+import { CATALOG_PAGE_SIZE, getCatalogProducts, parsePageParam } from "@/lib/catalog"
 import { ProductsCatalog } from "./products-catalog"
 
 /**
@@ -25,12 +25,15 @@ export function isFilteredCatalog(params: CatalogSearchParams): boolean {
 }
 
 export async function CatalogView({ params }: { params: CatalogSearchParams }) {
-  const [products, categories] = await Promise.all([
+  const page = parsePageParam(params.page)
+
+  const [{ products, total }, categories] = await Promise.all([
     getCatalogProducts({
       search: firstParam(params.search),
       category: firstParam(params.category),
       seller: firstParam(params.seller),
       sort: firstParam(params.sort),
+      page,
     }),
     prisma.category.findMany({
       where: { parentId: null, isHidden: false },
@@ -43,6 +46,14 @@ export async function CatalogView({ params }: { params: CatalogSearchParams }) {
     <ProductsCatalog
       initialProducts={products}
       initialCategories={categories}
+      // Число страниц считаем здесь: `CATALOG_PAGE_SIZE` живёт рядом с
+      // выборкой, а тот модуль тянет за собой Prisma — в клиентский
+      // компонент его импортировать нельзя.
+      initialPagination={{
+        page,
+        total,
+        totalPages: Math.ceil(total / CATALOG_PAGE_SIZE),
+      }}
       filters={{
         search: firstParam(params.search) ?? "",
         category: firstParam(params.category) ?? "",
