@@ -184,7 +184,7 @@ export default async function AdminDashboard() {
             <h3 className="font-semibold">Последние покупки</h3>
           </div>
           <div className="space-y-3">
-            {stats.recentPurchases.map((purchase: any) => (
+            {stats.recentPurchases.map((purchase) => (
               <div key={purchase.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
                 <div>
                   <p className="font-medium text-sm">{purchase.product.title}</p>

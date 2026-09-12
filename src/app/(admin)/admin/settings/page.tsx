@@ -27,7 +27,9 @@ import { SITE_DESCRIPTION, SITE_NAME } from "@/lib/seo"
 export default function SettingsPage() {
   const { toast } = useToast()
   const [isLoading, setIsLoading] = useState(false)
-  const [isLoadingSettings, setIsLoadingSettings] = useState(true)
+  // Само значение нигде не читается — экран не показывает отдельного
+  // индикатора первой загрузки, но сеттер гасит её по приходу настроек.
+  const [, setIsLoadingSettings] = useState(true)
 
   // Platform settings
   const [platformSettings, setPlatformSettings] = useState({
@@ -313,7 +315,7 @@ export default function SettingsPage() {
           variant: "destructive",
         })
       }
-    } catch (error) {
+    } catch {
       toast({
         title: "Ошибка",
         description: "Не удалось сохранить настройки",
@@ -354,7 +356,7 @@ export default function SettingsPage() {
           variant: "destructive",
         })
       }
-    } catch (error) {
+    } catch {
       toast({
         title: "Ошибка",
         description: "Не удалось сохранить настройки email",
@@ -388,7 +390,7 @@ export default function SettingsPage() {
           variant: "destructive",
         })
       }
-    } catch (error) {
+    } catch {
       toast({
         title: "Ошибка",
         description: "Не удалось отправить тестовое письмо",
@@ -422,7 +424,7 @@ export default function SettingsPage() {
           variant: "destructive",
         })
       }
-    } catch (error) {
+    } catch {
       toast({
         title: "Ошибка",
         description: "Не удалось сохранить настройки уведомлений",
@@ -456,7 +458,7 @@ export default function SettingsPage() {
           variant: "destructive",
         })
       }
-    } catch (error) {
+    } catch {
       toast({
         title: "Ошибка",
         description: "Не удалось сохранить настройки безопасности",
@@ -492,7 +494,7 @@ export default function SettingsPage() {
           variant: "destructive",
         })
       }
-    } catch (error) {
+    } catch {
       toast({
         title: "Ошибка",
         description: "Не удалось сохранить настройки",

@@ -5,7 +5,7 @@ import Image from "next/image"
 import { motion } from "framer-motion"
 import { ShoppingCart, Loader2, Calendar, User } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { formatPrice, formatDate } from "@/lib/utils"
+import { formatPrice } from "@/lib/utils"
 
 interface Sale {
   id: string

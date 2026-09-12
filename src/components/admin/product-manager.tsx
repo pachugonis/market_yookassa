@@ -115,7 +115,7 @@ export function ProductManager({ product }: ProductManagerProps) {
           variant: "destructive",
         })
       }
-    } catch (error) {
+    } catch {
       toast({
         title: "Ошибка",
         description: "Произошла ошибка при обновлении товара",
@@ -149,7 +149,7 @@ export function ProductManager({ product }: ProductManagerProps) {
           variant: "destructive",
         })
       }
-    } catch (error) {
+    } catch {
       toast({
         title: "Ошибка",
         description: "Произошла ошибка при удалении товара",

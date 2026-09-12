@@ -40,22 +40,6 @@ interface Report {
   }
 }
 
-const statusColors: Record<string, string> = {
-  PENDING: "bg-yellow-500",
-  UNDER_REVIEW: "bg-blue-500",
-  RESOLVED: "bg-green-500",
-  REJECTED: "bg-red-500",
-  CLOSED: "bg-gray-500",
-}
-
-const statusLabels: Record<string, string> = {
-  PENDING: "Ожидает",
-  UNDER_REVIEW: "На рассмотрении",
-  RESOLVED: "Решена",
-  REJECTED: "Отклонена",
-  CLOSED: "Закрыта",
-}
-
 const typeLabels: Record<string, string> = {
   PRODUCT: "Товар",
   USER: "Пользователь",
@@ -115,6 +99,9 @@ export default function ReportDetailPage({ params }: { params: Promise<{ id: str
 
   useEffect(() => {
     fetchReport()
+    // Перезапрашиваем только при смене жалобы: fetchReport пересоздаётся
+    // на каждый рендер, и в зависимостях он зациклил бы загрузку.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resolvedParams.id])
 
   const handleSave = async () => {
@@ -271,8 +258,12 @@ export default function ReportDetailPage({ params }: { params: Promise<{ id: str
           <div className="space-y-4">
             <div className="flex items-center gap-3">
               {report.reporter.avatar ? (
-                <img 
-                  src={report.reporter.avatar} 
+                // Аватар лежит в /avatars и раздаётся nginx напрямую.
+                // next/image гнал бы его через /_next/image, а
+                // remotePatterns разрешает только localhost.
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={report.reporter.avatar}
                   alt={report.reporter.name}
                   className="h-12 w-12 rounded-full"
                 />

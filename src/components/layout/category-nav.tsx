@@ -16,8 +16,9 @@ import {
   FileText,
   ChevronDown
 } from "lucide-react"
+import type { LucideIcon } from "lucide-react"
 
-const iconMap: Record<string, any> = {
+const iconMap: Record<string, LucideIcon> = {
   Monitor,
   Gamepad2,
   Music,

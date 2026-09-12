@@ -2,21 +2,19 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { motion } from "framer-motion"
-import { 
-  Store, 
+import {
+  Store,
   Package, 
   Star, 
   TrendingUp, 
   Loader2,
   RefreshCw,
-  Calendar,
   Wallet,
   ShoppingBag,
   Eye,
   Search
 } from "lucide-react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -25,7 +23,6 @@ import { formatPrice, formatDate } from "@/lib/utils"
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -64,7 +61,9 @@ export default function AdminStoresPage() {
   const [filteredSellers, setFilteredSellers] = useState<Seller[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
-  const [selectedSeller, setSelectedSeller] = useState<Seller | null>(null)
+  // Значение нигде не читается — карточку продавца открывает сам диалог,
+  // ему достаточно вызова сеттера.
+  const [, setSelectedSeller] = useState<Seller | null>(null)
 
   const fetchSellers = async () => {
     try {

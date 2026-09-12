@@ -102,6 +102,9 @@ export default function AdminReportsPage() {
 
   useEffect(() => {
     fetchReports()
+    // Перезапрашиваем только при смене страницы или фильтров: fetchReports
+    // пересоздаётся на каждый рендер и зациклил бы загрузку.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pagination.page, statusFilter, typeFilter])
 
   return (

@@ -73,7 +73,16 @@ export function ReportDialog({
     try {
       setLoading(true)
 
-      const reportData: any = {
+      // Какое из трёх полей заполнено — зависит от типа жалобы, поэтому
+      // они необязательные, а не «any».
+      const reportData: {
+        type: ReportDialogProps["type"]
+        reason: string
+        description: string
+        reportedProductId?: string
+        reportedUserId?: string
+        reportedReviewId?: string
+      } = {
         type,
         reason,
         description,

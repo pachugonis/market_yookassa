@@ -130,7 +130,7 @@ export function CategoryManager({ categories }: CategoryManagerProps) {
           variant: "destructive",
         })
       }
-    } catch (error) {
+    } catch {
       toast({
         title: "Ошибка",
         description: "Ошибка загрузки иконки",
@@ -222,7 +222,7 @@ export function CategoryManager({ categories }: CategoryManagerProps) {
           variant: "destructive",
         })
       }
-    } catch (error) {
+    } catch {
       toast({
         title: "Ошибка",
         description: "Ошибка создания категории",
@@ -262,7 +262,7 @@ export function CategoryManager({ categories }: CategoryManagerProps) {
           variant: "destructive",
         })
       }
-    } catch (error) {
+    } catch {
       toast({
         title: "Ошибка",
         description: "Ошибка обновления категории",
@@ -299,7 +299,7 @@ export function CategoryManager({ categories }: CategoryManagerProps) {
           variant: "destructive",
         })
       }
-    } catch (error) {
+    } catch {
       toast({
         title: "Ошибка",
         description: "Ошибка удаления категории",

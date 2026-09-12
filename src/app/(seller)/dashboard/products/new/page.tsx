@@ -44,7 +44,8 @@ export default function NewProductPage() {
   const [productImages, setProductImages] = useState<Array<{ id: string; imageUrl: string; order: number }>>([])
 
   const [selectedParentCategory, setSelectedParentCategory] = useState<string>("")
-  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null)
+  // Значение нигде не читается: выбранную категорию хранит formData.categoryId.
+  const [, setSelectedCategory] = useState<Category | null>(null)
   const [subcategories, setSubcategories] = useState<Subcategory[]>([])
 
   const [formData, setFormData] = useState({
@@ -364,6 +365,10 @@ export default function NewProductPage() {
             <CardContent>
               {formData.coverImage ? (
                 <div className="relative">
+                  {/* Обложка лежит в /covers и раздаётся nginx напрямую.
+                      next/image гнал бы её через /_next/image, а
+                      remotePatterns разрешает только localhost. */}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={formData.coverImage}
                     alt="Cover"

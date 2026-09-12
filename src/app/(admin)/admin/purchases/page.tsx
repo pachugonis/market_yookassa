@@ -53,16 +53,16 @@ export default async function PurchasesPage() {
 
   const stats = {
     total: purchases.length,
-    completed: purchases.filter((p: any) => p.status === "COMPLETED").length,
+    completed: purchases.filter((p) => p.status === "COMPLETED").length,
     pending: purchases.filter(
-      (p: any) => p.status === "PENDING" || p.status === "HELD"
+      (p) => p.status === "PENDING" || p.status === "HELD"
     ).length,
     totalRevenue: purchases
-      .filter((p: any) => p.status === "COMPLETED")
-      .reduce((sum: number, p: any) => sum + p.amount, 0),
+      .filter((p) => p.status === "COMPLETED")
+      .reduce((sum: number, p) => sum + p.amount, 0),
     platformEarnings: purchases
-      .filter((p: any) => p.status === "COMPLETED")
-      .reduce((sum: number, p: any) => sum + p.commission, 0),
+      .filter((p) => p.status === "COMPLETED")
+      .reduce((sum: number, p) => sum + p.commission, 0),
   }
 
   return (
@@ -114,7 +114,7 @@ export default async function PurchasesPage() {
               </tr>
             </thead>
             <tbody>
-              {purchases.map((purchase: any) => (
+              {purchases.map((purchase) => (
                 <tr key={purchase.id} className="border-b border-border last:border-0 hover:bg-secondary/50">
                   <td className="p-4">
                     <code className="text-xs bg-secondary px-2 py-1 rounded">

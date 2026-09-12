@@ -326,7 +326,7 @@ export default async function AnalyticsPage() {
             <h3 className="font-semibold">Топ товары</h3>
           </div>
           <div className="space-y-3">
-            {analytics.topProducts.map((product: any, index: number) => (
+            {analytics.topProducts.map((product, index: number) => (
               <div key={product.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
                 <div className="flex min-w-0 items-center gap-3">
                   <span className="w-6 shrink-0 text-lg font-bold text-muted-foreground">{index + 1}</span>
@@ -353,7 +353,7 @@ export default async function AnalyticsPage() {
             <h3 className="font-semibold">Топ продавцы</h3>
           </div>
           <div className="space-y-3">
-            {analytics.topSellers.map((seller: any, index: number) => (
+            {analytics.topSellers.map((seller, index: number) => (
               <div key={seller.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
                 <div className="flex min-w-0 items-center gap-3">
                   <span className="w-6 shrink-0 text-lg font-bold text-muted-foreground">{index + 1}</span>
@@ -384,8 +384,8 @@ export default async function AnalyticsPage() {
       <Card className="p-6">
         <h3 className="font-semibold mb-4">Выручка по категориям</h3>
         <div className="space-y-4">
-          {analytics.revenueByCategory.map((category: any) => {
-            const maxRevenue = Math.max(...analytics.revenueByCategory.map((c: any) => c.revenue))
+          {analytics.revenueByCategory.map((category) => {
+            const maxRevenue = Math.max(...analytics.revenueByCategory.map((c) => c.revenue))
             const percentage = (category.revenue / maxRevenue) * 100
 
             return (
@@ -413,7 +413,7 @@ export default async function AnalyticsPage() {
       <Card className="p-6">
         <h3 className="font-semibold mb-4">Продажи за последние 7 дней</h3>
         <div className="space-y-3">
-          {analytics.salesByDay.map((day: any) => (
+          {analytics.salesByDay.map((day) => (
             <div key={day.date} className="flex items-center justify-between py-2 border-b border-border last:border-0">
               <span className="text-sm font-medium">{day.date}</span>
               <div className="flex items-center gap-6">

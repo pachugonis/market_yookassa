@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from "react"
 import { useRouter, useParams } from "next/navigation"
 import { useSession } from "next-auth/react"
 import { motion } from "framer-motion"
-import { ArrowLeft, Send, Loader2, Calendar, AlertCircle, CheckCircle, XCircle } from "lucide-react"
+import { ArrowLeft, Send, Loader2, Calendar } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -77,6 +77,10 @@ export default function SellerDisputeChatPage() {
       const interval = setInterval(fetchMessages, 5000)
       return () => clearInterval(interval)
     }
+    // Подписка пересоздаётся только при смене спора: функции загрузки
+    // пересоздаются на каждый рендер, и в зависимостях они сбрасывали бы
+    // таймер опроса по нескольку раз в секунду.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [disputeId])
 
   useEffect(() => {
@@ -372,7 +376,11 @@ export default function SellerDisputeChatPage() {
                 <label className="text-sm font-medium">Тип решения</label>
                 <select
                   value={resolutionType}
-                  onChange={(e) => setResolutionType(e.target.value as any)}
+                  onChange={(e) =>
+                    setResolutionType(
+                      e.target.value as "REFUND_BUYER" | "REJECT_DISPUTE" | "PARTIAL_REFUND"
+                    )
+                  }
                   className="w-full p-2 border rounded-lg"
                 >
                   <option value="REJECT_DISPUTE">Отклонить спор</option>

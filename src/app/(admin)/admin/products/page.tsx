@@ -78,7 +78,7 @@ export default async function ProductsPage() {
               </tr>
             </thead>
             <tbody>
-              {products.map((product: any) => (
+              {products.map((product) => (
                 <tr key={product.id} className="border-b border-border last:border-0 hover:bg-secondary/50">
                   <td className="p-4">
                     <div className="flex items-center gap-3">
@@ -139,16 +139,16 @@ export default async function ProductsPage() {
         </Card>
         <Card className="p-6">
           <h3 className="font-semibold mb-2">Активных</h3>
-          <p className="text-3xl font-bold">{products.filter((p: any) => p.status === "ACTIVE").length}</p>
+          <p className="text-3xl font-bold">{products.filter((p) => p.status === "ACTIVE").length}</p>
         </Card>
         <Card className="p-6">
           <h3 className="font-semibold mb-2">Черновиков</h3>
-          <p className="text-3xl font-bold">{products.filter((p: any) => p.status === "DRAFT").length}</p>
+          <p className="text-3xl font-bold">{products.filter((p) => p.status === "DRAFT").length}</p>
         </Card>
         <Card className="p-6">
           <h3 className="font-semibold mb-2">Общая выручка</h3>
           <p className="text-3xl font-bold">
-            {products.reduce((sum: number, p: any) => sum + (p.price * p._count.purchases), 0).toLocaleString('ru-RU')} ₽
+            {products.reduce((sum: number, p) => sum + (p.price * p._count.purchases), 0).toLocaleString('ru-RU')} ₽
           </p>
         </Card>
       </div>

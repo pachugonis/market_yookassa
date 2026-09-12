@@ -3,7 +3,6 @@
 import { useEffect, useState, useRef } from "react"
 import { useRouter, useParams } from "next/navigation"
 import { useSession } from "next-auth/react"
-import Image from "next/image"
 import { motion } from "framer-motion"
 import { ArrowLeft, Send, Loader2, Calendar, AlertCircle } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -74,6 +73,10 @@ export default function DisputeChatPage() {
       const interval = setInterval(fetchMessages, 5000)
       return () => clearInterval(interval)
     }
+    // Подписка пересоздаётся только при смене спора: функции загрузки
+    // пересоздаются на каждый рендер, и в зависимостях они сбрасывали бы
+    // таймер опроса по нескольку раз в секунду.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [disputeId])
 
   useEffect(() => {
@@ -116,7 +119,7 @@ export default function DisputeChatPage() {
       const res = await fetch(`/api/disputes`)
       const data = await res.json()
       if (data.success) {
-        const foundDispute = data.data.find((d: any) => d.id === disputeId)
+        const foundDispute = data.data.find((d: Dispute) => d.id === disputeId)
         if (foundDispute) {
           // For buyer disputes, the buyer is the current user
           setDispute({

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { Prisma, ReportStatus, ReportType } from "@prisma/client"
 
 // GET - List all reports with filters (admin only)
 export async function GET(req: NextRequest) {
@@ -20,14 +21,17 @@ export async function GET(req: NextRequest) {
     const page = parseInt(searchParams.get("page") || "1")
     const limit = parseInt(searchParams.get("limit") || "20")
 
-    const where: any = {}
+    // Значения приходят строкой из адреса, поэтому в фильтр попадают
+    // только те, что есть в перечислении: произвольный «?status=...»
+    // раньше уходил прямо в запрос и ронял его ошибкой базы.
+    const where: Prisma.ReportWhereInput = {}
 
-    if (status) {
-      where.status = status
+    if (status && status in ReportStatus) {
+      where.status = status as ReportStatus
     }
 
-    if (type) {
-      where.type = type
+    if (type && type in ReportType) {
+      where.type = type as ReportType
     }
 
     const [reports, total] = await Promise.all([

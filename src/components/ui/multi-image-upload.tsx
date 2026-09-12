@@ -99,7 +99,7 @@ export function MultiImageUpload({
       } else {
         toast({ title: "Ошибка", description: data.error, variant: "destructive" })
       }
-    } catch (error) {
+    } catch {
       toast({ title: "Ошибка загрузки", variant: "destructive" })
     } finally {
       setUploading(false)
@@ -126,7 +126,7 @@ export function MultiImageUpload({
         } else {
           toast({ title: "Ошибка", description: data.error, variant: "destructive" })
         }
-      } catch (error) {
+      } catch {
         toast({ title: "Ошибка удаления", variant: "destructive" })
       }
     } else {

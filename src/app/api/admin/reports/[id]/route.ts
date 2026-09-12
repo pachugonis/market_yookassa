@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { Prisma } from "@prisma/client"
 import { z } from "zod"
 
 const updateReportSchema = z.object({
@@ -76,7 +77,7 @@ export async function PATCH(
     const body = await req.json()
     const validatedData = updateReportSchema.parse(body)
 
-    const updateData: any = {
+    const updateData: Prisma.ReportUpdateInput = {
       ...validatedData,
       updatedAt: new Date(),
     }

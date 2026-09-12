@@ -13,10 +13,10 @@ import {
   Menu,
   X,
   Shield,
-  AlertCircle,
-  Store
+  AlertCircle
 } from "lucide-react"
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { useSiteName } from "@/components/layout/site-settings-provider"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -40,11 +40,15 @@ export function Navbar({ storesPageEnabled = true }: { storesPageEnabled?: boole
   // Название приходит из layout'а уже отрисованным: запрос из браузера
   // показывал бы старое имя до первого ответа.
   const siteName = useSiteName()
+  const router = useRouter()
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
     if (searchQuery.trim()) {
-      window.location.href = `/products?search=${encodeURIComponent(searchQuery)}`
+      // router.push, а не window.location: перезагрузка ради перехода
+      // внутри приложения выбрасывает уже загруженный бандл и заставляет
+      // браузер забирать страницу с нуля.
+      router.push(`/products?search=${encodeURIComponent(searchQuery)}`)
     }
   }
 

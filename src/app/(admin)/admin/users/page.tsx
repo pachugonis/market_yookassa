@@ -66,7 +66,7 @@ export default async function UsersPage() {
               </tr>
             </thead>
             <tbody>
-              {users.map((user: any) => (
+              {users.map((user) => (
                 <tr key={user.id} className="border-b border-border last:border-0 hover:bg-secondary/50">
                   <td className="p-4">
                     <div className="flex items-center gap-3">
@@ -112,11 +112,11 @@ export default async function UsersPage() {
         </Card>
         <Card className="p-6">
           <h3 className="font-semibold mb-2">Продавцов</h3>
-          <p className="text-3xl font-bold">{users.filter((u: any) => u.role === "SELLER").length}</p>
+          <p className="text-3xl font-bold">{users.filter((u) => u.role === "SELLER").length}</p>
         </Card>
         <Card className="p-6">
           <h3 className="font-semibold mb-2">Покупателей</h3>
-          <p className="text-3xl font-bold">{users.filter((u: any) => u.role === "BUYER").length}</p>
+          <p className="text-3xl font-bold">{users.filter((u) => u.role === "BUYER").length}</p>
         </Card>
       </div>
     </div>

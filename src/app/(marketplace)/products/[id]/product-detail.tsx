@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
 import { motion } from "framer-motion"
@@ -15,8 +14,7 @@ import {
   Loader2,
   CheckCircle,
   Package,
-  MessageSquare,
-  Flag
+  MessageSquare
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -80,6 +78,9 @@ export function ProductDetail({ product, avgRating }: ProductDetailProps) {
     if (session?.user) {
       checkPurchaseStatus()
     }
+    // Проверяем покупку только при смене сессии: checkPurchaseStatus
+    // пересоздаётся на каждый рендер и зациклил бы запрос.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session])
 
   useEffect(() => {
@@ -101,7 +102,7 @@ export function ProductDetail({ product, avgRating }: ProductDetailProps) {
         // Сделка в холде — товар уже у покупателя, повторно покупать
         // его не нужно
         const purchased = data.data.some(
-          (p: any) =>
+          (p: { productId: string; status: string }) =>
             p.productId === product.id &&
             (p.status === "COMPLETED" || p.status === "HELD")
         )

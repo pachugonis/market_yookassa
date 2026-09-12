@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { CheckCircle, XCircle, Loader2, Mail } from "lucide-react"
+import { CheckCircle, XCircle, Loader2 } from "lucide-react"
 import Link from "next/link"
 
 function VerifyEmailContent() {

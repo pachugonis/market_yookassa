@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { useRouter, useParams } from "next/navigation"
 import { motion } from "framer-motion"
-import { Upload, Loader2, ImageIcon, FileUp, X, ArrowLeft, Key, Plus, Check, Trash2, Edit2, Save } from "lucide-react"
+import { Loader2, ImageIcon, FileUp, X, ArrowLeft, Key, Plus, Check, Trash2, Edit2, Save } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -96,6 +96,9 @@ export default function EditProductPage() {
     fetchCategories()
     fetchProduct()
     fetchProductImages()
+    // Загружаем один раз при открытии карточки: функции загрузки
+    // пересоздаются на каждый рендер и зациклили бы запросы.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const fetchCategories = async () => {
@@ -578,6 +581,10 @@ export default function EditProductPage() {
             <CardContent>
               {formData.coverImage ? (
                 <div className="relative">
+                  {/* Обложка лежит в /covers и раздаётся nginx напрямую.
+                      next/image гнал бы её через /_next/image, а
+                      remotePatterns разрешает только localhost. */}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={formData.coverImage}
                     alt="Cover"

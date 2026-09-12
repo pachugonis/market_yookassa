@@ -81,7 +81,7 @@ export default function LibraryPage() {
         const reviewsRes = await fetch("/api/reviews/my-reviews")
         const reviewsData = await reviewsRes.json()
         const reviewedProductIds = reviewsData.success 
-          ? new Set(reviewsData.data.map((r: any) => r.productId))
+          ? new Set(reviewsData.data.map((r: { productId: string }) => r.productId))
           : new Set()
         
         // Mark purchases that already have reviews

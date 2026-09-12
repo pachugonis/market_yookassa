@@ -5,11 +5,9 @@ import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import { 
-  User, 
-  Mail, 
+  Mail,
   Calendar, 
   ShieldCheck, 
-  Wallet,
   Edit,
   Loader2,
   Save,
@@ -23,7 +21,7 @@ import { Label } from "@/components/ui/label"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { formatPrice, formatDate } from "@/lib/utils"
+import { formatDate } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 import TwoFactorSettings from "@/components/TwoFactorSettings"
 import ChangePassword from "@/components/ChangePassword"
@@ -67,6 +65,9 @@ export default function ProfilePage() {
     if (session) {
       fetchProfile()
     }
+    // Загружаем профиль только при смене сессии: fetchProfile
+    // пересоздаётся на каждый рендер и зациклил бы запрос.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session])
 
   const fetchProfile = async () => {
@@ -405,7 +406,7 @@ export default function ProfilePage() {
                   <ShieldCheck className="h-5 w-5 text-muted-foreground" />
                   <div className="flex-1">
                     <p className="text-sm text-muted-foreground">Роль</p>
-                    <Badge variant={getRoleBadgeVariant(profile.role) as any} className="mt-1">
+                    <Badge variant={getRoleBadgeVariant(profile.role)} className="mt-1">
                       {getRoleLabel(profile.role)}
                     </Badge>
                   </div>

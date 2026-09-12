@@ -86,7 +86,7 @@ export function UserManager({ user }: UserManagerProps) {
           variant: "destructive",
         })
       }
-    } catch (error) {
+    } catch {
       toast({
         title: "Ошибка",
         description: "Произошла ошибка при обновлении пользователя",
@@ -120,7 +120,7 @@ export function UserManager({ user }: UserManagerProps) {
           variant: "destructive",
         })
       }
-    } catch (error) {
+    } catch {
       toast({
         title: "Ошибка",
         description: "Произошла ошибка при удалении пользователя",

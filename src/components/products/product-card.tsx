@@ -1,7 +1,6 @@
 "use client"
 
 import Link from "next/link"
-import Image from "next/image"
 import { motion } from "framer-motion"
 import { Star, Download } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"

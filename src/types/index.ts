@@ -1,6 +1,8 @@
 import { UserRole } from "@prisma/client"
 import "next-auth"
-import { JWT } from "next-auth/jwt"
+// Импорт ради самого модуля, а не ради имени: без него `declare module
+// "next-auth/jwt"` ниже не находит дополняемый модуль.
+import "next-auth/jwt"
 
 declare module "next-auth" {
   interface User {

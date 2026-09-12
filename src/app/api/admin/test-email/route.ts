@@ -65,12 +65,12 @@ export async function POST(request: NextRequest) {
       success: true,
       message: `Тестовое письмо отправлено на ${session.user.email}`,
     })
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error sending test email:", error)
     return NextResponse.json(
       {
         success: false,
-        error: error.message || "Ошибка отправки письма",
+        error: (error instanceof Error && error.message) || "Ошибка отправки письма",
       },
       { status: 500 }
     )
