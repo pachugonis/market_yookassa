@@ -106,8 +106,8 @@ export async function POST(request: NextRequest) {
 
     await mkdir(uploadDir, { recursive: true })
     // Путь известен только во время запроса; без подсказки Turbopack
-    // трассирует весь проект и при каждой сборке копирует uploads/ и
-    // public/ в .next/standalone.
+    // считает его зависимостью и трассирует весь проект вместе с
+    // uploads/ и public/.
     await writeFile(path.join(/*turbopackIgnore: true*/ uploadDir, uniqueName), buffer)
 
     return NextResponse.json({
