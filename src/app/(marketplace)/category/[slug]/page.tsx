@@ -72,35 +72,46 @@ export default async function CategoryPage({ params }: Props) {
   // Get all category IDs (current category + subcategories)
   const categoryIds = [category.id, ...(category.subcategories?.map(sub => sub.id) || [])]
 
+  // Столбцы перечислены явно: карточке нужно восемь полей, а `include`
+  // вёз строку товара целиком — с описанием и путём к продаваемому файлу.
   const products = await prisma.product.findMany({
     where: {
       ...visibleProductWhere,
       categoryId: { in: categoryIds },
     },
-    include: {
+    select: {
+      id: true,
+      title: true,
+      price: true,
+      coverImage: true,
+      downloadCount: true,
       seller: { select: { name: true, avatar: true } },
       category: { select: { name: true, slug: true } },
-      reviews: { select: { rating: true } },
     },
     orderBy: { createdAt: "desc" },
   })
 
-  const productsWithRating = products.map((product) => {
-    const avgRating =
-      product.reviews.length > 0
-        ? product.reviews.reduce((acc, r) => acc + r.rating, 0) / product.reviews.length
-        : 0
-    return {
-      id: product.id,
-      title: product.title,
-      price: product.price,
-      coverImage: product.coverImage,
-      downloadCount: product.downloadCount,
-      seller: product.seller,
-      category: product.category,
-      avgRating,
-    }
-  })
+  // Средний балл считает база. Раньше сюда приезжали все строки отзывов
+  // всех товаров категории, и среднее складывалось в JS: на сотне
+  // товаров с сотней отзывов это десять тысяч строк ради одного числа
+  // под каждой карточкой.
+  const productIds = products.map((product) => product.id)
+  const ratings = productIds.length
+    ? await prisma.review.groupBy({
+        by: ["productId"],
+        where: { productId: { in: productIds } },
+        _avg: { rating: true },
+      })
+    : []
+
+  const avgByProduct = new Map(
+    ratings.map((row) => [row.productId, row._avg.rating ?? 0])
+  )
+
+  const productsWithRating = products.map((product) => ({
+    ...product,
+    avgRating: avgByProduct.get(product.id) ?? 0,
+  }))
 
   const breadcrumbJsonLd = {
     "@context": "https://schema.org",

@@ -203,18 +203,39 @@ export async function getCatalogProducts(
     orderBy = { price: "desc" }
   }
 
+  // Столбцы перечислены явно: `include` вёз строку товара целиком, вместе
+  // с описанием и путём к продаваемому файлу, а карточке нужны восемь полей.
   const products = await prisma.product.findMany({
     where,
-    include: {
+    select: {
+      id: true,
+      title: true,
+      price: true,
+      coverImage: true,
+      downloadCount: true,
       seller: { select: { name: true, avatar: true } },
       category: { select: { name: true, slug: true } },
-      reviews: { select: { rating: true } },
-      images: { select: { imageUrl: true, order: true }, orderBy: { order: "asc" } },
+      images: { select: { imageUrl: true }, orderBy: { order: "asc" } },
     },
     orderBy,
     skip: (page - 1) * limit,
     take: limit,
   })
+
+  // Средний балл считает база — одним запросом на всю страницу выдачи
+  // вместо всех строк отзывов каждого товара.
+  const productIds = products.map((product) => product.id)
+  const ratings = productIds.length
+    ? await prisma.review.groupBy({
+        by: ["productId"],
+        where: { productId: { in: productIds } },
+        _avg: { rating: true },
+      })
+    : []
+
+  const avgByProduct = new Map(
+    ratings.map((row) => [row.productId, row._avg.rating ?? 0])
+  )
 
   return products.map((product) => ({
     id: product.id,
@@ -224,10 +245,7 @@ export async function getCatalogProducts(
     downloadCount: product.downloadCount,
     seller: product.seller,
     category: product.category,
-    avgRating:
-      product.reviews.length > 0
-        ? product.reviews.reduce((acc, r) => acc + r.rating, 0) / product.reviews.length
-        : 0,
+    avgRating: avgByProduct.get(product.id) ?? 0,
     images: product.images.map((img) => img.imageUrl),
   }))
 }
