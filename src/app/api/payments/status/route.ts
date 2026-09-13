@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
     const purchase = await prisma.purchase.findUnique({
       where: { id: purchaseId },
       include: {
-        product: { select: { title: true, coverImage: true } },
+        product: { select: { id: true, title: true, coverImage: true } },
       },
     })
 
@@ -49,6 +49,13 @@ export async function GET(request: NextRequest) {
     // Спрашиваем провайдера напрямую и переводим сделку тем же атомарным
     // путём — двойной выдачи не произойдёт, даже если вебхук отработает
     // одновременно.
+    //
+    // Возврат со страницы оплаты бывает и без оплаты — покупатель её
+    // отменил. Провайдер тогда держит платёж в ожидании, и проверять
+    // дальше нечего: ждать можно только у платежа, по которому деньги
+    // уже отправлены (биткоин, ждущий подтверждений сети).
+    let awaitingPayment = false
+
     if (purchase.status === "PENDING") {
       try {
         const gateway = getGateway(purchase.paymentProvider)
@@ -72,6 +79,9 @@ export async function GET(request: NextRequest) {
               { status: 400 }
             )
           }
+
+          awaitingPayment =
+            payment.status === "pending" && !(payment.amountSats && payment.amountSats > 0)
         }
       } catch (error) {
         console.error("Error checking payment status:", error)
@@ -95,6 +105,8 @@ export async function GET(request: NextRequest) {
       success: true,
       data: {
         status: fresh?.status ?? purchase.status,
+        // Покупатель вернулся, не заплатив, — страница оплаты не ждёт.
+        awaitingPayment: awaitingPayment && fresh?.status === "PENDING",
         product: purchase.product,
         // Оплата биткоином ждёт подтверждения сети — покупателю нужно
         // объяснить, почему страница не отвечает сразу.

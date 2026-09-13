@@ -4,7 +4,7 @@ import { useCallback, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import Script from "next/script"
-import { Loader2, ShieldCheck, XCircle } from "lucide-react"
+import { Loader2, XCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import {
@@ -22,7 +22,7 @@ import { DISPUTE_WINDOW_HOURS } from "@/lib/dispute-window"
  * передаются виджету.
  */
 
-type Stage = "loading" | "running" | "done" | "cancelled" | "failed"
+type Stage = "loading" | "running" | "done" | "failed"
 
 export function CloudPaymentsCheckout({
   intent,
@@ -69,7 +69,8 @@ export function CloudPaymentsCheckout({
       }
 
       if (result?.type === "cancel") {
-        setStage("cancelled")
+        // Покупатель закрыл форму — возвращаем его к товару.
+        router.replace(`/products/${productId}`)
         return
       }
 
@@ -80,7 +81,7 @@ export function CloudPaymentsCheckout({
       setStage("failed")
       setError("Не удалось провести платёж")
     }
-  }, [intent, router, successUrl])
+  }, [intent, productId, router, successUrl])
 
   // Виджет открывается сразу, как только загрузится его скрипт: кнопку
   // «Купить» покупатель уже нажал на странице товара.
@@ -118,22 +119,12 @@ export function CloudPaymentsCheckout({
               </>
             )}
 
-            {(stage === "cancelled" || stage === "failed") && (
+            {stage === "failed" && (
               <>
-                <div
-                  className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6 ${
-                    stage === "failed" ? "bg-red-100" : "bg-primary/10"
-                  }`}
-                >
-                  {stage === "failed" ? (
-                    <XCircle className="h-8 w-8 text-red-600" />
-                  ) : (
-                    <ShieldCheck className="h-8 w-8 text-primary" />
-                  )}
+                <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6 bg-red-100">
+                  <XCircle className="h-8 w-8 text-red-600" />
                 </div>
-                <h1 className="text-2xl font-bold mb-2">
-                  {stage === "failed" ? "Платёж не прошёл" : "Оплата покупки"}
-                </h1>
+                <h1 className="text-2xl font-bold mb-2">Платёж не прошёл</h1>
                 <p className="text-muted-foreground mb-6">
                   {error ??
                     (instantCapture

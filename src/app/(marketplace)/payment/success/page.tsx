@@ -42,6 +42,9 @@ function PaymentSuccessContent() {
             setStatus("success")
           } else if (data.data.status === "FAILED" || data.data.status === "REFUNDED") {
             setStatus("failed")
+          } else if (data.data.awaitingPayment) {
+            // Оплату отменили — проверять нечего, возвращаем к товару.
+            router.replace(`/products/${data.data.product.id}`)
           } else {
             // Still pending, check again in 2 seconds
             setTimeout(checkStatus, 2000)
