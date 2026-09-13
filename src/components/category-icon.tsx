@@ -34,11 +34,15 @@ export function CategoryIcon({
           imageClassName ?? className
         )}
       >
+        {/* Иконка лежит в /category-icons и раздаётся nginx напрямую:
+            next start не видит файлы, загруженные в public/ после запуска,
+            и /_next/image отвечал бы 404. */}
         <Image
           src={icon}
           alt={label}
           width={size}
           height={size}
+          unoptimized
           className="h-full w-full object-cover"
         />
       </span>

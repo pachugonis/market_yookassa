@@ -48,10 +48,14 @@ export function ProductImageCarousel({
   return (
     <div className={cn("relative aspect-[4/3] bg-secondary overflow-hidden group", className)}>
       {/* Main Image */}
+      {/* Картинки лежат в /covers и раздаются nginx напрямую. Через
+          /_next/image их грузил бы next start, а он не видит файлы,
+          появившиеся в public/ после запуска, — отсюда 404. */}
       <Image
         src={images[currentIndex]}
         alt={`${productTitle} - изображение ${currentIndex + 1}`}
         fill
+        unoptimized
         className="object-cover transition-opacity duration-300"
         sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
       />

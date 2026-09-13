@@ -189,10 +189,14 @@ export function MultiImageUpload({
                   draggedIndex === index && "opacity-50"
                 )}
               >
+                {/* Картинка лежит в /covers и раздаётся nginx напрямую:
+                    через /_next/image её грузил бы next start, а он не
+                    видит файлы, появившиеся в public/ после запуска. */}
                 <Image
                   src={image.imageUrl}
                   alt={`Изображение ${index + 1}`}
                   fill
+                  unoptimized
                   className="object-cover"
                 />
                 
