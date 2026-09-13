@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma"
+import { paidPurchaseWhere } from "@/lib/purchase-status"
 import { Card } from "@/components/ui/card"
 import { Users, Package, ShoppingCart, TrendingUp, DollarSign, Activity, Flag } from "lucide-react"
 
@@ -16,7 +17,7 @@ async function getAdminStats() {
   ] = await Promise.all([
     prisma.user.count(),
     prisma.product.count(),
-    prisma.purchase.count(),
+    prisma.purchase.count({ where: paidPurchaseWhere }),
     prisma.purchase.aggregate({
       where: { status: "COMPLETED" },
       _sum: { amount: true },
@@ -33,6 +34,7 @@ async function getAdminStats() {
       },
     }),
     prisma.purchase.findMany({
+      where: paidPurchaseWhere,
       take: 5,
       orderBy: { createdAt: "desc" },
       include: {

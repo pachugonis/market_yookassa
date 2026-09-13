@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge"
 import { ProductStatus } from "@prisma/client"
 import Image from "next/image"
 import { ProductManager } from "@/components/admin/product-manager"
+import { paidPurchaseWhere } from "@/lib/purchase-status"
 
 async function getProducts() {
   const products = await prisma.product.findMany({
@@ -22,7 +23,7 @@ async function getProducts() {
       },
       _count: {
         select: {
-          purchases: true,
+          purchases: { where: paidPurchaseWhere },
           reviews: true,
         },
       },

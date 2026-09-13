@@ -1,5 +1,6 @@
 import type { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
+import { paidPurchaseWhere } from "@/lib/purchase-status"
 
 /**
  * Категория видна на сайте, если не скрыта ни она сама, ни её родитель:
@@ -78,7 +79,7 @@ export async function getPublicProduct(id: string) {
       _count: {
         select: {
           reviews: true,
-          purchases: true,
+          purchases: { where: paidPurchaseWhere },
           licenseKeys: { where: { isSold: false } },
         },
       },

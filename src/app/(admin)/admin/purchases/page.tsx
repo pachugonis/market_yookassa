@@ -2,9 +2,11 @@ import { prisma } from "@/lib/prisma"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { PurchaseStatus } from "@prisma/client"
+import { paidPurchaseWhere } from "@/lib/purchase-status"
 
 async function getPurchases() {
   const purchases = await prisma.purchase.findMany({
+    where: paidPurchaseWhere,
     orderBy: { createdAt: "desc" },
     include: {
       buyer: {
@@ -54,9 +56,7 @@ export default async function PurchasesPage() {
   const stats = {
     total: purchases.length,
     completed: purchases.filter((p) => p.status === "COMPLETED").length,
-    pending: purchases.filter(
-      (p) => p.status === "PENDING" || p.status === "HELD"
-    ).length,
+    pending: purchases.filter((p) => p.status === "HELD").length,
     totalRevenue: purchases
       .filter((p) => p.status === "COMPLETED")
       .reduce((sum: number, p) => sum + p.amount, 0),

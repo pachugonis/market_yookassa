@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma"
+import { paidPurchaseWhere } from "@/lib/purchase-status"
 import { Card } from "@/components/ui/card"
 import { 
   TrendingUp, 
@@ -91,7 +92,7 @@ async function getAnalytics() {
       take: 5,
       include: {
         _count: {
-          select: { purchases: true },
+          select: { purchases: { where: paidPurchaseWhere } },
         },
         category: {
           select: { name: true },

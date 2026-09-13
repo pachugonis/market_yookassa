@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge"
 import { UserRole } from "@prisma/client"
 import { UserManager } from "@/components/admin/user-manager"
 import { formatPrice } from "@/lib/utils"
+import { paidPurchaseWhere } from "@/lib/purchase-status"
 
 async function getUsers() {
   const users = await prisma.user.findMany({
@@ -12,7 +13,7 @@ async function getUsers() {
       _count: {
         select: {
           products: true,
-          purchases: true,
+          purchases: { where: paidPurchaseWhere },
         },
       },
     },

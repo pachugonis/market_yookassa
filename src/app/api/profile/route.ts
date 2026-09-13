@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
 import { isValidBitcoinAddress } from "@/lib/btcpay"
+import { paidPurchaseWhere } from "@/lib/purchase-status"
 
 export async function GET() {
   try {
@@ -35,10 +36,7 @@ export async function GET() {
         createdAt: true,
         _count: {
           select: {
-            // Неоплаченные попытки покупкой не считаются.
-            purchases: {
-              where: { status: { in: ["HELD", "COMPLETED", "REFUNDED"] } },
-            },
+            purchases: { where: paidPurchaseWhere },
             products: true,
           },
         },
@@ -212,10 +210,7 @@ export async function PATCH(request: NextRequest) {
         createdAt: true,
         _count: {
           select: {
-            // Неоплаченные попытки покупкой не считаются.
-            purchases: {
-              where: { status: { in: ["HELD", "COMPLETED", "REFUNDED"] } },
-            },
+            purchases: { where: paidPurchaseWhere },
             products: true,
           },
         },

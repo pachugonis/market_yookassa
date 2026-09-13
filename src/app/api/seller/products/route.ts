@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
+import { paidPurchaseWhere } from "@/lib/purchase-status"
 
 export async function GET() {
   try {
@@ -24,7 +25,9 @@ export async function GET() {
       where: { sellerId: session.user.id },
       include: {
         category: { select: { name: true } },
-        _count: { select: { purchases: true, reviews: true } },
+        _count: {
+          select: { purchases: { where: paidPurchaseWhere }, reviews: true },
+        },
       },
       orderBy: { createdAt: "desc" },
     })
