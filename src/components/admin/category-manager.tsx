@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -33,10 +33,11 @@ import {
 } from "@/components/ui/select"
 import { Card } from "@/components/ui/card"
 import { Switch } from "@/components/ui/switch"
-import { Plus, Pencil, Trash2, ChevronRight, Upload, X } from "lucide-react"
+import { Plus, Pencil, Trash2, ChevronRight } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
-import Image from "next/image"
+import { CategoryIcon } from "@/components/category-icon"
+import { CategoryIconPicker } from "@/components/admin/category-icon-picker"
 import { cn } from "@/lib/utils"
 
 interface Category {
@@ -69,8 +70,6 @@ export function CategoryManager({ categories }: CategoryManagerProps) {
   // Переключатель срабатывает сразу, не дожидаясь router.refresh(): иначе
   // он возвращался бы назад на время, пока страница перезапрашивается.
   const [hiddenOverrides, setHiddenOverrides] = useState<Record<string, boolean>>({})
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const editFileInputRef = useRef<HTMLInputElement>(null)
 
   // Flatten categories to show parent and subcategories in order
   const flattenedCategories = categories.reduce((acc, category) => {
@@ -99,9 +98,6 @@ export function CategoryManager({ categories }: CategoryManagerProps) {
       description: "",
       parentId: null,
     })
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ""
-    }
   }
 
   const handleFileUpload = async (file: File) => {
@@ -118,7 +114,7 @@ export function CategoryManager({ categories }: CategoryManagerProps) {
       const data = await response.json()
 
       if (data.success) {
-        setFormData({ ...formData, icon: data.data.iconUrl })
+        setFormData((prev) => ({ ...prev, icon: data.data.iconUrl }))
         toast({
           title: "Успех",
           description: "Иконка загружена",
@@ -141,22 +137,7 @@ export function CategoryManager({ categories }: CategoryManagerProps) {
     }
   }
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      handleFileUpload(file)
-    }
-  }
-
-  const removeIcon = () => {
-    setFormData({ ...formData, icon: "" })
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ""
-    }
-    if (editFileInputRef.current) {
-      editFileInputRef.current.value = ""
-    }
-  }
+  const setIcon = (icon: string) => setFormData((prev) => ({ ...prev, icon }))
 
   const isHidden = (category: Category) =>
     hiddenOverrides[category.id] ?? category.isHidden
@@ -190,10 +171,6 @@ export function CategoryManager({ categories }: CategoryManagerProps) {
         variant: "destructive",
       })
     }
-  }
-
-  const isImageIcon = (icon: string) => {
-    return icon.startsWith("/") || icon.startsWith("http")
   }
 
   const handleCreate = async () => {
@@ -367,67 +344,13 @@ export function CategoryManager({ categories }: CategoryManagerProps) {
                   placeholder="software"
                 />
               </div>
-              <div>
-                <Label htmlFor="icon">Иконка</Label>
-                <div className="space-y-3">
-                  {formData.icon && (
-                    <div className="relative inline-block">
-                      {isImageIcon(formData.icon) ? (
-                        <div className="relative w-20 h-20 rounded-lg border-2 border-border overflow-hidden">
-                          <Image
-                            src={formData.icon}
-                            alt="Icon preview"
-                            fill
-                            className="object-cover"
-                          />
-                        </div>
-                      ) : (
-                        <div className="w-20 h-20 rounded-lg border-2 border-border flex items-center justify-center text-3xl">
-                          {formData.icon}
-                        </div>
-                      )}
-                      <Button
-                        type="button"
-                        size="icon"
-                        variant="destructive"
-                        className="absolute -top-2 -right-2 h-6 w-6 rounded-full"
-                        onClick={removeIcon}
-                      >
-                        <X className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  )}
-                  <div className="flex gap-2">
-                    <Input
-                      id="icon"
-                      value={formData.icon}
-                      onChange={(e) => setFormData({ ...formData, icon: e.target.value })}
-                      placeholder="💻 или введите путь к изображению"
-                      className="flex-1"
-                    />
-                    <input
-                      type="file"
-                      ref={fileInputRef}
-                      onChange={(e) => handleFileChange(e)}
-                      accept="image/*"
-                      className="hidden"
-                      id="icon-file-upload"
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={isUploading}
-                    >
-                      <Upload className="h-4 w-4 mr-2" />
-                      {isUploading ? "Загрузка..." : "Загрузить"}
-                    </Button>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Вы можете загрузить изображение или использовать эмодзи/текст
-                  </p>
-                </div>
-              </div>
+              <CategoryIconPicker
+                value={formData.icon}
+                onChange={setIcon}
+                idPrefix="create"
+                isUploading={isUploading}
+                onUpload={handleFileUpload}
+              />
               <div>
                 <Label htmlFor="parent">Родительская категория (опционально)</Label>
                 <Select
@@ -441,7 +364,10 @@ export function CategoryManager({ categories }: CategoryManagerProps) {
                     <SelectItem value="none">Без родителя (основная категория)</SelectItem>
                     {categories.filter(c => !c.parentId).map((category) => (
                       <SelectItem key={category.id} value={category.id}>
-                        {category.icon} {category.name}
+                        <span className="flex items-center gap-2">
+                          <CategoryIcon icon={category.icon} label={category.name} className="h-4 w-4" />
+                          {category.name}
+                        </span>
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -494,17 +420,13 @@ export function CategoryManager({ categories }: CategoryManagerProps) {
                 >
                   <td className="p-4">
                     <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center overflow-hidden">
-                      {isImageIcon(category.icon) ? (
-                        <Image
-                          src={category.icon}
-                          alt={category.name}
-                          width={40}
-                          height={40}
-                          className="object-cover"
-                        />
-                      ) : (
-                        <span className="text-xl">{category.icon}</span>
-                      )}
+                      <CategoryIcon
+                        icon={category.icon}
+                        label={category.name}
+                        size={40}
+                        className="h-5 w-5 text-xl text-primary"
+                        imageClassName="h-10 w-10"
+                      />
                     </div>
                   </td>
                   <td className="p-4">
@@ -593,67 +515,13 @@ export function CategoryManager({ categories }: CategoryManagerProps) {
                 onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
               />
             </div>
-            <div>
-              <Label htmlFor="edit-icon">Иконка</Label>
-              <div className="space-y-3">
-                {formData.icon && (
-                  <div className="relative inline-block">
-                    {isImageIcon(formData.icon) ? (
-                      <div className="relative w-20 h-20 rounded-lg border-2 border-border overflow-hidden">
-                        <Image
-                          src={formData.icon}
-                          alt="Icon preview"
-                          fill
-                          className="object-cover"
-                        />
-                      </div>
-                    ) : (
-                      <div className="w-20 h-20 rounded-lg border-2 border-border flex items-center justify-center text-3xl">
-                        {formData.icon}
-                      </div>
-                    )}
-                    <Button
-                      type="button"
-                      size="icon"
-                      variant="destructive"
-                      className="absolute -top-2 -right-2 h-6 w-6 rounded-full"
-                      onClick={removeIcon}
-                    >
-                      <X className="h-3 w-3" />
-                    </Button>
-                  </div>
-                )}
-                <div className="flex gap-2">
-                  <Input
-                    id="edit-icon"
-                    value={formData.icon}
-                    onChange={(e) => setFormData({ ...formData, icon: e.target.value })}
-                    placeholder="💻 или введите путь к изображению"
-                    className="flex-1"
-                  />
-                  <input
-                    type="file"
-                    ref={editFileInputRef}
-                    onChange={(e) => handleFileChange(e)}
-                    accept="image/*"
-                    className="hidden"
-                    id="edit-icon-file-upload"
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => editFileInputRef.current?.click()}
-                    disabled={isUploading}
-                  >
-                    <Upload className="h-4 w-4 mr-2" />
-                    {isUploading ? "Загрузка..." : "Загрузить"}
-                  </Button>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Вы можете загрузить изображение или использовать эмодзи/текст
-                </p>
-              </div>
-            </div>
+            <CategoryIconPicker
+              value={formData.icon}
+              onChange={setIcon}
+              idPrefix="edit"
+              isUploading={isUploading}
+              onUpload={handleFileUpload}
+            />
             <div>
               <Label htmlFor="edit-parent">Родительская категория (опционально)</Label>
               <Select
@@ -667,7 +535,10 @@ export function CategoryManager({ categories }: CategoryManagerProps) {
                   <SelectItem value="none">Без родителя (основная категория)</SelectItem>
                   {categories.filter(c => !c.parentId && c.id !== selectedCategory?.id).map((category) => (
                     <SelectItem key={category.id} value={category.id}>
-                      {category.icon} {category.name}
+                      <span className="flex items-center gap-2">
+                        <CategoryIcon icon={category.icon} label={category.name} className="h-4 w-4" />
+                        {category.name}
+                      </span>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -729,19 +600,13 @@ export function CategoryManager({ categories }: CategoryManagerProps) {
             .map((category) => (
               <div key={category.id} className="flex items-center justify-between gap-3 py-2 border-b border-border last:border-0">
                 <div className="flex min-w-0 items-center gap-3">
-                  {isImageIcon(category.icon) ? (
-                    <div className="relative w-6 h-6 rounded overflow-hidden shrink-0">
-                      <Image
-                        src={category.icon}
-                        alt={category.name}
-                        width={24}
-                        height={24}
-                        className="object-cover"
-                      />
-                    </div>
-                  ) : (
-                    <span className="text-xl">{category.icon}</span>
-                  )}
+                  <CategoryIcon
+                    icon={category.icon}
+                    label={category.name}
+                    size={24}
+                    className="h-5 w-5 text-xl text-muted-foreground"
+                    imageClassName="h-6 w-6"
+                  />
                   <span className="truncate font-medium">{category.name}</span>
                 </div>
                 {/* Полоса тянется по остатку ширины: жёсткие 256 px не
