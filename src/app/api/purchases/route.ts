@@ -14,7 +14,13 @@ export async function GET() {
     }
 
     const purchases = await prisma.purchase.findMany({
-      where: { buyerId: session.user.id },
+      // Покупка — это то, за что заплачено. Брошенная или отменённая
+      // оплата (PENDING, FAILED) остаётся в базе, чтобы поздний платёж
+      // по ней всё равно выдал товар, но в списке покупателя ей не место.
+      where: {
+        buyerId: session.user.id,
+        status: { in: ["HELD", "COMPLETED", "REFUNDED"] },
+      },
       select: {
         id: true,
         productId: true,

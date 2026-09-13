@@ -35,7 +35,10 @@ export async function GET() {
         createdAt: true,
         _count: {
           select: {
-            purchases: true,
+            // Неоплаченные попытки покупкой не считаются.
+            purchases: {
+              where: { status: { in: ["HELD", "COMPLETED", "REFUNDED"] } },
+            },
             products: true,
           },
         },
@@ -209,7 +212,10 @@ export async function PATCH(request: NextRequest) {
         createdAt: true,
         _count: {
           select: {
-            purchases: true,
+            // Неоплаченные попытки покупкой не считаются.
+            purchases: {
+              where: { status: { in: ["HELD", "COMPLETED", "REFUNDED"] } },
+            },
             products: true,
           },
         },
