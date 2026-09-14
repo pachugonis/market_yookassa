@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { useRouter, useParams } from "next/navigation"
 import { motion } from "framer-motion"
-import { Loader2, ImageIcon, FileUp, X, ArrowLeft, Key, Plus, Check, Trash2, Edit2, Save } from "lucide-react"
+import { Loader2, ImageIcon, FileUp, Upload, X, ArrowLeft, Key, Plus, Check, Trash2, Edit2, Save } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -64,6 +64,8 @@ export default function EditProductPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [uploadingCover, setUploadingCover] = useState(false)
+  const [uploadingFile, setUploadingFile] = useState(false)
+  const [maxFileSize, setMaxFileSize] = useState(500)
   const [imageToCrop, setImageToCrop] = useState<string | null>(null)
   const [selectedParentCategory, setSelectedParentCategory] = useState<string>("")
   const [subcategories, setSubcategories] = useState<Subcategory[]>([])
@@ -92,10 +94,19 @@ export default function EditProductPage() {
     fileSize: 0,
   })
 
+  // Загруженная замена файла. Пока не сохранили товар, исходный файл
+  // остаётся на месте — отсюда отдельное состояние, а не productFile.
+  const [newFile, setNewFile] = useState<{
+    fileUrl: string
+    fileName: string
+    fileSize: number
+  } | null>(null)
+
   useEffect(() => {
     fetchCategories()
     fetchProduct()
     fetchProductImages()
+    fetchSettings()
     // Загружаем один раз при открытии карточки: функции загрузки
     // пересоздаются на каждый рендер и зациклили бы запросы.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -110,6 +121,18 @@ export default function EditProductPage() {
       }
     } catch (error) {
       console.error("Error fetching categories:", error)
+    }
+  }
+
+  const fetchSettings = async () => {
+    try {
+      const res = await fetch("/api/settings")
+      const data = await res.json()
+      if (data.success && data.data?.maxFileSize) {
+        setMaxFileSize(data.data.maxFileSize)
+      }
+    } catch (error) {
+      console.error("Error fetching settings:", error)
     }
   }
 
@@ -349,6 +372,43 @@ export default function EditProductPage() {
     reader.readAsDataURL(file)
   }
 
+  const handleProductFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setUploadingFile(true)
+
+    const formDataUpload = new FormData()
+    formDataUpload.append("file", file)
+    formDataUpload.append("type", "product")
+
+    try {
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formDataUpload,
+      })
+
+      const data = await res.json()
+
+      if (data.success) {
+        setNewFile({
+          fileUrl: data.data.fileUrl,
+          fileName: data.data.fileName,
+          fileSize: data.data.fileSize,
+        })
+        toast({ title: "Файл загружен", description: "Нажмите «Сохранить изменения», чтобы заменить файл товара" })
+      } else {
+        toast({ title: "Ошибка", description: data.error, variant: "destructive" })
+      }
+    } catch {
+      toast({ title: "Ошибка загрузки", variant: "destructive" })
+    } finally {
+      setUploadingFile(false)
+      // Иначе повторный выбор того же файла не вызовет onChange.
+      e.target.value = ""
+    }
+  }
+
   const handleCropComplete = async (croppedBlob: Blob) => {
     setUploadingCover(true)
     setImageToCrop(null)
@@ -394,6 +454,13 @@ export default function EditProductPage() {
           categoryId: formData.categoryId,
           coverImage: formData.coverImage || null,
           status: formData.status,
+          ...(newFile
+            ? {
+                fileUrl: newFile.fileUrl,
+                fileName: newFile.fileName,
+                fileSize: newFile.fileSize,
+              }
+            : {}),
         }),
       })
 
@@ -638,26 +705,64 @@ export default function EditProductPage() {
             </CardContent>
           </Card>
 
-          {/* Product File Info (Read-only) */}
+          {/* Product File */}
           <Card>
             <CardHeader>
               <CardTitle>Файл товара</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-3">
               <div className="flex items-center gap-3 p-4 bg-secondary/50 rounded-xl">
-                <FileUp className="h-8 w-8 text-primary" />
-                <div className="flex-1">
-                  <p className="font-medium">{productFile.fileName}</p>
+                <FileUp className="h-8 w-8 text-primary shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium truncate">
+                    {newFile ? newFile.fileName : productFile.fileName}
+                  </p>
                   <p className="text-sm text-muted-foreground">
-                    {formatFileSize(productFile.fileSize)}
+                    {formatFileSize(newFile ? newFile.fileSize : productFile.fileSize)}
                   </p>
                 </div>
-                <div className="text-xs text-muted-foreground">
-                  Только для чтения
-                </div>
+                {newFile && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setNewFile(null)}
+                    title="Отменить замену"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
               </div>
-              <p className="text-sm text-muted-foreground mt-2">
-                Файл товара нельзя изменить после создания
+
+              {newFile ? (
+                <p className="text-sm text-muted-foreground">
+                  Текущий файл: {productFile.fileName}. Он будет заменён после
+                  сохранения изменений.
+                </p>
+              ) : (
+                <label className="flex flex-col items-center justify-center h-32 border-2 border-dashed rounded-xl cursor-pointer hover:bg-secondary/50 transition-colors">
+                  <input
+                    type="file"
+                    className="hidden"
+                    onChange={handleProductFileUpload}
+                    disabled={uploadingFile}
+                  />
+                  {uploadingFile ? (
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                  ) : (
+                    <>
+                      <Upload className="h-8 w-8 text-muted-foreground mb-2" />
+                      <span className="text-sm text-muted-foreground">
+                        Заменить файл (до {maxFileSize}MB)
+                      </span>
+                    </>
+                  )}
+                </label>
+              )}
+
+              <p className="text-sm text-muted-foreground">
+                Новый файл получат все покупатели, включая тех, кто уже купил
+                товар.
               </p>
             </CardContent>
           </Card>

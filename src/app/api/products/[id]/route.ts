@@ -2,21 +2,47 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
 import { z } from "zod"
-import { COVER_IMAGE_PATTERN } from "@/lib/storage"
+import {
+  COVER_IMAGE_PATTERN,
+  isValidProductFileUrl,
+  resolveUploadPath,
+} from "@/lib/storage"
+import { unlink } from "fs/promises"
 import { isSingleVendorMode } from "@/lib/platform-mode"
 import { getPublicProduct } from "@/lib/catalog"
 
-const updateProductSchema = z.object({
-  title: z.string().min(3).max(200).optional(),
-  description: z.string().min(10).max(10000).optional(),
-  price: z.number().int().min(1).max(10_000_000).optional(),
-  categoryId: z.string().optional(),
-  coverImage: z
-    .string()
-    .regex(COVER_IMAGE_PATTERN, "Недопустимый путь к обложке")
-    .optional(),
-  status: z.enum(["DRAFT", "ACTIVE", "INACTIVE"]).optional(),
-})
+const updateProductSchema = z
+  .object({
+    title: z.string().min(3).max(200).optional(),
+    description: z.string().min(10).max(10000).optional(),
+    price: z.number().int().min(1).max(10_000_000).optional(),
+    categoryId: z.string().optional(),
+    coverImage: z
+      .string()
+      .regex(COVER_IMAGE_PATTERN, "Недопустимый путь к обложке")
+      .optional(),
+    status: z.enum(["DRAFT", "ACTIVE", "INACTIVE"]).optional(),
+    // Замена файла товара. fileUrl приходит от клиента, но подставляется
+    // в путь на диске, поэтому принимаем только формат /api/upload.
+    fileUrl: z
+      .string()
+      .refine(isValidProductFileUrl, "Недопустимый путь к файлу")
+      .optional(),
+    fileName: z.string().min(1).max(255).optional(),
+    fileSize: z.number().int().min(0).optional(),
+  })
+  // Имя и размер описывают именно тот файл, что лежит по fileUrl:
+  // порознь они разъехались бы с содержимым.
+  .refine(
+    (data) =>
+      [data.fileUrl, data.fileName, data.fileSize].every(
+        (value) => value === undefined
+      ) ||
+      [data.fileUrl, data.fileName, data.fileSize].every(
+        (value) => value !== undefined
+      ),
+    "Файл товара передаётся вместе с именем и размером"
+  )
 
 export async function GET(
   request: NextRequest,
@@ -87,7 +113,7 @@ export async function PUT(
 
     const product = await prisma.product.findUnique({
       where: { id },
-      select: { sellerId: true },
+      select: { sellerId: true, fileUrl: true },
     })
 
     if (!product) {
@@ -106,6 +132,18 @@ export async function PUT(
 
     const body = await request.json()
     const validatedData = updateProductSchema.parse(body)
+
+    // Новый файл обязан лежать в каталоге того, кто его только что
+    // загрузил: иначе можно было бы подставить чужую загрузку, зная путь.
+    if (
+      validatedData.fileUrl &&
+      !validatedData.fileUrl.startsWith(`${session.user.id}/`)
+    ) {
+      return NextResponse.json(
+        { success: false, error: "Недопустимый путь к файлу" },
+        { status: 400 }
+      )
+    }
 
     // В режиме одного продавца витриной распоряжается администратор.
     // Правку тоже закрываем: иначе в старой карточке можно заменить
@@ -137,6 +175,10 @@ export async function PUT(
       },
     })
 
+    if (validatedData.fileUrl && validatedData.fileUrl !== product.fileUrl) {
+      await removeOrphanedFile(product.fileUrl)
+    }
+
     return NextResponse.json({ success: true, data: updatedProduct })
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -152,6 +194,25 @@ export async function PUT(
       { success: false, error: "Ошибка при обновлении товара" },
       { status: 500 }
     )
+  }
+}
+
+/**
+ * Удаляет с диска файл заменённого товара: после смены fileUrl он уже
+ * никому не отдаётся (скачивание читает путь из карточки товара).
+ * Ошибки не роняют запрос — товар уже обновлён.
+ */
+async function removeOrphanedFile(fileUrl: string) {
+  const stillUsed = await prisma.product.count({ where: { fileUrl } })
+  if (stillUsed > 0) return
+
+  const filePath = resolveUploadPath(fileUrl)
+  if (!filePath) return
+
+  try {
+    await unlink(filePath)
+  } catch (error) {
+    console.error("Не удалось удалить старый файл товара:", error)
   }
 }
 
